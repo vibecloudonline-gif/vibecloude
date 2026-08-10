@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session, delete, select
 
-from database.models import Client, Product, Sale, Settings, User, Tenant, SaleItem, CashMovement, Supplier, Payment, Purchase, AICredential
+from database.models import Client, Product, Sale, Settings, User, Tenant, SaleItem, CashMovement, Supplier, Payment, Purchase, AICredential, TenantDomain
 from database.session import get_session
 from services.auth_service import AuthService
 from services.database_backup_service import create_backup_file, get_local_backup_path, list_local_backups
@@ -549,6 +549,98 @@ def create_tenant(
         raise HTTPException(400, "Failed to create tenant/admin (username or subdomain conflict)")
 
     return {"status": "success", "tenant_id": tenant.id}
+
+
+# --- Dominios custom (Fase 5 del roadmap) ---
+
+@router.get("/tenants/{tenant_id}/domains", response_class=HTMLResponse)
+def tenant_domains_page(
+    tenant_id: int,
+    request: Request,
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant no encontrado")
+    domains = session.exec(select(TenantDomain).where(TenantDomain.tenant_id == tenant_id)).all()
+    settings = SettingsService.get_or_create_settings(session, tenant_id=user.tenant_id)
+    return _templates().TemplateResponse(
+        "tenant_domains.html",
+        {
+            "request": request,
+            "user": user,
+            "tenant": tenant,
+            "domains": domains,
+            "settings": settings,
+            "active_page": "tenants",
+        },
+    )
+
+
+@router.post("/api/tenants/{tenant_id}/domains")
+def add_tenant_domain(
+    tenant_id: int,
+    domain: str = Form(...),
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    import secrets as _secrets
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant no encontrado")
+
+    domain_clean = domain.strip().lower()
+    existing = session.exec(select(TenantDomain).where(TenantDomain.domain == domain_clean)).first()
+    if existing:
+        raise HTTPException(400, "Ese dominio ya está registrado en la plataforma")
+
+    token = _secrets.token_hex(16)
+    td = TenantDomain(tenant_id=tenant_id, domain=domain_clean, verification_token=token, status="pending")
+    session.add(td)
+    session.commit()
+    session.refresh(td)
+    return {"status": "success", "domain": td.domain, "verification_token": td.verification_token}
+
+
+@router.post("/api/tenants/{tenant_id}/domains/{domain_id}/verify")
+async def verify_tenant_domain(
+    tenant_id: int,
+    domain_id: int,
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    from datetime import datetime, timezone
+
+    from services.domain_registrar_service import verify_domain_txt
+
+    td = session.get(TenantDomain, domain_id)
+    if not td or td.tenant_id != tenant_id:
+        raise HTTPException(404, "Dominio no encontrado")
+
+    is_verified = await verify_domain_txt(td.domain, td.verification_token)
+    td.status = "verified" if is_verified else "pending"
+    if is_verified:
+        td.verified_at = datetime.now(timezone.utc)
+    session.add(td)
+    session.commit()
+    return {"status": "success", "domain_status": td.status}
+
+
+@router.delete("/api/tenants/{tenant_id}/domains/{domain_id}")
+def delete_tenant_domain(
+    tenant_id: int,
+    domain_id: int,
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    td = session.get(TenantDomain, domain_id)
+    if not td or td.tenant_id != tenant_id:
+        raise HTTPException(404, "Dominio no encontrado")
+    session.delete(td)
+    session.commit()
+    return {"status": "success"}
 
 
 @router.get("/api/admin/backup")

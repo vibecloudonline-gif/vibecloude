@@ -1,0 +1,59 @@
+{% extends "storefront_base.html" %}
+
+{% block title %}{{ settings.company_name }}{% endblock %}
+
+{% block head %}
+{% if content %}
+<link href="https://fonts.googleapis.com/css2?family={{ content.theme.font_family | replace(' ', '+') }}:wght@400;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --landing-primary: {{ content.theme.primary_color }};
+        --landing-secondary: {{ content.theme.secondary_color }};
+    }
+    .landing-hero {
+        font-family: '{{ content.theme.font_family }}', sans-serif;
+        text-align: center;
+        padding: 60px 24px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, var(--landing-primary), var(--landing-secondary));
+        color: #fff;
+    }
+    .landing-hero h1 { font-size: 2.25rem; margin-bottom: 12px; }
+    .landing-hero p { font-size: 1.1rem; opacity: 0.9; }
+    .landing-cta {
+        display: inline-block; margin-top: 24px; padding: 12px 28px;
+        background: #fff; color: var(--landing-primary); border-radius: 8px;
+        text-decoration: none; font-weight: 700;
+    }
+    .landing-sections {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px; margin-top: 32px;
+    }
+    .landing-section-card {
+        padding: 20px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.08);
+        font-family: '{{ content.theme.font_family }}', sans-serif;
+    }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if not content %}
+<p style="color: #6b7280;">Esta tienda todavía no generó su landing.</p>
+{% else %}
+<div class="landing-hero">
+    <h1>{{ content.hero_title }}</h1>
+    <p>{{ content.hero_subtitle }}</p>
+    <a href="/tienda" class="landing-cta">{{ content.cta_text }}</a>
+</div>
+
+<div class="landing-sections">
+    {% for section in content.sections %}
+    <div class="landing-section-card">
+        <h3>{{ section.title }}</h3>
+        <p>{{ section.body }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

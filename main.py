@@ -1,9 +1,10 @@
 """VibeCloud Cloud SaaS — Main Application (Refactored)"""
 from fastapi import FastAPI, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, func
+from sqlalchemy import text
 from contextlib import asynccontextmanager
 from datetime import datetime, date
 import os
@@ -41,6 +42,7 @@ from routers.superadmin import router as superadmin_router
 from routers.store import router as store_router
 from routers.catalog_import import router as catalog_import_router
 from routers.storefront import router as storefront_router
+from routers.landing_studio import router as landing_studio_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -104,6 +106,7 @@ app.include_router(picking_router)
 app.include_router(wms_router)
 app.include_router(catalog_import_router)
 app.include_router(storefront_router)
+app.include_router(landing_studio_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])
@@ -132,6 +135,18 @@ async def health_check(session: Session = Depends(get_session)):
         services["database"] = f"error: {str(e)}"
         
     return {"status": status, "services": services}
+
+
+@app.get("/ready")
+async def readiness_check(session: Session = Depends(get_session)):
+    """Distinto de /health: si la DB no responde, devuelve 503 -- para que el
+    orquestador (Render/DO) saque la instancia del balanceador en vez de
+    reportarla como sana con un servicio caído."""
+    try:
+        session.execute(text("SELECT 1"))
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "not_ready", "detail": str(e)})
+    return {"status": "ready"}
 
 
 @app.get("/fix-db")

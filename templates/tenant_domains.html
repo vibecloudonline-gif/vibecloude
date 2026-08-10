@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Dominios de {{ tenant.name }} - VibeCloud{% endblock %}
+{% block header_title %}Dominios{% endblock %}
+{% block breadcrumb %}Dominios de {{ tenant.name }}{% endblock %}
+
+{% block content %}
+<a href="/tenants" style="display:inline-block; margin-bottom: 16px;">&larr; Volver a Tenants</a>
+
+<div class="glass-card">
+    <h2>Dominios de {{ tenant.name }}</h2>
+    <p style="color: #6b7280; margin-bottom: 20px;">
+        Además del subdominio gratuito, el tenant puede conectar su propio dominio. Para verificarlo, tiene que
+        crear un registro <strong>TXT</strong> en su proveedor de DNS con este nombre y valor.
+    </p>
+
+    <table style="width: 100%; margin-bottom: 24px;">
+        <thead>
+            <tr><th style="text-align:left;">Dominio</th><th>Estado</th><th>Registro TXT requerido</th><th></th></tr>
+        </thead>
+        <tbody id="domains-tbody">
+            {% for d in domains %}
+            <tr data-domain-id="{{ d.id }}">
+                <td>{{ d.domain }}</td>
+                <td>
+                    {% if d.status == 'verified' %}
+                    <span class="badge badge-success">Verificado</span>
+                    {% else %}
+                    <span class="badge badge-warning">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td style="font-family: monospace; font-size: 0.8rem;">
+                    _vibecloud-verify.{{ d.domain }} = {{ d.verification_token }}
+                </td>
+                <td>
+                    {% if d.status != 'verified' %}
+                    <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="verificarDominio({{ d.id }})">Verificar</button>
+                    {% endif %}
+                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:transparent; border:1px solid #ef4444; color:#ef4444;" onclick="eliminarDominio({{ d.id }})">Eliminar</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align:center; padding: 20px;">Sin dominios conectados</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3 style="margin-bottom: 12px;">Conectar nuevo dominio</h3>
+    <form id="add-domain-form" onsubmit="agregarDominio(event)" style="display: flex; gap: 8px;">
+        <input type="text" id="domain-input" placeholder="miempresa.com" required style="flex: 1;">
+        <button type="submit" class="btn">Agregar</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const tenantId = {{ tenant.id }};
+
+async function agregarDominio(event) {
+    event.preventDefault();
+    const input = document.getElementById('domain-input');
+    const formData = new FormData();
+    formData.append('domain', input.value.trim());
+    const res = await fetch(`/api/tenants/${tenantId}/domains`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) { Swal.fire('Error', data.detail || 'No se pudo agregar', 'error'); return; }
+    window.location.reload();
+}
+
+async function verificarDominio(domainId) {
+    const res = await fetch(`/api/tenants/${tenantId}/domains/${domainId}/verify`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { Swal.fire('Error', data.detail || 'No se pudo verificar', 'error'); return; }
+    if (data.domain_status === 'verified') {
+        Swal.fire('¡Verificado!', 'El dominio quedó activo.', 'success').then(() => window.location.reload());
+    } else {
+        Swal.fire('Todavía no', 'No se encontró el registro TXT. Puede tardar en propagar, probá de nuevo en unos minutos.', 'info');
+    }
+}
+
+async function eliminarDominio(domainId) {
+    const confirm = await Swal.fire({ title: '¿Eliminar dominio?', showCancelButton: true });
+    if (!confirm.isConfirmed) return;
+    await fetch(`/api/tenants/${tenantId}/domains/${domainId}`, { method: 'DELETE' });
+    window.location.reload();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Landing con IA - VibeCloud{% endblock %}
+{% block header_title %}AI Template Studio{% endblock %}
+{% block breadcrumb %}Landing con IA{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <h2>Generá tu landing con IA</h2>
+    <p style="color: #6b7280; margin-bottom: 20px;">
+        Contanos tu idea (a qué se dedica tu negocio, qué estilo te gusta, qué querés destacar) y la IA
+        genera el contenido. No copies textos de otra marca — mejor describí el estilo/rubro y dejá que
+        genere algo propio.
+    </p>
+
+    <form id="landing-form" onsubmit="generarLanding(event)">
+        <textarea id="idea-input" name="idea" rows="4" style="width: 100%; margin-bottom: 12px;"
+            placeholder="Ej: Vendo indumentaria deportiva femenina, quiero algo colorido y juvenil, que transmita energía..."
+            required>{{ landing.prompt_used if landing else '' }}</textarea>
+        <button type="submit" class="btn" id="generar-btn">Generar landing</button>
+        <a href="/landing" target="_blank" class="btn" style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); margin-left: 8px;">Ver landing pública</a>
+    </form>
+
+    <div id="landing-error" style="display: none; margin-top: 16px; color: #ef4444;"></div>
+
+    <div id="landing-preview" style="margin-top: 24px; {% if not landing %}display: none;{% endif %}">
+        <h3 style="margin-bottom: 12px;">Vista previa del contenido generado</h3>
+        <div id="preview-content" class="glass-card" style="background: rgba(0,0,0,0.02);">
+            {% if content %}
+            <div><strong>Título:</strong> <span id="pv-hero-title">{{ content.hero_title }}</span></div>
+            <div style="margin-top: 8px;"><strong>Subtítulo:</strong> <span id="pv-hero-subtitle">{{ content.hero_subtitle }}</span></div>
+            <div style="margin-top: 8px;"><strong>Botón:</strong> <span id="pv-cta">{{ content.cta_text }}</span></div>
+            <div style="margin-top: 8px;"><strong>Colores:</strong>
+                <span style="display:inline-block;width:16px;height:16px;background:{{ content.theme.primary_color }};border-radius:4px;vertical-align:middle;"></span>
+                <span style="display:inline-block;width:16px;height:16px;background:{{ content.theme.secondary_color }};border-radius:4px;vertical-align:middle;"></span>
+                <span id="pv-font">{{ content.theme.font_family }}</span>
+            </div>
+            <div id="pv-sections" style="margin-top: 12px;">
+                {% for s in content.sections %}
+                <div style="margin-bottom: 8px;"><strong>{{ s.title }}:</strong> {{ s.body }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generarLanding(event) {
+    event.preventDefault();
+    const btn = document.getElementById('generar-btn');
+    const errorEl = document.getElementById('landing-error');
+    const idea = document.getElementById('idea-input').value;
+
+    btn.disabled = true;
+    btn.textContent = 'Generando...';
+    errorEl.style.display = 'none';
+
+    try {
+        const formData = new FormData();
+        formData.append('idea', idea);
+        const res = await fetch('/panel/landing/generar', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Error al generar la landing');
+
+        const c = data.content;
+        document.getElementById('landing-preview').style.display = 'block';
+        document.getElementById('preview-content').innerHTML = `
+            <div><strong>Título:</strong> ${c.hero_title}</div>
+            <div style="margin-top:8px;"><strong>Subtítulo:</strong> ${c.hero_subtitle}</div>
+            <div style="margin-top:8px;"><strong>Botón:</strong> ${c.cta_text}</div>
+            <div style="margin-top:8px;"><strong>Fuente:</strong> ${c.theme.font_family}</div>
+            <div id="pv-sections" style="margin-top:12px;"></div>
+        `;
+        const sectionsEl = document.getElementById('pv-sections');
+        c.sections.forEach(s => {
+            const div = document.createElement('div');
+            div.style.marginBottom = '8px';
+            const strong = document.createElement('strong');
+            strong.textContent = s.title + ': ';
+            div.appendChild(strong);
+            div.appendChild(document.createTextNode(s.body));
+            sectionsEl.appendChild(div);
+        });
+        Swal.fire('¡Listo!', 'Landing generada. Podés verla en "Ver landing pública".', 'success');
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generar landing';
+    }
+}
+</script>
+{% endblock %}

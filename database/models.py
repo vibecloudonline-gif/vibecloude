@@ -79,6 +79,30 @@ class Tenant(SQLModel, table=True):
 
 
 # ===========================================================================
+# DOMINIOS CUSTOM (Fase 5 del roadmap -- capa de "hosting provider")
+# ===========================================================================
+
+class TenantDomain(SQLModel, table=True):
+    """
+    Dominio propio conectado por un tenant (además del subdominio gratuito
+    vía BASE_DOMAIN). Verificación por TXT record antes de servir tráfico --
+    ver services/domain_registrar_service.py.
+    """
+    __table_args__ = (
+        UniqueConstraint("domain", name="uq_tenantdomain_domain"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+
+    domain: str = Field(index=True)  # ej. "miempresa.com"
+    verification_token: str
+    status: str = Field(default="pending")  # pending, verified, failed
+    verified_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+# ===========================================================================
 # SETTINGS
 # ===========================================================================
 
@@ -184,10 +208,26 @@ class TenantCatalog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     product_id: int = Field(foreign_key="product.id", index=True)
-    
+
     # Relationship placeholders if needed later
     # tenant: Optional["Tenant"] = Relationship()
     # product: Optional["Product"] = Relationship()
+
+
+class LandingPage(SQLModel, table=True):
+    """
+    Landing page generada por IA (Fase 3 del roadmap, "AI Template Studio").
+    El contenido se guarda como JSON ya validado contra LandingPageContent
+    (services/landing_service.py) -- nunca HTML/CSS crudo generado por el
+    modelo, Regla 1.2 de CLAUDE.md.
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True, unique=True)
+
+    prompt_used: str
+    content_json: str  # LandingPageContent serializado, ya validado
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
 
 class Product(SQLModel, table=True):
     """

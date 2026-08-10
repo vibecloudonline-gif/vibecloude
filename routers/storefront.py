@@ -14,11 +14,23 @@ from sqlmodel import Session, select
 
 from database.models import Product, Sale, Settings, Tenant, TenantCatalog
 from database.session import get_session
+from services.ai_brain_service import ai_brain_service
 from services.storefront_order_service import StorefrontOrderError, create_order
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_public_tenant
 
 router = APIRouter(tags=["Storefront"])
+
+# AlexIO Live en el storefront público solo puede consultar catálogo/stock --
+# nunca metricas de ventas (dato de negocio, no debe verlo un visitante
+# anónimo). Ver services/ai_brain_service.py::chat_response(allowed_tools=).
+ALEXIO_LIVE_ALLOWED_TOOLS = ["consultar_stock", "recomendar_productos"]
+ALEXIO_LIVE_SYSTEM_PROMPT = (
+    "Sos AlexIO, el asistente virtual de la tienda. Ayudás a los visitantes a encontrar "
+    "productos y responder dudas de stock. Tono cercano y breve, en español. "
+    "No inventes precios ni stock -- usá siempre las herramientas para consultar datos reales. "
+    "No tenés acceso a ventas ni facturación, si te preguntan por eso decí que no podés compartir esa información."
+)
 
 
 def _templates():
@@ -237,3 +249,39 @@ def storefront_order_confirmation(
         "storefront_order_confirmation.html",
         {"request": request, "settings": settings, "sale": sale, "cart_count": 0},
     )
+
+
+@router.post("/tienda/alexio/chat")
+async def storefront_alexio_chat(
+    request: Request,
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_public_tenant),
+):
+    payload = await request.json()
+    message = (payload.get("message") or "").strip()
+    if not message:
+        return {"error": "Mensaje vacío"}
+    if len(message) > 500:
+        return {"error": "Mensaje demasiado largo"}
+
+    history = request.session.get("alexio_history", [])
+    # Tope de turnos guardados en sesión, para no acumular indefinidamente.
+    history = history[-10:]
+
+    try:
+        reply = await ai_brain_service.chat_response(
+            session=session,
+            tenant_id=tenant_id,
+            history=history,
+            new_message=message,
+            system_instruction=ALEXIO_LIVE_SYSTEM_PROMPT,
+            allowed_tools=ALEXIO_LIVE_ALLOWED_TOOLS,
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
+
+    history.append({"role": "user", "parts": [{"text": message}]})
+    history.append({"role": "model", "parts": [{"text": reply}]})
+    request.session["alexio_history"] = history[-10:]
+
+    return {"reply": reply}

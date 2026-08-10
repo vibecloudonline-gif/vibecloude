@@ -109,12 +109,20 @@ class AIBrainService:
         history: list,
         new_message: str,
         system_instruction: str = "Eres un asistente virtual de ventas amable.",
-        model_name: str = "gemini-3.5-flash"
+        model_name: str = "gemini-3.5-flash",
+        allowed_tools: list[str] | None = None,
     ) -> str:
         """
         Processes a chat conversation turn with Gemini using cascading model.
         Supports multi-turn tool calling with secure backend-injected tenant_id.
         Deducts credits based on model used.
+
+        allowed_tools: si se pasa, restringe qué herramientas se declaran ante
+        Gemini y cuáles puede ejecutar _execute_tool (doble chequeo). Usado por
+        AlexIO Live en el storefront público para no exponer
+        obtener_metricas_ventas (datos de negocio) a un visitante anónimo --
+        default None conserva el comportamiento actual (panel admin, todas
+        las herramientas).
         """
         # Validate model cascade
         allowed_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.1-pro"]
@@ -188,6 +196,11 @@ class AIBrainService:
             }
         ]
 
+        if allowed_tools is not None:
+            tools[0]["functionDeclarations"] = [
+                decl for decl in tools[0]["functionDeclarations"] if decl["name"] in allowed_tools
+            ]
+
         # Prepare messages format for Gemini
         formatted_contents = []
         for turn in history:
@@ -235,8 +248,13 @@ class AIBrainService:
                     fn_name = fn_call["name"]
                     fn_args = fn_call.get("args", {})
 
-                    # Execute the tool with backend-injected tenant_id
-                    tool_result = await cls._execute_tool(session, tenant_id, fn_name, fn_args)
+                    # Segunda barrera: aunque el schema ya no se lo haya
+                    # ofrecido, nunca ejecutar una tool fuera de allowed_tools.
+                    if allowed_tools is not None and fn_name not in allowed_tools:
+                        tool_result = {"error": f"Tool '{fn_name}' no permitida en este contexto"}
+                    else:
+                        # Execute the tool with backend-injected tenant_id
+                        tool_result = await cls._execute_tool(session, tenant_id, fn_name, fn_args)
 
                     # Add model's functionCall part to history
                     formatted_contents.append({

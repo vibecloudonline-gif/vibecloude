@@ -6,21 +6,33 @@ import os
 from fastapi import Depends, HTTPException, Request, status, Header
 from sqlmodel import Session, select
 
-from database.models import Tenant, User
+from database.models import Tenant, TenantDomain, User
 from database.session import get_session
 from services.settings_service import SettingsService
 
 
 def _resolve_tenant_from_host(host: str, session: Session) -> Optional[int]:
     """
-    If BASE_DOMAIN is set (e.g. "tudominio.com"), resolve tenant by subdomain.
-    Example: acme.tudominio.com -> tenant with subdomain "acme".
+    Resuelve el tenant de dos formas, en este orden:
+    1. Dominio propio verificado del tenant (TenantDomain.status == "verified") --
+       independiente de BASE_DOMAIN, es el dominio custom del cliente (Fase 5).
+    2. Subdominio de BASE_DOMAIN (ej. "tudominio.com" -> acme.tudominio.com
+       resuelve al tenant con subdomain "acme"), si BASE_DOMAIN está configurada.
     """
+    hostname = (host or "").split(":")[0].lower()
+    if not hostname:
+        return None
+
+    custom = session.exec(
+        select(TenantDomain).where(TenantDomain.domain == hostname, TenantDomain.status == "verified")
+    ).first()
+    if custom:
+        return custom.tenant_id
+
     base_domain = os.getenv("BASE_DOMAIN")
     if not base_domain:
         return None
 
-    hostname = (host or "").split(":")[0].lower()
     base_domain = base_domain.lower()
     if hostname == base_domain:
         return None
