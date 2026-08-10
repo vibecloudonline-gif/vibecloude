@@ -46,6 +46,32 @@ def _templates():
     return CompatTemplates(directory="templates")
 
 
+_PLAN_RANK = {"landing": 0, "ecommerce": 1, "full": 2}
+
+
+@router.post("/panel/nav-view")
+def set_nav_view(
+    request: Request,
+    view: str = Form(...),
+    user: User = Depends(require_auth),
+):
+    """
+    Switcher de vista del sidebar (no cambia el plan contratado del tenant,
+    solo que se muestra en esta sesion). Solo puede achicar respecto al plan
+    real: un tenant "full" puede verse como "ecommerce"/"landing", pero uno
+    "landing" no puede verse como "full" -- no tiene esas funciones.
+    """
+    if view not in _PLAN_RANK:
+        raise HTTPException(400, "Vista inválida")
+
+    actual_plan = request.session.get("product_plan", "full")
+    if _PLAN_RANK[view] > _PLAN_RANK.get(actual_plan, 2):
+        raise HTTPException(403, "Tu plan no incluye esa vista")
+
+    request.session["nav_view"] = view
+    return {"status": "success", "view": view}
+
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, user: User = Depends(require_auth), settings: Settings = Depends(get_settings)):
     SettingsService.ensure_admin(user)

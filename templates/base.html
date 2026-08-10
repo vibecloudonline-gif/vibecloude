@@ -26,7 +26,19 @@
                 </a>
             </div>
             
-            {% set plan = request.session.get('product_plan', 'full') %}
+            {% set actual_plan = request.session.get('product_plan', 'full') %}
+            {% set plan = request.session.get('nav_view') or actual_plan %}
+            {% set plan_rank = {'landing': 0, 'ecommerce': 1, 'full': 2} %}
+            {% if user %}
+            <div style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                <label style="display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(255,255,255,0.5); margin-bottom:4px;">Vista</label>
+                <select id="nav-view-select" onchange="cambiarVistaPanel(this.value)" style="width:100%; padding:6px 8px; border-radius:6px; font-size:0.85rem; background:rgba(255,255,255,0.08); color:#fff; border:1px solid rgba(255,255,255,0.15);">
+                    <option value="full" {% if plan == 'full' %}selected{% endif %} {% if plan_rank['full'] > plan_rank[actual_plan] %}disabled{% endif %}>ERP completo</option>
+                    <option value="ecommerce" {% if plan == 'ecommerce' %}selected{% endif %} {% if plan_rank['ecommerce'] > plan_rank[actual_plan] %}disabled{% endif %}>Ecommerce</option>
+                    <option value="landing" {% if plan == 'landing' %}selected{% endif %}>Landing con IA</option>
+                </select>
+            </div>
+            {% endif %}
             <nav class="sidebar-links">
                 <a href="/" class="{% if active_page == 'home' %}active{% endif %}" data-tooltip="Dashboard">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
@@ -155,6 +167,19 @@
     {% block scripts %}{% endblock %}
 
     <script>
+        /* --- Switcher de vista del panel --- */
+        async function cambiarVistaPanel(view) {
+            const formData = new FormData();
+            formData.append('view', view);
+            const res = await fetch('/panel/nav-view', { method: 'POST', body: formData });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.detail || 'No se pudo cambiar la vista');
+                return;
+            }
+            window.location.href = '/';
+        }
+
         /* --- Sidebar Toggle (Mobile) --- */
         (function() {
             const hamburger = document.getElementById('hamburgerBtn');

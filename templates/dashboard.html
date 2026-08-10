@@ -73,7 +73,7 @@
     </div>
 </div>
 
-{% set plan = request.session.get('product_plan', 'full') %}
+{% set plan = request.session.get('nav_view') or request.session.get('product_plan', 'full') %}
 <!-- Quick Access -->
 <div class="quick-access-grid animate-fade-in">
     {% if plan == "full" %}
@@ -118,6 +118,7 @@
     {% endif %}
 </div>
 
+{% if plan in ("full", "ecommerce") %}
 <!-- Ingest Data Section -->
 <div class="glass-card" style="margin-bottom: 24px;">
     <h2 style="margin-bottom: 16px;">Ingresar Datos</h2>
@@ -173,8 +174,11 @@
         </table>
     </div>
 
+    {% if plan == "full" %}
     <div style="margin-top: 24px; text-align: right;">
         <a href="/pos" class="btn">Nueva Venta</a>
     </div>
+    {% endif %}
 </div>
+{% endif %}
 {% endblock %}
