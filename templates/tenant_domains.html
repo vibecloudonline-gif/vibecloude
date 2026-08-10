@@ -44,11 +44,21 @@
         </tbody>
     </table>
 
-    <h3 style="margin-bottom: 12px;">Conectar nuevo dominio</h3>
-    <form id="add-domain-form" onsubmit="agregarDominio(event)" style="display: flex; gap: 8px;">
+    <h3 style="margin-bottom: 12px;">Conectar dominio que el cliente ya tiene</h3>
+    <form id="add-domain-form" onsubmit="agregarDominio(event)" style="display: flex; gap: 8px; margin-bottom: 28px;">
         <input type="text" id="domain-input" placeholder="miempresa.com" required style="flex: 1;">
         <button type="submit" class="btn">Agregar</button>
     </form>
+
+    <h3 style="margin-bottom: 4px;">Comprar un dominio nuevo (NameSilo)</h3>
+    <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 12px;">
+        Busca disponibilidad y lo compra directo por API. Requiere <code>NAMESILO_API_KEY</code> configurada en el servidor.
+    </p>
+    <form id="buy-domain-form" onsubmit="buscarDisponibilidad(event)" style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="buy-domain-input" placeholder="miempresa.com" required style="flex: 1;">
+        <button type="submit" class="btn" id="buscar-btn">Buscar disponibilidad</button>
+    </form>
+    <div id="buy-domain-result"></div>
 </div>
 {% endblock %}
 
@@ -83,6 +93,58 @@ async function eliminarDominio(domainId) {
     if (!confirm.isConfirmed) return;
     await fetch(`/api/tenants/${tenantId}/domains/${domainId}`, { method: 'DELETE' });
     window.location.reload();
+}
+
+async function buscarDisponibilidad(event) {
+    event.preventDefault();
+    const domain = document.getElementById('buy-domain-input').value.trim();
+    const resultEl = document.getElementById('buy-domain-result');
+    const btn = document.getElementById('buscar-btn');
+    btn.disabled = true;
+    resultEl.innerHTML = 'Buscando...';
+
+    try {
+        const res = await fetch(`/api/domains/disponibilidad?dominio=${encodeURIComponent(domain)}`);
+        const data = await res.json();
+        if (!res.ok) {
+            resultEl.innerHTML = `<p style="color:#ef4444;">${data.detail || 'Error al buscar disponibilidad'}</p>`;
+            return;
+        }
+        if (data.available) {
+            resultEl.innerHTML = `
+                <div class="glass-card" style="background: rgba(16,185,129,0.08); display:flex; align-items:center; justify-content:space-between; padding:12px 16px;">
+                    <span><strong>${data.domain}</strong> está disponible</span>
+                    <button class="btn" onclick="comprarDominio('${data.domain}')">Comprar</button>
+                </div>`;
+        } else {
+            resultEl.innerHTML = `<p style="color:#ef4444;">${data.domain} no está disponible.</p>`;
+        }
+    } catch (err) {
+        resultEl.innerHTML = `<p style="color:#ef4444;">Error de conexión.</p>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function comprarDominio(domain) {
+    const confirm = await Swal.fire({
+        title: `¿Comprar ${domain}?`,
+        text: 'Se compra directo por la API de NameSilo, con costo real.',
+        showCancelButton: true,
+        confirmButtonText: 'Comprar',
+    });
+    if (!confirm.isConfirmed) return;
+
+    const formData = new FormData();
+    formData.append('domain', domain);
+    formData.append('years', '1');
+    const res = await fetch(`/api/tenants/${tenantId}/domains/comprar`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+        Swal.fire('Error', data.detail || 'No se pudo comprar el dominio', 'error');
+        return;
+    }
+    Swal.fire('¡Comprado!', `${data.domain} ya está conectado y verificado.`, 'success').then(() => window.location.reload());
 }
 </script>
 {% endblock %}

@@ -656,6 +656,73 @@ def delete_tenant_domain(
     return {"status": "success"}
 
 
+@router.get("/api/domains/disponibilidad")
+async def check_domain_availability(
+    dominio: str,
+    user: User = Depends(require_superadmin),
+):
+    from services.domain_registrar_service import DomainRegistrarError, NameSiloClient
+
+    dominio_clean = dominio.strip().lower()
+    if not dominio_clean or "." not in dominio_clean:
+        raise HTTPException(400, "Dominio inválido")
+
+    try:
+        client = NameSiloClient()
+        disponible = await client.check_availability(dominio_clean)
+    except DomainRegistrarError as exc:
+        raise HTTPException(400, str(exc))
+    return {"domain": dominio_clean, "available": disponible}
+
+
+@router.post("/api/tenants/{tenant_id}/domains/comprar")
+async def buy_tenant_domain(
+    tenant_id: int,
+    domain: str = Form(...),
+    years: int = Form(1),
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    from datetime import datetime, timezone
+
+    from services.domain_registrar_service import DomainRegistrarError, NameSiloClient
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant no encontrado")
+
+    domain_clean = domain.strip().lower()
+    existing = session.exec(select(TenantDomain).where(TenantDomain.domain == domain_clean)).first()
+    if existing:
+        raise HTTPException(400, "Ese dominio ya está registrado en la plataforma")
+
+    try:
+        client = NameSiloClient()
+        disponible = await client.check_availability(domain_clean)
+        if not disponible:
+            raise HTTPException(400, f"{domain_clean} no está disponible para comprar")
+        await client.register_domain(domain_clean, years=years)
+    except DomainRegistrarError as exc:
+        raise HTTPException(400, f"Error al comprar el dominio: {exc}")
+
+    # Lo compramos nosotros vía la API -- ya lo controlamos, no hace falta
+    # el circuito de verificación por TXT que sí aplica a un dominio que el
+    # tenant ya tenía de antes.
+    import secrets as _secrets
+
+    td = TenantDomain(
+        tenant_id=tenant_id,
+        domain=domain_clean,
+        verification_token=_secrets.token_hex(16),
+        status="verified",
+        verified_at=datetime.now(timezone.utc),
+    )
+    session.add(td)
+    session.commit()
+    session.refresh(td)
+    return {"status": "success", "domain": td.domain}
+
+
 @router.post("/api/tenants/{tenant_id}/plan")
 def update_tenant_plan(
     tenant_id: int,
