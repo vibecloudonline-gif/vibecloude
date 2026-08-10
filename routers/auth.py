@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from core.config import settings as app_settings
 from core.limiter import limiter
-from database.models import Settings, User
+from database.models import Settings, Tenant, User
 from database.session import get_session
 from services.auth_service import AuthService
 from web.compat_templates import CompatTemplates
@@ -45,6 +45,8 @@ def login(
             "login.html", {"request": request, "error": "Credenciales inválidas", "settings": settings}
         )
     request.session["user_id"] = user.id
+    tenant = session.get(Tenant, user.tenant_id) if user.tenant_id else None
+    request.session["product_plan"] = tenant.product_plan if tenant else "full"
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
     return RedirectResponse("/", status_code=302)

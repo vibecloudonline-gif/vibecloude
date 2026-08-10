@@ -11,7 +11,11 @@ from datetime import datetime
 router = APIRouter(prefix="/api/v1/superadmin", tags=["SuperAdmin Operations"])
 
 def require_superadmin_jwt(user: User = Depends(get_current_user_jwt)) -> User:
-    if user.role != "admin" or user.tenant_id != 1:
+    # Antes chequeaba role == "admin" and tenant_id == 1, inconsistente con el
+    # resto del sistema (web/dependencies.py::require_superadmin usa el rol
+    # "superadmin" real). Eso permitia que un admin comun del tenant 1 entrara
+    # a estos endpoints, y bloqueaba a un superadmin real de otro tenant_id.
+    if user.role != "superadmin":
         raise HTTPException(status_code=403, detail="Superadmin required")
     return user
 

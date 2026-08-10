@@ -74,6 +74,12 @@ class Tenant(SQLModel, table=True):
     ai_tier: str = Field(default="free")
     ai_credits: int = Field(default=100)
 
+    # Que le mostramos en el panel: "landing" (solo AI Template Studio),
+    # "ecommerce" (catalogo/tienda, sin POS fisico/caja/WMS), "full" (ERP
+    # completo, comportamiento historico -- default para no romper tenants
+    # existentes).
+    product_plan: str = Field(default="full")
+
     users: List["User"] = Relationship(sa_relationship=relationship("User", back_populates="tenant"))
     settings: List["Settings"] = Relationship(sa_relationship=relationship("Settings", back_populates="tenant"))
 

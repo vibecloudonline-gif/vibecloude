@@ -19,8 +19,10 @@ if DATABASE_URL and DATABASE_URL.startswith("http"):
     print("="*50 + "\n")
     raise ValueError("Configuración incorrecta: DATABASE_URL no puede ser una dirección https://")
 
-if DATABASE_URL:
-    # Debug print to verify correct URL usage (masking password)
+if DATABASE_URL and os.getenv("ENVIRONMENT", "development").lower() != "production":
+    # Debug print to verify correct URL usage (masking password) -- solo fuera
+    # de produccion: host/usuario de la DB son informacion util para un
+    # atacante si los logs de produccion se filtran o son compartidos.
     try:
         from sqlalchemy.engine.url import make_url
         u = make_url(DATABASE_URL)

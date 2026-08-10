@@ -260,13 +260,19 @@ def set_ai_key(
     user: User = Depends(require_auth),
     tenant_id: int = Depends(get_tenant),
 ):
+    # FIX: el campo real del modelo es api_key_enc (cifrado con Fernet) --
+    # antes esto escribia a un atributo .api_key que no existe en el modelo,
+    # asi que la key nunca quedaba realmente persistida.
+    from database.models import encrypt_api_key
+
     SettingsService.ensure_admin(user)
+    encrypted = encrypt_api_key(api_key.strip())
     cred = session.exec(select(AICredential).where(AICredential.tenant_id == tenant_id)).first()
     if cred:
-        cred.api_key = api_key.strip()
+        cred.api_key_enc = encrypted
         cred.provider = provider
     else:
-        cred = AICredential(tenant_id=tenant_id, api_key=api_key.strip(), provider=provider)
+        cred = AICredential(tenant_id=tenant_id, api_key_enc=encrypted, provider=provider)
     session.add(cred)
     session.commit()
     return {"status": "ok"}
@@ -430,9 +436,12 @@ def ai_chat(
     if not question:
         raise HTTPException(400, "Pregunta vacía")
 
+    from database.models import decrypt_api_key
+
     cred = session.exec(select(AICredential).where(AICredential.tenant_id == tenant_id)).first()
-    if not cred or not cred.api_key:
+    if not cred or not cred.api_key_enc:
         raise HTTPException(400, "Configura tu API key de Gemini en Configuración > IA")
+    plain_api_key = decrypt_api_key(cred.api_key_enc)
 
     # Contexto breve: ventas últimas 7 días, top 3 productos, caja hoy
     today = date.today()
@@ -458,7 +467,7 @@ def ai_chat(
 
     try:
         res = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={cred.api_key}",
+            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={plain_api_key}",
             json={
                 "contents": [
                     {"role": "user", "parts": [{"text": system_prompt}]},
@@ -469,7 +478,7 @@ def ai_chat(
             timeout=10,
         )
         if res.status_code == 404:
-            raise HTTPException(400, "Revisa el modelo o la API key de Gemini (404). Usa gemini-2.0-flash-exp.")
+            raise HTTPException(400, "Revisa el modelo o la API key de Gemini (404).")
         res.raise_for_status()
         data = res.json()
         text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
@@ -514,6 +523,7 @@ def create_tenant(
     admin_username: str = Form(...),
     admin_password: str = Form(...),
     admin_full_name: Optional[str] = Form(None),
+    product_plan: str = Form("full"),
     session: Session = Depends(get_session),
     user: User = Depends(require_superadmin),
 ):
@@ -523,7 +533,10 @@ def create_tenant(
         if existing:
             raise HTTPException(400, "Subdomain already in use")
 
-    tenant = Tenant(name=name.strip(), subdomain=sub)
+    if product_plan not in ("full", "ecommerce", "landing"):
+        raise HTTPException(400, "product_plan inválido")
+
+    tenant = Tenant(name=name.strip(), subdomain=sub, product_plan=product_plan)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -641,6 +654,24 @@ def delete_tenant_domain(
     session.delete(td)
     session.commit()
     return {"status": "success"}
+
+
+@router.post("/api/tenants/{tenant_id}/plan")
+def update_tenant_plan(
+    tenant_id: int,
+    product_plan: str = Form(...),
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    if product_plan not in ("full", "ecommerce", "landing"):
+        raise HTTPException(400, "product_plan inválido")
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant no encontrado")
+    tenant.product_plan = product_plan
+    session.add(tenant)
+    session.commit()
+    return {"status": "success", "product_plan": tenant.product_plan}
 
 
 @router.get("/api/admin/backup")

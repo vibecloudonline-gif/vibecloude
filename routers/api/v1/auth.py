@@ -30,49 +30,20 @@ class LogoutRequest(BaseModel):
 
 @router.post("/auth/login", response_model=TokenResponse)
 def login(req: LoginRequest, session: Session = Depends(get_session)):
+    # El usuario admin/superadmin ya se crea y se sincroniza contra ADMIN_PASSWORD /
+    # SUPERADMIN_PASSWORD en cada arranque (AuthService.create_default_user_and_settings,
+    # llamado desde core/startup.py) -- mismo criterio que routers/auth.py: no hace falta
+    # ni es seguro un segundo camino que compare password en texto plano contra env vars.
     user = session.exec(select(User).where(User.username == req.username)).first()
-    
-    # 1. Eliminar fallbacks hardcodeados; usar estricta validación por entorno o hash DB
-    import os
-    admin_email = os.getenv("ADMIN_EMAIL")
-    admin_password = os.getenv("ADMIN_PASSWORD")
 
-    is_override = False
-    if admin_email and admin_password:
-        if req.username.strip() == admin_email.strip() and req.password.strip() == admin_password.strip():
-            is_override = True
-
-    # 2. Crear usuario si no existe pero la clave maestra de env es correcta
-    if not user and is_override:
-        from database.models import Tenant
-        from services.auth_service import AuthService
-        tenant_id = session.exec(select(Tenant.id).order_by(Tenant.id)).first() or 1
-        role = "admin"
-        user = User(
-            username=req.username,
-            password_hash=AuthService.get_password_hash(req.password),
-            role=role,
-            tenant_id=tenant_id,
-            is_active=True
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
-
-    if not user or not user.is_active or user.is_deleted:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas"
-        )
-        
     from services.auth_service import AuthService
-    if not is_override and not AuthService.verify_password(req.password, user.password_hash):
+
+    if not user or not user.is_active or user.is_deleted or not AuthService.verify_password(req.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Credenciales inválidas"
         )
-    
+
     from services.jwt_service import create_access_token, create_refresh_token, hash_refresh_token
     access = create_access_token(user.id, user.tenant_id, user.role)
     raw_refresh = create_refresh_token()
