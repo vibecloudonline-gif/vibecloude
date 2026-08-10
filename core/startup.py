@@ -19,7 +19,12 @@ async def lifespan(app: FastAPI):
         alembic_cfg = Config("alembic.ini")
         db_url = os.getenv("DATABASE_URL")
         if db_url:
-            alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+            # alembic.config.Config usa configparser por debajo, que interpreta
+            # '%' como caracter de interpolacion (ej. '%(algo)s'). Si la password
+            # tiene un caracter especial url-encodeado (ej. '$' -> '%24'), rompe
+            # con "invalid interpolation syntax" y la migracion nunca corre.
+            # Hay que escapar '%' como '%%' antes de setear la opcion.
+            alembic_cfg.set_main_option("sqlalchemy.url", db_url.replace("%", "%%"))
         command.upgrade(alembic_cfg, "head")
         logger.info("Alembic migrations completed successfully.")
     except Exception as e:
