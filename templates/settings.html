@@ -1,0 +1,807 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración - VibeCloud (v2.5){% endblock %}
+
+{% block content %}
+<div class="glass-card animate-fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Configuración del Sistema</h2>
+        <span class="badge badge-success">v2.6 Stable</span>
+    </div>
+
+    <!-- Tabs -->
+    <div class="nav-links" style="margin-bottom: 32px; display: inline-flex;">
+        <button onclick="switchTab('general')" id="tab-general" class="tab-btn active btn-secondary">Sistema</button>
+        <button onclick="switchTab('users')" id="tab-users" class="tab-btn btn-secondary">Usuarios</button>
+        <button onclick="switchTab('import')" id="tab-import" class="tab-btn btn-secondary">Importación</button>
+        <button onclick="switchTab('taxes')" id="tab-taxes" class="tab-btn btn-secondary">Impuestos</button>
+        <button onclick="switchTab('backup')" id="tab-backup" class="tab-btn btn-secondary">Respaldo</button>
+        <button onclick="switchTab('security')" id="tab-security" class="tab-btn btn-secondary">Seguridad</button>
+        <button onclick="switchTab('ai')" id="tab-ai" class="tab-btn btn-secondary">IA</button>
+        <button onclick="switchTab('medusa')" id="tab-medusa" class="tab-btn btn-secondary">Tienda Online</button>
+    </div>
+
+    <!-- GENERAL SETTINGS -->
+    <div id="content-general" class="tab-content">
+        <h3 style="margin-bottom: 20px;">Personalización y General</h3>
+        <form onsubmit="updateSettings(event)" style="max-width: 600px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label>Nombre de la Empresa</label>
+                    <input type="text" id="s-company" name="company_name" required value="" class="form-input">
+                </div>
+                <div>
+                    <label>Tema Visual (Look & Feel)</label>
+                    <select id="s-theme" name="ui_theme" class="form-input">
+                        <option value="standard">Standard (Corporativo)</option>
+                        <option value="midnight">Midnight Glass (Premium Dark)</option>
+                        <option value="minimalist">Minimalista (Blanco y Negro)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Plantilla de Tienda Online (Storefront)</label>
+                    <select id="s-storefront-template" name="storefront_template" class="form-input" style="border: 2px solid var(--primary-color); font-weight: bold;">
+                        <option value="elegante">🩵 Elegante (Celeste, Blanco y Naranja - Default)</option>
+                        <option value="urbano">🖤 Urbano (Streetwear Oscuro y Dorado)</option>
+                        <option value="natural">🌿 Natural (Salvia, Beige y Orgánico)</option>
+                        <option value="tech">⚡ Tech (Futurista, Azul Eléctrico y Glass)</option>
+                    </select>
+                </div>
+            </div>
+
+
+            <label style="display: block; margin-bottom: 8px; margin-top: 16px; font-weight: 500;">Impresora Predeterminada (Windows)</label>
+            <input type="text" id="s-printer" name="printer_name" placeholder="Ej. EPSON TM-T20II" class="form-input">
+
+            <label style="display: block; margin-bottom: 8px; margin-top: 16px; font-weight: 500;">Logo de la Empresa (opcional)</label>
+            <input type="file" id="s-logo" name="logo_file" accept="image/*" class="form-input" style="padding: 8px;">
+
+
+            <h4 style="margin-top: 24px; margin-bottom: 12px; border-top: 1px solid #eee; padding-top: 16px;">
+                Configuración de Etiquetas</h4>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Ancho (mm)</label>
+                    <input type="number" id="s-label-w" name="label_width_mm" required placeholder="60"
+                        class="form-input">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Alto (mm)</label>
+                    <input type="number" id="s-label-h" name="label_height_mm" required placeholder="40"
+                        class="form-input">
+                </div>
+            </div>
+            <p style="font-size: 0.8em; color: #666; margin-top: 8px;">
+                Estándar: 60x40mm. Otros comunes: 55x44mm, 50x25mm, 100x60mm.
+            </p>
+
+            <button type="submit" class="btn" style="margin-top: 24px;">Guardar Cambios</button>
+        </form>
+    </div>
+
+    <!-- AI -->
+    <div id="content-ai" class="tab-content" style="display: none;">
+        <h3 style="margin-bottom: 12px;">Asistente IA (Gemini Flash)</h3>
+        <p>Guarda la API key de Gemini para este tenant y prueba el asistente.</p>
+        <form id="ai-key-form" onsubmit="saveAIKey(event)" style="max-width: 400px;">
+            <label>API Key de Gemini</label>
+            <input type="password" id="ai-key" required placeholder="AIza...">
+            <button type="submit" class="btn" style="margin-top: 8px;">Guardar</button>
+            <button type="button" class="btn btn-secondary" style="margin-top: 8px; margin-left: 8px;" onclick="testAI()">Probar con ejemplo</button>
+        </form>
+        <div id="ai-key-msg" style="margin-top: 12px; color:#0f766e; font-weight:600;"></div>
+    </div>
+
+    <!-- SECURITY -->
+    <div id="content-security" class="tab-content" style="display: none;">
+        <h3 style="margin-bottom: 12px;">Seguridad</h3>
+        <p style="margin-bottom: 16px;">Cambia tu clave o reinicia la de otro usuario (solo admin).</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+            <form id="form-change-pass" class="stacked-form glass-card" onsubmit="changeOwnPass(event)">
+                <h4>Mi contraseña</h4>
+                <label>Clave actual</label>
+                <input type="password" id="curr-pass" required>
+                <label>Nueva clave</label>
+                <input type="password" id="new-pass" required placeholder="Mínimo 12 chars, may/min/num/símbolo">
+                <label>Confirmar clave</label>
+                <input type="password" id="new-pass-2" required>
+                <button type="submit" class="btn" style="margin-top: 12px;">Actualizar mi clave</button>
+            </form>
+
+            <form id="form-reset-pass" class="stacked-form glass-card" onsubmit="resetUserPass(event)">
+                <h4>Reset para otro usuario</h4>
+                <label>ID de usuario</label>
+                <input type="number" id="reset-user-id" required min="1">
+                <label>Nueva clave</label>
+                <input type="password" id="reset-pass" required placeholder="Mínimo 12 chars, may/min/num/símbolo">
+                <button type="submit" class="btn btn-secondary" style="margin-top: 12px;">Resetear contraseña</button>
+                <small>Solo administradores pueden ejecutar este reset.</small>
+            </form>
+        </div>
+        <div id="security-msg" style="margin-top:12px;color:#0f766e;font-weight:600;"></div>
+    </div>
+    <!-- USERS -->
+    <div id="content-users" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+            <h3>Gestión de Usuarios</h3>
+            <button onclick="openUserModal()" class="btn">+ Nuevo Usuario</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="users-table">
+                    <!-- JS populated -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAXES -->
+    <div id="content-taxes" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+            <h3>Impuestos y Tasas (Argentina)</h3>
+            <button onclick="openTaxModal()" class="btn">+ Nuevo Impuesto</button>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Alícuota (%)</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="taxes-table">
+                    <!-- JS populated -->
+                </tbody>
+            </table>
+        </div>
+        <p style="color: #64748b; font-size: 0.9em; margin-top: 16px;">
+            Estos impuestos se pueden aplicar opcionalmente a los productos o tickets.
+        </p>
+    </div>
+
+    <!-- IMPORT -->
+    <div id="content-import" class="tab-content" style="display: none;">
+        <h3 style="margin-bottom: 16px;">Importación Masiva (Excel)</h3>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Products Import -->
+            <div style="border: 2px dashed #cbd5e1; padding: 24px; border-radius: 12px; text-align: center;">
+                <h4>Productos</h4>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">
+                    Columnas requeridas: Name, Price, Stock<br>
+                    Opcionales: Barcode, Category, Cost, Description, CantBulto
+                </p>
+                <form onsubmit="importProducts(event)">
+                    <input type="file" name="file" accept=".xlsx" required style="margin-bottom: 16px;">
+                    <button type="submit" class="btn" style="width: 100%;">Subir Productos</button>
+                </form>
+            </div>
+
+            <!-- Clients Import -->
+            <div style="border: 2px dashed #cbd5e1; padding: 24px; border-radius: 12px; text-align: center;">
+                <h4>Clientes</h4>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">
+                    Columnas requeridas: Name<br>
+                    Opcionales: Phone, Email, Address
+                </p>
+                <form onsubmit="importClients(event)">
+                    <input type="file" name="file" accept=".xlsx" required style="margin-bottom: 16px;">
+                    <button type="submit" class="btn" style="width: 100%;">Subir Clientes</button>
+                </form>
+            </div>
+
+            <!-- Magic Button (Seed) -->
+            <div
+                style="grid-column: span 2; border: 2px dashed #a78bfa; background: #f5f3ff; padding: 24px; border-radius: 12px; text-align: center;">
+                <h4 style="color: #7c3aed;">🪄 Botón Mágico (Datos de Prueba)</h4>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 16px;">
+                    Si se borró la base de datos (por actualización), usa esto para cargar productos de ejemplo al
+                    instante.
+                </p>
+                <button onclick="seedData()" class="btn" style="background-color: #7c3aed; color: white;">
+                    Restaurar Productos de Prueba
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKUP -->
+    <div id="content-backup" class="tab-content" style="display: none;">
+        <h3 style="margin-bottom: 16px;">Respaldo de Base de Datos</h3>
+        <p style="color: #64748b; margin-bottom: 24px;">Genere snapshots comprimidos de la base y descárguelos para
+            recuperación ante fallas (compatible con despliegues en Supabase).</p>
+
+        <div style="display:flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+            <button onclick="createDbBackup()" class="btn" style="background-color:#0f172a;">💾 Generar backup
+                (.json.gz)</button>
+            <a href="/api/backup" target="_blank" class="btn" style="text-decoration:none; background:#334155;">Descarga
+                rápida JSON</a>
+            <form id="restore-form" onsubmit="restoreBackup(event)" style="display:flex; gap:8px; align-items:center;">
+                <input type="file" id="restore-file" accept=".json,.gz" required>
+                <button type="submit" class="btn btn-secondary">Restaurar JSON/.gz</button>
+            </form>
+        </div>
+
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0;">
+            <h4 style="margin-bottom: 12px; color: #ef4444;">⚠️ Restaurar Sistema</h4>
+            <p style="color: #64748b; font-size: 0.9em; margin-bottom: 16px;">
+                Cargue un archivo (.json o .json.gz) generado por la opción "Generar backup".
+                <strong>Esta acción borrará los datos actuales y restaurará el sistema al punto del backup.</strong>
+            </p>
+            <form onsubmit="restoreSystem(event)" style="display:flex; gap: 12px; align-items:flex-end;">
+                <div style="flex-grow: 1;">
+                    <label style="display:block; font-size: 0.8em; margin-bottom: 4px; font-weight: bold;">Archivo de
+                        Backup</label>
+                    <input type="file" name="file" accept=".json,.json.gz,application/json,application/gzip" required
+                        style="padding: 10px; border: 1px solid #ccc; width: 100%; border-radius: 8px;">
+                </div>
+                <button type="submit" class="btn" style="background-color: #ef4444; height: 42px;">Restaurar</button>
+            </form>
+        </div>
+
+        <h4 style="margin-top: 32px; margin-bottom: 12px;">Historial Local de Backups</h4>
+
+        <div id="backup-list"
+            style="font-size: 0.9rem; color:#334155; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            Cargando backups...
+        </div>
+        <div id="backup-msg" style="margin-top:8px; color:#0f766e; font-weight:600;"></div>
+    </div>
+
+    <!-- MEDUSA SYNC -->
+    <div id="content-medusa" class="tab-content" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3>Sincronización B2B (Medusa)</h3>
+            <div id="medusa-status-badge" class="badge">Comprobando conexión...</div>
+        </div>
+        
+        <div class="glass-card" style="margin-bottom: 24px;">
+            <h4>Configuración B2B</h4>
+            <p style="color: #64748b; margin-bottom: 16px;">El descuento base para clientes mayoristas (por defecto 30%).</p>
+            <form id="medusa-config-form" style="max-width: 400px;">
+                <label>Descuento Mayorista (%)</label>
+                <input type="number" id="medusa-discount" name="medusa_b2b_discount" class="form-input" placeholder="30" value="30">
+                <button type="button" class="btn" style="margin-top: 12px;">Guardar Configuración</button>
+            </form>
+        </div>
+
+        <div class="glass-card">
+            <h4>Acciones de Sincronización</h4>
+            <p style="color: #64748b; margin-bottom: 16px;">Sincronizar el catálogo local hacia la Tienda Online.</p>
+            <button onclick="syncAllMedusa()" id="btn-sync-all" class="btn" style="background-color: #7950f2; color: white;">
+                Sincronizar Todo (Batch)
+            </button>
+            <button onclick="processMedusaQueue()" id="btn-process-queue" class="btn btn-secondary" style="margin-left: 8px;">
+                Procesar Cola Pendiente
+            </button>
+            
+            <h5 style="margin-top: 24px; margin-bottom: 8px;">Cola de Errores Recientes</h5>
+            <div id="sync-queue-table" style="font-size: 0.9rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                Cargando cola...
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Add User Modal -->
+<div id="user-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;">
+    <div class="glass-card" style="width: 100%; max-width: 400px; background: white;">
+        <h3 style="margin-bottom: 16px;">Nuevo Usuario</h3>
+        <form onsubmit="createUser(event)">
+            <label style="display: block; margin-bottom: 8px;">Username</label>
+            <input type="text" name="username" required class="form-input">
+            <label style="display: block; margin-bottom: 8px;">Password</label>
+            <input type="password" name="password" required class="form-input">
+            <label style="display: block; margin-bottom: 8px;">Nombre Completo</label>
+            <input type="text" name="full_name" class="form-input">
+            <label style="display: block; margin-bottom: 8px;">Rol</label>
+            <select name="role" required
+                style="width: 100%; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e5e7eb;">
+                <option value="cashier">Cajero (Limitado)</option>
+                <option value="admin">Administrador (Total)</option>
+            </select>
+            <div style="text-align: right;">
+                <button type="button" onclick="document.getElementById('user-modal').style.display='none'" class="btn"
+                    style="background: #999;">Cancelar</button>
+                <button type="submit" class="btn">Crear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Tax Modal -->
+<div id="tax-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;">
+    <div class="glass-card" style="width: 100%; max-width: 400px; background: white;">
+        <h3 style="margin-bottom: 16px;">Nuevo Impuesto</h3>
+        <form onsubmit="createTax(event)">
+            <label style="display: block; margin-bottom: 8px;">Nombre (ej. IVA 21%)</label>
+            <input type="text" name="name" required placeholder="IVA General" class="form-input">
+            <label style="display: block; margin-bottom: 8px;">Alícuota (ej. 0.21 para 21%)</label>
+            <input type="number" step="0.001" name="rate" required placeholder="0.21" class="form-input">
+            <div style="text-align: right; margin-top: 16px;">
+                <button type="button" onclick="document.getElementById('tax-modal').style.display='none'" class="btn"
+                    style="background: #999;">Cancelar</button>
+                <button type="submit" class="btn">Crear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const currentUserId = {{ user.id }};
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(el => {
+            el.style.borderBottomColor = 'transparent';
+            el.style.color = '#666';
+            el.classList.remove('active');
+        });
+
+        document.getElementById('content-' + tab).style.display = 'block';
+        const btn = document.getElementById('tab-' + tab);
+        btn.style.borderBottomColor = 'var(--primary-color)';
+        btn.style.color = 'var(--primary-color)';
+        btn.classList.add('active');
+
+        if (tab === 'users') loadUsers();
+        if (tab === 'taxes') loadTaxes();
+        if (tab === 'backup') loadBackupFiles();
+        if (tab === 'security') document.getElementById('security-msg').textContent = '';
+        if (tab === 'ai') loadAIKey();
+        if (tab === 'medusa') {
+            checkMedusaStatus();
+            loadSyncQueue();
+        }
+    }
+
+    // --- Security ---
+    async function changeOwnPass(e) {
+        e.preventDefault();
+        const curr = document.getElementById('curr-pass').value;
+        const n1 = document.getElementById('new-pass').value;
+        const n2 = document.getElementById('new-pass-2').value;
+        if (n1 !== n2) return showSecurityMsg('Las claves no coinciden', true);
+        const data = new FormData();
+        data.append('current_password', curr);
+        data.append('new_password', n1);
+        const res = await fetch('/api/users/change-password', { method: 'POST', body: data });
+        if (res.ok) {
+            showSecurityMsg('Clave actualizada. Vuelve a iniciar sesión.', false);
+            setTimeout(() => window.location = '/logout', 1200);
+        } else {
+            const txt = await res.text();
+            showSecurityMsg(extractErr(txt), true);
+        }
+    }
+
+    async function resetUserPass(e) {
+        e.preventDefault();
+        const uid = document.getElementById('reset-user-id').value;
+        const pwd = document.getElementById('reset-pass').value;
+        const data = new FormData();
+        data.append('new_password', pwd);
+        const res = await fetch(`/api/users/${uid}/reset-password`, { method: 'POST', body: data });
+        if (res.ok) {
+            showSecurityMsg('Clave reseteada para el usuario ID ' + uid, false);
+        } else {
+            const txt = await res.text();
+            showSecurityMsg(extractErr(txt), true);
+        }
+    }
+
+    function prefillReset(id, username) {
+        document.getElementById('reset-user-id').value = id;
+        document.getElementById('reset-pass').focus();
+        showSecurityMsg('Resetearás la clave de ' + username, false);
+        switchTab('security');
+    }
+
+    function showSecurityMsg(msg, isError) {
+        const el = document.getElementById('security-msg');
+        el.style.color = isError ? '#b91c1c' : '#0f766e';
+        el.textContent = msg;
+    }
+
+    // --- AI ---
+    async function loadAIKey() {
+        const res = await fetch('/api/ai/key');
+        const data = await res.json();
+        const msg = document.getElementById('ai-key-msg');
+        msg.style.color = '#0f766e';
+        msg.textContent = data.exists ? 'API key cargada para este tenant.' : 'Aún no configurada.';
+    }
+
+    async function saveAIKey(e) {
+        e.preventDefault();
+        const key = document.getElementById('ai-key').value;
+        const fd = new FormData();
+        fd.append('api_key', key);
+        const res = await fetch('/api/ai/key', { method: 'POST', body: fd });
+        const msg = document.getElementById('ai-key-msg');
+        if (res.ok) {
+            msg.style.color = '#0f766e';
+            msg.textContent = 'Guardada. El asistente ya puede responder.';
+            document.getElementById('ai-key').value = '';
+        } else {
+            msg.style.color = '#b91c1c';
+            msg.textContent = 'Error al guardar';
+        }
+    }
+
+    async function testAI() {
+        const msgBox = document.getElementById('ai-key-msg');
+        try {
+            const res = await fetch('/api/ai/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: 'Dame un resumen de ventas de los últimos 7 días' })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            msgBox.style.color = '#0f766e';
+            msgBox.textContent = 'Respuesta: ' + data.answer;
+        } catch (err) {
+            msgBox.style.color = '#b91c1c';
+            msgBox.textContent = 'Error: ' + err.message;
+        }
+    }
+
+    // --- Users ---
+    async function loadUsers() {
+        const res = await fetch('/api/users');
+        const users = await res.json();
+        const tbody = document.getElementById('users-table');
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td>${u.username}</td>
+                <td>${u.full_name || '-'}</td>
+                <td><span class="badge ${u.role === 'admin' || u.role === 'superadmin' ? 'admin' : ''}">${u.role}</span></td>
+                <td>
+                    ${u.id !== currentUserId ? `
+                    <button onclick="deleteUser(${u.id})" style="color: red; border:none; background:none; cursor:pointer;">Eliminar</button>
+                    ` : ''}
+                    <button onclick="prefillReset(${u.id}, '${u.username}')" style="margin-left:8px; border:none; background:none; color:#0f766e; cursor:pointer;">Reset clave</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openUserModal() {
+        const form = document.querySelector('#user-modal form');
+        form.reset();
+        form.querySelector('input[name="username"]').value = '';
+        form.querySelector('input[name="password"]').value = '';
+        form.querySelector('input[name="full_name"]').value = '';
+        form.querySelector('select[name="role"]').value = 'admin';
+        document.getElementById('user-modal').style.display = 'flex';
+    }
+
+    async function createUser(e) {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const res = await fetch('/api/users', { method: 'POST', body: data });
+        if (res.ok) {
+            e.target.reset();
+            document.getElementById('user-modal').style.display = 'none';
+            loadUsers();
+        } else alert("Error creando usuario (¿Username duplicado?)");
+    }
+
+    async function deleteUser(id) {
+        if (!confirm("¿Eliminar usuario?")) return;
+        await fetch('/api/users/' + id, { method: 'DELETE' });
+        loadUsers();
+    }
+
+    // --- Taxes ---
+    async function loadTaxes() {
+        const res = await fetch('/api/taxes');
+        const taxes = await res.json();
+        const tbody = document.getElementById('taxes-table');
+        tbody.innerHTML = taxes.map(t => `
+        <tr>
+                <td>${t.name}</td>
+                <td>${(t.rate * 100).toFixed(2)}%</td>
+                <td>
+                    <button onclick="deleteTax(${t.id})" style="color: red; border:none; background:none; cursor:pointer;">Eliminar</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function openTaxModal() { document.getElementById('tax-modal').style.display = 'flex'; }
+
+    async function createTax(e) {
+        e.preventDefault();
+        const data = new FormData(e.target);
+        const res = await fetch('/api/taxes', { method: 'POST', body: data });
+        if (res.ok) {
+            e.target.reset();
+            document.getElementById('tax-modal').style.display = 'none';
+            loadTaxes();
+        } else alert("Error al crear impuesto");
+    }
+
+    async function deleteTax(id) {
+        if (!confirm("¿Eliminar impuesto?")) return;
+        await fetch('/api/taxes/' + id, { method: 'DELETE' });
+        loadTaxes();
+    }
+
+    // --- Import ---
+    async function importProducts(e) {
+        e.preventDefault();
+        if (!confirm("Esto IMPORTARÁ productos desde el Excel. ¿Continuar?")) return;
+
+        const data = new FormData(e.target);
+        const btn = e.target.querySelector('button');
+        const originalText = btn.innerText;
+        btn.disabled = true; btn.innerText = "Subiendo...";
+
+        try {
+            const res = await fetch('/api/import/products', { method: 'POST', body: data });
+            const result = await res.json();
+            alert(`Importación completada.\nAgregados: ${result.added}\nActualizados: ${result.updated}\nErrores: ${result.errors.length}`);
+        } catch (err) {
+            alert("Error en la importación");
+        } finally {
+            btn.disabled = false; btn.innerText = originalText;
+        }
+    }
+
+    async function importClients(e) {
+        e.preventDefault();
+        if (!confirm("Esto IMPORTARÁ clientes desde el Excel. ¿Continuar?")) return;
+
+        const data = new FormData(e.target);
+        const btn = e.target.querySelector('button');
+        const originalText = btn.innerText;
+        btn.disabled = true; btn.innerText = "Subiendo...";
+
+        try {
+            const res = await fetch('/api/import/clients', { method: 'POST', body: data });
+            const result = await res.json();
+            alert(`Importación completada.\nAgregados: ${result.added}\nErrores: ${result.errors.length}`);
+        } catch (err) {
+            alert("Error en la importación");
+        } finally {
+            btn.disabled = false; btn.innerText = originalText;
+        }
+    }
+
+    // --- Settings Load ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Preload settings into form
+        const settings = {{ settings_json | safe }};
+        if (settings.company_name) document.getElementById('s-company').value = settings.company_name;
+        if (settings.printer_name) document.getElementById('s-printer').value = settings.printer_name;
+        if (settings.label_width_mm) document.getElementById('s-label-w').value = settings.label_width_mm;
+        if (settings.label_height_mm) document.getElementById('s-label-h').value = settings.label_height_mm;
+        if (settings.ui_theme) document.getElementById('s-theme').value = settings.ui_theme;
+        if (settings.storefront_template) document.getElementById('s-storefront-template').value = settings.storefront_template;
+        loadBackupFiles();
+    });
+
+    // --- Settings ---
+    async function updateSettings(e) {
+        e.preventDefault();
+        const data = new FormData(e.target);
+
+        try {
+            const res = await fetch('/api/settings', { method: 'POST', body: data });
+            if (res.ok) {
+                alert("✅ Configuración guardada correctamente");
+            } else {
+                const err = await res.json().catch(() => null);
+                const detail = err && err.detail ? err.detail : `Error ${res.status}`;
+                alert(`❌ Error al guardar: ${detail}`);
+            }
+        } catch (err) {
+            alert("❌ Error de conexión. Verificá tu red e intentá de nuevo.");
+        }
+    }
+
+    async function seedData() {
+        if (!confirm("¿Cargar productos de prueba automáticamente?")) return;
+        const res = await fetch('/api/test/seed_products');
+        const data = await res.json();
+        if (res.ok) alert(data.message);
+        else alert("Error");
+    }
+
+
+    async function loadBackupFiles() {
+        const box = document.getElementById('backup-list');
+        if (!box) return;
+
+        const res = await fetch('/api/admin/backups/list');
+        if (!res.ok) {
+            box.innerHTML = 'No se pudo obtener la lista de backups.';
+            return;
+        }
+
+        const payload = await res.json();
+        const backups = payload.backups || [];
+        if (!backups.length) {
+            box.innerHTML = 'Aún no hay backups generados en este servidor.';
+            return;
+        }
+
+        box.innerHTML = backups.map(b => {
+            const sizeKb = (b.size_bytes / 1024).toFixed(1);
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #e2e8f0;">
+                <div><strong>${b.filename}</strong><br><small>${b.modified_at} · ${sizeKb} KB</small></div>
+                <a href="/api/admin/backups/download/${encodeURIComponent(b.filename)}" class="btn" style="text-decoration:none; padding:6px 10px;">Descargar</a>
+            </div>`;
+        }).join('');
+    }
+
+    async function createDbBackup() {
+        const res = await fetch('/api/admin/backups/create', { method: 'POST' });
+        const payload = await res.json();
+        if (!res.ok || payload.status !== 'success') {
+            alert(payload.error || payload.detail || 'Error al generar backup');
+            return;
+        }
+
+        alert(`Backup generado: ${payload.filename}`);
+        loadBackupFiles();
+    }
+
+    async function restoreSystem(e) {
+        e.preventDefault();
+
+        if (!confirm("⚠️ ADVERTENCIA CRÍTICA ⚠️\n\nEstá a punto de RESTAURAR la base de datos desde un archivo. ¡Todo el progreso actual que no esté en este backup SE PERDERÁ! (Ventas de hoy, nuevos productos, etc).\n\n¿Está 100% seguro de que desea continuar?")) return;
+
+        const data = new FormData(e.target);
+        const btn = e.target.querySelector('button');
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Restaurando (Puede tardar)...";
+
+        try {
+            const res = await fetch('/api/admin/restore', { method: 'POST', body: data });
+            const result = await res.json();
+
+            if (res.ok && result.status === "success") {
+                alert("✅ Sistema Restaurado con Éxito. La página se recargará ahora.");
+                window.location.reload();
+            } else {
+                alert(`❌ Error en la restauración: ${result.error || result.detail || 'Archivo inválido o corrupto.'}`);
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        } catch (err) {
+            alert("❌ Error crítico de conexión durante la restauración.");
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    }
+
+    // Map restoreBackup to the robust restoreSystem
+    async function restoreBackup(e) {
+        return restoreSystem(e);
+    }
+
+    // --- Medusa Sync ---
+    async function checkMedusaStatus() {
+        const badge = document.getElementById('medusa-status-badge');
+        try {
+            const res = await fetch('/health');
+            if (res.ok) {
+                badge.className = 'badge badge-success';
+                badge.textContent = 'Servicio Activo';
+            } else {
+                badge.className = 'badge badge-danger';
+                badge.textContent = 'Sin conexión';
+            }
+        } catch {
+            badge.className = 'badge badge-danger';
+            badge.textContent = 'Sin conexión';
+        }
+    }
+
+    async function loadSyncQueue() {
+        const box = document.getElementById('sync-queue-table');
+        try {
+            const res = await fetch('/api/v1/medusa/sync-status');
+            const data = await res.json();
+            if (data.items && data.items.length > 0) {
+                box.innerHTML = data.items.map(i => `
+                    <div style="border-bottom: 1px solid #e2e8f0; padding: 4px 0;">
+                        <strong>ID:</strong> ${i.entity_id} | <strong>Tipo:</strong> ${i.entity_type} | 
+                        <strong>Intentos:</strong> ${i.attempts} <br>
+                        <span style="color: #ef4444; font-size: 0.8rem;">${i.last_error}</span>
+                    </div>
+                `).join('');
+            } else {
+                box.innerHTML = '<span style="color: #10b981;">No hay elementos pendientes o fallidos. Todo sincronizado.</span>';
+            }
+        } catch {
+            box.innerHTML = 'Error al cargar la cola.';
+        }
+    }
+
+    async function syncAllMedusa() {
+        const btn = document.getElementById('btn-sync-all');
+        if (!confirm('Esto encolará todos los productos para sincronización masiva hacia Medusa. ¿Continuar?')) return;
+        
+        btn.disabled = true;
+        btn.textContent = 'Encolando...';
+        
+        try {
+            const res = await fetch('/api/v1/medusa/sync-all', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Sincronización masiva iniciada. Productos encolados: ${data.data.enqueued}/${data.data.total_products}`);
+                loadSyncQueue();
+            } else {
+                alert(`Error: ${data.detail || 'Fallo desconocido'}`);
+            }
+        } catch (e) {
+            alert('Error de conexión.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Sincronizar Todo (Batch)';
+        }
+    }
+
+    async function processMedusaQueue() {
+        const btn = document.getElementById('btn-process-queue');
+        btn.disabled = true;
+        btn.textContent = 'Procesando...';
+        
+        try {
+            const res = await fetch('/api/v1/medusa/process-queue', { method: 'POST' });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Cola procesada: ${data.data.processed} items (${data.data.errors} errores). Total pendiente: ${data.data.total}`);
+                loadSyncQueue();
+            } else {
+                alert(`Error: ${data.detail || 'Fallo desconocido'}`);
+            }
+        } catch (e) {
+            alert('Error de conexión.');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Procesar Cola Pendiente';
+        }
+    }
+</script>
+
+<style>
+    .form-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 0px;
+    }
+
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: #e5e7eb;
+        font-size: 0.8rem;
+    }
+
+    .badge.admin {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+</style>
+{% endblock %}

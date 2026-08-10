@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Etiquetas Pro 60x40mm</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Oswald:wght@700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* RESET */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #e5e7eb;
+            padding: 20px;
+        }
+
+        /* --------------------------------------------------
+           ETIQUETA STANDARD (60mm x 40mm)
+           -------------------------------------------------- */
+        .label-container {
+            width: 60mm;
+            height: 40mm;
+            background: white;
+            /* Color Base */
+            border: 1px solid #ccc;
+            /* Guia visual pantalla */
+            border-radius: 4px;
+            /* Simula troquel pantalla */
+            margin: 0 5mm 5mm 0;
+            float: left;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            page-break-inside: avoid;
+        }
+
+        /* DISEÑO TIPO SUPERMERCADO (Foto Usuario) */
+
+        /* 1. Header: Linea SKU */
+        .header-sku {
+            height: 6mm;
+            border-bottom: 2px solid #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2mm;
+            font-size: 8pt;
+            font-weight: 700;
+        }
+
+        /* 2. Cuerpo: Nombre o Precio */
+        .body-content {
+            flex: 1;
+            /* Ocupa el espacio disponible */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 2mm;
+        }
+
+        /* Variantes de Texto */
+        .product-name {
+            font-size: 9pt;
+            line-height: 1.1;
+            font-weight: 600;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            text-transform: uppercase;
+        }
+
+        .price-tag {
+            font-family: 'Oswald', sans-serif;
+            /* Fuente de impacto */
+            font-size: 24pt;
+            color: #b91c1c;
+            /* Rojo oferta */
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .currency {
+            font-size: 14pt;
+            vertical-align: top;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Decodificador visual (tipo 12p) */
+        .unit-badge {
+            position: absolute;
+            top: 7mm;
+            right: 1mm;
+            background: #fb923c;
+            color: white;
+            font-size: 7pt;
+            padding: 1px 3px;
+            border-radius: 2px;
+            font-weight: bold;
+        }
+
+        /* 3. Footer: Barcode */
+        .barcode-container {
+            height: 12mm;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 2mm;
+        }
+
+        svg.barcode {
+            width: 90%;
+            height: 100%;
+        }
+
+        /* MEDIA PRINT */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .label-container {
+                border: none;
+                margin: 0;
+                border-radius: 0;
+                float: none;
+                /* Force page break for thermal printers often works best treated as block */
+                page-break-after: always;
+            }
+
+            .price-tag {
+                color: black !important;
+            }
+
+            /* Forzar negro en térmicas */
+        }
+
+        /* UI Controls */
+        .controls {
+            background: #1f2937;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls no-print">
+        <div>
+            <h2 style="font-size: 1.2rem; margin-bottom: 4px;">🖨️ Etiquetas Pro (60x40mm)</h2>
+            <div style="font-size: 0.9rem; opacity: 0.8;">Estilo Góndola / Inventario</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="loadProducts('price')"
+                style="padding: 8px 16px; background: #dc2626; color: white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">💲
+                Con Precio</button>
+            <button onclick="loadProducts('stock')"
+                style="padding: 8px 16px; background: #2563eb; color: white; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">📦
+                Solo Stock</button>
+            <button onclick="window.print()"
+                style="padding: 8px 16px; background: #fff; color: #333; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">🖨️
+                Imprimir</button>
+        </div>
+    </div>
+
+    <div id="label-area">
+        <!-- JS Injection -->
+    </div>
+
+    <script>
+        async function loadProducts(mode) {
+            try {
+                const res = await fetch('/api/products');
+                const products = await res.json();
+                const container = document.getElementById('label-area');
+                container.innerHTML = '';
+
+                products.forEach(p => {
+                    const label = document.createElement('div');
+                    label.className = 'label-container';
+                    const svgId = `bc-${p.id}`;
+
+                    // Determinar Contenido Central
+                    let mainContent = '';
+                    let badge = '';
+
+                    if (mode === 'price') {
+                        // MODO PRECIO (Góndola)
+                        // Nombre arriba pequeño, Precio gigante
+                        mainContent = `
+                            <div class="product-name" style="margin-bottom:0px;">${p.name}</div>
+                            <div class="price-big price-tag"><span class="currency">$</span>${p.price}</div>
+                        `;
+                        badge = `<div class="unit-badge">PZA</div>`;
+                    } else {
+                        // MODO STOCK (Inventario)
+                        // Nombre GRANDE, Datos extra
+                        mainContent = `
+                            <div class="product-name" style="font-size:12pt; margin-bottom:4px;">${p.name}</div>
+                            <div style="font-size:8pt; color:#444;">Stock: ${p.stock_quantity} unidades</div>
+                        `;
+                    }
+
+                    // SKU / ID Logic
+                    const sku = p.item_number || String(p.id).padStart(4, '0');
+
+                    label.innerHTML = `
+                        <!-- Header -->
+                        <div class="header-sku">
+                            <span>${sku}</span>
+                            <span>ART</span>
+                        </div>
+                        
+                        ${badge}
+
+                        <!-- Body -->
+                        <div class="body-content">
+                            ${mainContent}
+                        </div>
+
+                        <!-- Footer Barcode -->
+                        <div class="barcode-container">
+                            <svg id="${svgId}" class="barcode"></svg>
+                        </div>
+                    `;
+
+                    container.appendChild(label);
+
+                    // Barcode Generation
+                    let codeValue = p.barcode;
+                    let format = "CODE128";
+                    if (!codeValue) codeValue = p.item_number || String(p.id).padStart(8, '0');
+                    if (/^\d{13}$/.test(codeValue)) format = "EAN13";
+
+                    JsBarcode(`#${svgId}`, codeValue, {
+                        format: format,
+                        lineColor: "#000",
+                        width: 1.5, // Thinner lines for small label
+                        height: 30,
+                        displayValue: true,
+                        fontSize: 10,
+                        margin: 0,
+                        // flat: true // Clean render
+                    });
+                });
+
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        window.onload = () => loadProducts('price');
+    </script>
+</body>
+
+</html>

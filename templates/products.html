@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+
+{% block title %}Productos - StockApp{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    {% if low_stock_products %}
+    <div
+        style="background-color: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <h3 style="color: #ef4444; margin-bottom: 12px; display: flex; align-items: center;">
+            ⚠️ Productos a Reponer (Stock Bajo)
+        </h3>
+        <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+            <table style="width: 100%;">
+                <thead style="background: rgba(255,255,255,0.5);">
+                    <tr>
+                        <th style="color: #7f1d1d;">Producto</th>
+                        <th style="color: #7f1d1d;">Stock Actual</th>
+                        <th style="color: #7f1d1d;">Mínimo</th>
+                        <th style="color: #7f1d1d;">Faltante</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in low_stock_products %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ p.name }}</td>
+                        <td style="color: #ef4444; font-weight: bold;">{{ p.stock_quantity }}</td>
+                        <td>{{ p.min_stock_level }}</td>
+                        <td style="font-weight: bold;">{{ p.min_stock_level - p.stock_quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Inventario</h2>
+        <div>
+            <button onclick="importExcel()" class="btn" style="background-color: #f59e0b; margin-right: 8px;">📂
+                Importar</button>
+            <a href="/api/products/export" class="btn" style="background-color: #10b981; margin-right: 8px;">Exportar
+                Excel</a>
+            <a href="#" onclick="openPrintModal()" class="btn" style="background-color: #6366f1; margin-right: 8px;">🏷️
+                Etiquetas</a>
+            <button onclick="printInventory()" class="btn" style="background-color: #2c3e50; margin-right: 8px;">🖨️
+                Imprimir Listado</button>
+
+            <button onclick="bulkUpdateModal()" class="btn" style="background-color: #7c3aed; margin-right: 8px;">💲
+                Aumentar Precios</button>
+            <button onclick="openModal()" class="btn">+ Nuevo Producto</button>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="product-filter"
+            placeholder="🔍 Buscar por nombre, código de barras, item #, categoría..."
+            style="width: 100%; padding: 12px 16px; font-size: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; background: white;"
+            onkeyup="filterProducts()">
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                    <th>Item #</th>
+                    <th>Barcode</th>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Precio</th>
+                    <th>Stock</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td><input type="checkbox" class="product-checkbox" value="{{product.id}}"></td>
+                    <td>{{ product.item_number or '' }}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            {% if product.image_url %}
+                            <img src="{{ product.image_url }}"
+                                style="width: 40px; height: 40px; border-radius: 8px; object-fit: cover;">
+                            {% else %}
+                            <div
+                                style="width: 40px; height: 40px; border-radius: 8px; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #6b7280;">
+                                📷
+                            </div>
+                            {% endif %}
+
+                            <div>
+                                {% if product.barcode %}
+                                <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">{{
+                                    product.barcode }}</div>
+                                {% endif %}
+                                <div style="font-weight: 500;">{{ product.name }}</div>
+                                {% if product.numeracion %}
+                                <div style="font-size: 0.75rem; color: #6b7280;">{{ product.numeracion }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ product.category or '-' }}</td>
+                    <td>${{ product.price }}</td>
+                    <td>
+                        <span
+                            style="{% if product.stock_quantity < product.min_stock_level %}color: red; font-weight: bold;{% endif %}">
+                            {{ product.stock_quantity }}
+                        </span>
+                        {% if product.cant_bulto %}
+                        <div style="font-size: 0.7rem; color: #6b7280;">x{{ product.cant_bulto }} (bulto)</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button
+                            onclick="editProduct('{{product.id}}', '{{product.name}}', '{{product.price}}', '{{product.stock_quantity}}', '{{product.description}}', '{{product.image_url}}', '{{product.barcode}}', '{{product.category}}', '{{product.cant_bulto}}', '{{product.numeracion}}', '{{product.item_number}}', '{{product.price_bulk}}', '{{product.price_retail}}')"
+                            class="btn"
+                            style="padding: 4px 8px; font-size: 0.8rem; background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color);">Editar</button>
+                        <button onclick="deleteProduct('{{product.id}}')" class="btn"
+                            style="padding: 4px 8px; font-size: 0.8rem; background: transparent; border: 1px solid #ef4444; color: #ef4444; margin-left: 8px;">Eliminar</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 32px;">No hay productos registrados</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="product-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; justify-content: center; align-items: center;">
+    <div class="glass-card"
+        style="width: 95%; max-width: 900px; background: white; max-height: 90vh; overflow-y: auto;">
+        <h3 id="modal-title" style="margin-bottom: 24px;">Nuevo Producto</h3>
+        <form id="product-form" onsubmit="submitProduct(event)" enctype="multipart/form-data">
+            <input type="hidden" id="edit-id" name="id">
+
+            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 32px; align-items: start;">
+                <!-- Left Column: Image & Barcode -->
+                <div>
+                    <!-- Image Upload -->
+                    <div
+                        style="margin-bottom: 24px; text-align: center; background: #f9fafb; padding: 24px; border-radius: 16px; border: 1px dashed #ddd;">
+                        <label for="p-image" style="cursor: pointer; display: block;">
+                            <img id="preview-image" src="/static/images/logo.png"
+                                style="width: 150px; height: 150px; object-fit: contain; border-radius: 8px; margin-bottom: 12px;">
+                            <div
+                                style="font-weight: 600; color: var(--primary-color); padding: 8px 16px; background: white; border-radius: 8px; border: 1px solid #e5e7eb; display: inline-block;">
+                                📸 Cambiar Foto</div>
+                        </label>
+                        <input type="file" id="p-image" name="image" accept="image/*" style="display: none;"
+                            onchange="previewFile()">
+                    </div>
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Código de
+                        Barras (EAN13)</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <input type="text" id="p-barcode" name="barcode" placeholder="Escanea..."
+                            style="margin-bottom: 0;">
+                        <button type="button" onclick="startScanner()" class="btn"
+                            style="padding: 0 12px; background: var(--text-main); display: flex; align-items: center; justify-content: center;">📷</button>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 4px; font-weight: 500;">Nro Artículo / Item</label>
+                        <input type="text" id="p-item-number" name="item_number" placeholder="Ej. 12345"
+                            style="width: 100%;">
+                    </div>
+                </div>
+
+                <!-- Right Column: Details & Pricing -->
+                <div>
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151;">Información del
+                        Producto</label>
+
+                    <input type="text" id="p-name" name="name" required
+                        placeholder="Nombre del Producto (Ej. Coca Cola)"
+                        style="font-size: 1.2rem; font-weight: bold; margin-bottom: 16px;">
+
+                    <!-- Categorization Grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 4px; font-size: 0.85rem; color: #6b7280;">Categoría</label>
+                            <input type="text" id="p-category" name="category" placeholder="Ej. Bebidas">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-size: 0.85rem; color: #6b7280;">Cant
+                                x Bulto</label>
+                            <input type="number" id="p-cant-bulto" name="cant_bulto" placeholder="12">
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 4px; font-size: 0.85rem; color: #6b7280;">Numeración</label>
+                            <input type="text" id="p-numeracion" name="numeracion" placeholder="Lote/Talla">
+                        </div>
+                    </div>
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Descripción</label>
+                    <textarea id="p-description" name="description" rows="2" placeholder="Detalles adicionales..."
+                        style="width: 100%; margin-bottom: 24px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+
+                    <!-- Pricing Section -->
+                    <div style="background: #f0f9ff; padding: 20px; border-radius: 12px; border: 1px solid #bae6fd;">
+                        <label
+                            style="display: block; margin-bottom: 16px; font-weight: 700; color: #0369a1; border-bottom: 2px solid #bae6fd; padding-bottom: 8px;">
+                            💲 Precios y Stock
+                        </label>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">Precio Unitario
+                                    (Público)</label>
+                                <div style="position: relative;">
+                                    <span style="position: absolute; left: 12px; top: 12px; color: #666;">$</span>
+                                    <input type="number" step="0.01" id="p-price" name="price" required
+                                        placeholder="0.00"
+                                        style="padding-left: 24px; font-weight: bold; font-size: 1.1rem; border-color: #0ea5e9;">
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">Stock Actual
+                                    (U)</label>
+                                <input type="number" id="p-stock" name="stock" required placeholder="0"
+                                    style="background: white;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.9rem; color: #4b5563;">Precio
+                                    x Bulto</label>
+                                <div style="position: relative;">
+                                    <span style="position: absolute; left: 12px; top: 12px; color: #999;">$</span>
+                                    <input type="number" step="0.01" id="p-price-bulk" name="price_bulk"
+                                        placeholder="0.00"
+                                        style="padding-left: 24px; background: rgba(255,255,255,0.7);">
+                                </div>
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.9rem; color: #4b5563;">Precio
+                                    Por Menor / Especial</label>
+                                <div style="position: relative;">
+                                    <span style="position: absolute; left: 12px; top: 12px; color: #999;">$</span>
+                                    <input type="number" step="0.01" id="p-price-retail" name="price_retail"
+                                        placeholder="0.00"
+                                        style="padding-left: 24px; background: rgba(255,255,255,0.7);">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WMS Locations Section -->
+                    <div id="p-locations-section" style="margin-top: 20px; background: #fffcf0; padding: 16px; border-radius: 12px; border: 1px solid #fef08a; display: none;">
+                        <label style="display: block; margin-bottom: 12px; font-weight: 700; color: #a16207; border-bottom: 1px solid #fef08a; padding-bottom: 4px; font-size: 0.9rem;">
+                            📍 Ubicaciones (WMS)
+                        </label>
+                        <div id="p-locations-list" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Filled by loadLocations(id) -->
+                        </div>
+                        <div style="margin-top: 12px; font-size: 0.8rem; text-align: right;">
+                            <a href="/wms/transfers" style="color: #ca8a04; text-decoration: none; font-weight: 600;">Gestionar Movimientos →</a>
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top: 32px; text-align: right; display: flex; justify-content: flex-end; gap: 12px;">
+                        <button type="button" onclick="closeModal()" class="btn"
+                            style="background: white; color: #666; border: 1px solid #e5e7eb; padding: 12px 24px;">Cancelar</button>
+                        <button type="submit" class="btn"
+                            style="padding: 12px 32px; font-size: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">💾
+                            Guardar Producto</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scanner Modal -->
+<div id="scanner-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="background: white; padding: 16px; border-radius: 12px; width: 90%; max-width: 500px;">
+        <h3 style="margin-bottom: 16px; text-align: center;">Escanear Código (EAN13)</h3>
+        <div id="reader" style="width: 100%;"></div>
+        <button onclick="closeScanner()" class="btn"
+            style="width: 100%; margin-top: 16px; background: #666;">Cerrar</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+    let html5QrcodeScanner = null;
+
+    function startScanner() {
+        document.getElementById('scanner-modal').style.display = 'flex';
+
+        if (html5QrcodeScanner === null) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                {
+                    fps: 10,
+                    qrbox: 250,
+                    formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13],
+                    videoConstraints: { facingMode: "environment" }
+                },
+                /* verbose= */ false
+            );
+        }
+
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        // Handle the scanned code
+        console.log(`Code matched = ${decodedText}`, decodedResult);
+
+        // Suggestion: If we are editing/creating, put it in a field
+        // Since we don't have a visible barcode field yet, let's create one or put it in the name temporarily if user wants?
+        // Wait, user asked to scan barcode to ADD it. We need a barcode field in the form.
+        let barcodeInput = document.getElementById('p-barcode');
+        if (!barcodeInput) {
+            // Create hidden input if not exists or alert
+            alert("Código escaneado: " + decodedText);
+        } else {
+            barcodeInput.value = decodedText;
+        }
+
+        closeScanner();
+    }
+
+    function onScanFailure(error) {
+        // handle scan failure, usually better to ignore and keep scanning.
+        // console.warn(`Code scan error = ${error}`);
+    }
+
+    function closeScanner() {
+        document.getElementById('scanner-modal').style.display = 'none';
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear();
+        }
+    }
+
+    function previewFile() {
+        const preview = document.getElementById('preview-image');
+        const file = document.getElementById('p-image').files[0];
+        const reader = new FileReader();
+        reader.onloadend = function () { preview.src = reader.result; }
+        if (file) { reader.readAsDataURL(file); }
+        else { preview.src = "/static/images/logo.png"; }
+    }
+
+    function openModal() {
+        document.getElementById('product-modal').style.display = 'flex';
+        document.getElementById('product-form').reset();
+        document.getElementById('edit-id').value = '';
+        document.getElementById('modal-title').innerText = 'Nuevo Producto';
+        document.getElementById('preview-image').src = "/static/images/logo.png";
+
+        // Reset barcode field (if we add it)
+        const barcodeField = document.getElementById('p-barcode');
+        if (barcodeField) barcodeField.value = '';
+    }
+    function closeModal() { document.getElementById('product-modal').style.display = 'none'; }
+
+    async function loadLocations(id) {
+        const list = document.getElementById('p-locations-list');
+        const section = document.getElementById('p-locations-section');
+        if (!id) {
+            section.style.display = 'none';
+            return;
+        }
+        
+        section.style.display = 'block';
+        list.innerHTML = '<div style="color: #6b7280; font-size: 0.85rem;">Cargando...</div>';
+        
+        try {
+            const res = await fetch(`/wms/api/products/${id}/locations`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                list.innerHTML = data.map(loc => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #fef08a;">
+                        <div>
+                            <div style="font-weight: 600; color: #111827; font-size: 0.85rem;">${loc.bin_name}</div>
+                            <div style="font-size: 0.7rem; color: #6b7280;">${loc.location_name}</div>
+                        </div>
+                        <div style="font-weight: 800; color: #a16207;">${loc.quantity}</div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = '<div style="color: #9ca3af; font-size: 0.8rem; font-style: italic;">Sin ubicación asignada</div>';
+            }
+        } catch (e) {
+            list.innerHTML = '<div style="color: #ef4444; font-size: 0.8rem;">Error al cargar</div>';
+        }
+    }
+
+    function editProduct(id, name, price, stock, description, imageUrl, barcode, category, cantBulto, numeracion, itemNumber, priceBulk, priceRetail) {
+
+        document.getElementById('product-modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = 'Editar Producto';
+        document.getElementById('edit-id').value = id;
+        document.getElementById('p-name').value = name;
+        document.getElementById('p-price').value = price;
+        document.getElementById('p-stock').value = stock;
+        document.getElementById('p-description').value = description || '';
+        document.getElementById('preview-image').src = imageUrl || "/static/images/logo.png";
+
+        // New Fields
+        document.getElementById('p-category').value = category === 'None' ? '' : category;
+        document.getElementById('p-cant-bulto').value = cantBulto === 'None' ? '' : cantBulto;
+        document.getElementById('p-numeracion').value = numeracion === 'None' ? '' : numeracion;
+        document.getElementById('p-item-number').value = (!itemNumber || itemNumber === 'None') ? '' : itemNumber;
+
+        // Prices
+        document.getElementById('p-price-bulk').value = (priceBulk === 'None' || !priceBulk) ? '' : priceBulk;
+        document.getElementById('p-price-retail').value = (priceRetail === 'None' || !priceRetail) ? '' : priceRetail;
+
+        const barcodeField = document.getElementById('p-barcode');
+        if (barcodeField) barcodeField.value = barcode || '';
+
+        // Load WMS locations
+        loadLocations(id);
+    }
+
+
+    async function deleteProduct(id) {
+        if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+        try {
+            const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+            if (res.ok) window.location.reload();
+            else alert('Error al eliminar');
+        } catch (e) { alert('Error de conexión'); }
+    }
+
+    async function submitProduct(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const form = e.target;
+        const formData = new FormData(form);
+
+        // Determine URL and Method
+        const url = id ? `/api/products/${id}` : '/api/products';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, { method: method, body: formData });
+            if (res.ok) window.location.reload();
+            else alert("Error al guardar");
+        } catch (err) { alert("Error de conexión"); }
+    }
+
+    function printInventory() {
+        window.print();
+    }
+
+    async function importExcel() {
+        const { value: file } = await Swal.fire({
+            title: 'Importar Productos',
+            html: `
+                <div style="text-align: left;">
+                    <p style="margin-bottom: 12px;">1. Descarga la plantilla base:</p>
+                    <a href="/api/templates/download/products" class="btn" style="background: #2563eb; display: block; text-align: center; margin-bottom: 24px; text-decoration: none;">📥 Descargar Plantilla Excel</a>
+                    <p style="margin-bottom: 8px;">2. Sube tu archivo con los cambios:</p>
+                </div>
+            `,
+            input: 'file',
+            inputAttributes: {
+                'accept': '.xlsx, .xls',
+                'aria-label': 'Sube tu archivo Excel'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Subir y Procesar',
+            cancelButtonText: 'Cancelar',
+            showLoaderOnConfirm: true,
+            preConfirm: (file) => {
+                if (!file) {
+                    Swal.showValidationMessage('Por favor selecciona un archivo');
+                    return false;
+                }
+                const formData = new FormData();
+                formData.append('file', file);
+
+                return fetch('/api/import/products', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(response.statusText)
+                        }
+                        return response.json()
+                    })
+                    .catch(error => {
+                        Swal.showValidationMessage(
+                            `Error de importación: ${error}`
+                        )
+                    })
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+
+        if (file) {
+            let msg = `Nuevos creados: ${file.created}<br>Actualizados: ${file.updated}`;
+            Swal.fire({
+                title: 'Importación Exitosa',
+                html: msg,
+                icon: 'success'
+            }).then(() => window.location.reload());
+        }
+    }
+
+    function toggleSelectAll(source) {
+        checkboxes = document.getElementsByClassName('product-checkbox');
+        for (var i = 0, n = checkboxes.length; i < n; i++) {
+            checkboxes[i].checked = source.checked;
+        }
+    }
+
+    async function bulkUpdateModal() {
+        // Collect selected IDs
+        const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+        let selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        let updateType = 'list';
+        let title = 'Actualizar Precios';
+        let textCallback = `Se actualizarán ${selectedIds.length} productos seleccionados.`;
+
+        // If nothing selected, ask if "Update ALL"
+        if (selectedIds.length === 0) {
+            const result = await Swal.fire({
+                title: '¿Actualizar TODO EL INVENTARIO?',
+                text: "No has seleccionado ningún producto. ¿Quieres aplicar el aumento a TODOS los productos?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Sí, A TODOS',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (!result.isConfirmed) return;
+            updateType = 'all';
+            selectedIds = [];
+            textCallback = "ESTO MODIFICARÁ TODOS LOS PRECIOS DEL SISTEMA.";
+        }
+
+        const { value: percentage } = await Swal.fire({
+            title: title,
+            html: `
+                <p>${textCallback}</p>
+                <label>Porcentaje de Aumento (o negativo para descuento)</label>
+            `,
+            input: 'number',
+            inputPlaceholder: 'Ej: 10',
+            showCancelButton: true,
+            confirmButtonText: 'Aplicar',
+            inputValidator: (value) => {
+                if (!value) return 'Debes escribir un número'
+            }
+        });
+
+        if (percentage) {
+            Swal.fire({ title: 'Procesando...', didOpen: () => Swal.showLoading() });
+
+            try {
+                const res = await fetch('/api/products/bulk-update-price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        update_type: updateType,
+                        percentage: parseFloat(percentage),
+                        product_ids: selectedIds
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    Swal.fire('Éxito', `Se actualizaron ${data.updated_count} productos.`, 'success')
+                        .then(() => window.location.reload());
+                } else {
+                    Swal.fire('Error', data.detail || 'Error desconocido', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Fallo de conexión', 'error');
+            }
+        }
+    }
+</script>
+
+<!-- Print Modal -->
+<div id="print-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; justify-content: center; align-items: center;">
+    <div class="glass-card" style="width: 100%; max-width: 400px; background: white; padding: 24px;">
+        <h3 style="margin-bottom: 16px;">Imprimir Etiquetas</h3>
+        <p style="margin-bottom: 24px;">Seleccione el formato para los productos marcados.</p>
+
+        <form action="/print/labels/generate" method="POST" target="_blank">
+            <input type="hidden" name="selected_items" id="print-selected-items">
+
+            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Formato</label>
+            <select name="layout_type" id="layout-type"
+                style="width: 100%; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e5e7eb;">
+                <option value="standard">Estándar ({{ settings.label_width_mm }}x{{ settings.label_height_mm }}mm)
+                </option>
+                <option value="55x44">Personalizado (55x44mm)</option>
+                <option value="exhibition">Exhibición (100x65mm)</option>
+                <option value="list">Lista A4 Simple</option>
+            </select>
+
+            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 24px; cursor: pointer;">
+                <input type="checkbox" name="hide_price" value="true">
+                <span>Ocultar Precio (Sin Precio)</span>
+            </label>
+
+            <div style="text-align: right; display: flex; gap: 12px; justify-content: flex-end;">
+                <button type="button" onclick="document.getElementById('print-modal').style.display='none'" class="btn"
+                    style="background: #999;">Cancelar</button>
+                <button type="submit" class="btn" onclick="document.getElementById('print-modal').style.display='none'">
+                    🖨️ Generar Vista
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openPrintModal() {
+        // Collect selected IDs
+        const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+        let selectedIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        if (selectedIds.length === 0) {
+            Swal.fire('Atención', 'Seleccione al menos un producto para imprimir.', 'warning');
+            return;
+        }
+
+        document.getElementById('print-selected-items').value = JSON.stringify(selectedIds);
+        document.getElementById('print-modal').style.display = 'flex';
+    }
+
+    function filterProducts() {
+        const input = document.getElementById('product-filter');
+        const filter = input.value.toLowerCase();
+        const table = document.querySelector('.table-container table tbody');
+        const rows = table.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const text = row.textContent || row.innerText;
+
+            if (text.toLowerCase().indexOf(filter) > -1) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+</script>
+
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .table-container,
+        .table-container * {
+            visibility: visible;
+        }
+
+        .table-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        th:nth-child(5),
+        td:nth-child(5) {
+            display: none;
+        }
+
+        table {
+            color: black;
+        }
+    }
+</style>
+{% endblock %}

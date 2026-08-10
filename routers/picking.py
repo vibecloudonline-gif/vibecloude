@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from typing import List
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from sqlmodel import Session, select
+
+from database.models import Product, Sale, SaleItem, Settings, User
+from database.session import get_session
+from web.dependencies import get_settings, get_tenant, require_auth
+
+router = APIRouter()
+
+
+def _templates():
+    from web.compat_templates import CompatTemplates
+    return CompatTemplates(directory="templates")
+
+from services.stock_service import StockService
+stock_service = StockService(static_dir="static/barcodes")
+
+
+def _find_product(session: Session, tenant_id: int, search_term: str):
+    product = session.exec(select(Product).where(Product.barcode == search_term, Product.tenant_id == tenant_id)).first()
+    if not product:
+        product = session.exec(select(Product).where(Product.item_number == search_term, Product.tenant_id == tenant_id)).first()
+    if not product and len(search_term) >= 4:
+        prefixes = [search_term[:i] for i in range(3, min(len(search_term), 6))]
+        candidates = session.exec(select(Product).where(Product.item_number.in_(prefixes), Product.tenant_id == tenant_id)).all()
+        for candidate in sorted(candidates, key=lambda x: len(x.item_number or ""), reverse=True):
+            if candidate.item_number and search_term.startswith(candidate.item_number):
+                product = candidate
+                break
+    return product
+
+
+@router.get("/picking", response_class=HTMLResponse)
+def picking_page(request: Request, user: User = Depends(require_auth), settings: Settings = Depends(get_settings)):
+    return _templates().TemplateResponse("picking.html", {"request": request, "user": user, "settings": settings, "active_page": "picking"})
+
+
+@router.post("/api/picking/entry")
+def picking_entry(
+    barcode: str = Form(...),
+    qty: int = Form(1),
+    session: Session = Depends(get_session),
+    user: User = Depends(require_auth),
+    tenant_id: int = Depends(get_tenant),
+):
+    normalized_barcode = barcode.strip()
+    if not normalized_barcode:
+        raise HTTPException(400, "El código de barras no puede estar vacío")
+    if qty <= 0:
+        raise HTTPException(400, "La cantidad debe ser mayor a 0")
+
+    product = _find_product(session, tenant_id, normalized_barcode)
+    if not product:
+        raise HTTPException(404, f"Producto no encontrado: {normalized_barcode}")
+    current_stock = stock_service.get_total_stock(session, product.id, tenant_id)
+    stock_service.add_stock(session, product.id, tenant_id, qty, "picking_ingreso", "Picking app", user.id)
+    return {"status": "ok", "product": {"name": product.name, "new_stock": current_stock + qty}}
+
+
+class PickingItem(BaseModel):
+    barcode: str
+    qty: int
+
+
+class PickingExitRequest(BaseModel):
+    items: List[PickingItem]
+
+
+@router.post("/api/picking/exit")
+def picking_exit(
+    data: PickingExitRequest,
+    session: Session = Depends(get_session),
+    user: User = Depends(require_auth),
+    tenant_id: int = Depends(get_tenant),
+):
+    if not data.items:
+        raise HTTPException(400, "Debes enviar al menos un item")
+
+    products_map = {}
+    total_amount = 0.0
+    for item in data.items:
+        normalized_barcode = item.barcode.strip()
+        if not normalized_barcode:
+            raise HTTPException(400, "Todos los items deben tener código de barras")
+        if item.qty <= 0:
+            raise HTTPException(400, "Todas las cantidades deben ser mayores a 0")
+
+        prod = _find_product(session, tenant_id, normalized_barcode)
+        if not prod:
+            raise HTTPException(404, f"Producto no encontrado: {item.barcode}")
+        current_stock = stock_service.get_total_stock(session, prod.id, tenant_id)
+        if current_stock < item.qty:
+            raise HTTPException(409, f"Stock insuficiente para {prod.name}: disponible {current_stock}, solicitado {item.qty}")
+        products_map[normalized_barcode] = prod
+        total_amount += prod.price * item.qty
+
+    new_sale = Sale(tenant_id=tenant_id, client_id=None, user_id=user.id, total_amount=total_amount)
+    session.add(new_sale)
+    session.commit()
+    session.refresh(new_sale)
+
+    for item in data.items:
+        normalized_barcode = item.barcode.strip()
+        prod = products_map[normalized_barcode]
+        session.add(
+            SaleItem(
+                sale_id=new_sale.id,
+                product_id=prod.id,
+                product_name=prod.name,
+                quantity=item.qty,
+                unit_price=prod.price,
+                total=prod.price * item.qty,
+            )
+        )
+        stock_service.add_stock(session, prod.id, tenant_id, -item.qty, "venta", f"Picking Sale {new_sale.id}", user.id)
+
+    session.commit()
+    return {"status": "ok", "sale_id": new_sale.id, "print_url": f"/sales/{new_sale.id}/remito"}

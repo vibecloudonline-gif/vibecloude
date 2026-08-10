@@ -1,0 +1,652 @@
+let cart = [];
+let allProducts = [];
+let allClients = [];
+
+function buildLineKey(productId, priceKey) {
+    return `${productId}:${priceKey}`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/products');
+        if (!res.ok) {
+            throw new Error(`No se pudo cargar productos (${res.status})`);
+        }
+        allProducts = await res.json();
+    } catch (err) {
+        console.error('Error loading products:', err);
+        allProducts = [];
+        const target = document.getElementById('product-results');
+        if (target) {
+            target.innerHTML = '<div style="text-align:center; padding: 20px; color: #b91c1c;">No se pudieron cargar productos. Recargá la página o iniciá sesión nuevamente.</div>';
+        }
+        return;
+    }
+
+    try {
+        const resClients = await fetch('/api/clients');
+        if (resClients.ok) {
+            allClients = await resClients.json();
+            const clientSelect = document.getElementById('client-select');
+            if (clientSelect) {
+                clientSelect.innerHTML = '<option value="">Cliente casual</option>';
+                allClients.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    clientSelect.appendChild(opt);
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Error loading clients:', err);
+    }
+
+    renderProducts(allProducts.slice(0, 30));
+    loadCartState();
+
+    // Attach checkout button listener
+    const checkoutBtn = document.getElementById('btn-checkout');
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', openCheckoutModal);
+    }
+
+    // Attach split-pay input listeners
+    document.querySelectorAll('.split-pay').forEach(inp => inp.addEventListener('input', calcSplit));
+
+    document.getElementById('product-search').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = allProducts.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            (p.barcode && p.barcode.includes(term)) ||
+            (p.item_number && p.item_number.toLowerCase().includes(term))
+        );
+        renderProducts(filtered);
+
+        const exactMatch = allProducts.find(p => p.barcode === term || (p.item_number && p.item_number.toLowerCase() === term));
+        if (exactMatch) {
+            addToCart(exactMatch);
+            e.target.value = '';
+            renderProducts(allProducts);
+            document.getElementById('product-search').focus();
+        }
+    });
+
+    const qtyInput = document.getElementById('pos-qty');
+    if (qtyInput) {
+        qtyInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('product-search').focus();
+            }
+        });
+    }
+
+    document.getElementById('product-search').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const term = e.target.value.toLowerCase();
+        if (!term) return;
+
+        const exact = allProducts.find(p => p.barcode === term || (p.item_number && p.item_number.toLowerCase() === term));
+        if (exact) {
+            addToCart(exact);
+            e.target.value = '';
+            renderProducts(allProducts);
+            return;
+        }
+
+        const filtered = allProducts.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            (p.barcode && p.barcode.includes(term)) ||
+            (p.item_number && p.item_number.toLowerCase().includes(term))
+        );
+
+        if (filtered.length > 0) {
+            addToCart(filtered[0]);
+            e.target.value = '';
+            renderProducts(allProducts);
+        }
+    });
+});
+
+function saveCartState() {
+    try {
+        const clientSelect = document.getElementById('client-select');
+        const clientId = clientSelect ? clientSelect.value : '';
+        localStorage.setItem('pos_cart_state', JSON.stringify({ cart, clientId }));
+    } catch (e) {
+        console.warn('No se pudo guardar el carrito:', e);
+    }
+}
+
+function loadCartState() {
+    try {
+        const raw = localStorage.getItem('pos_cart_state');
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.cart) cart = state.cart;
+        setTimeout(() => {
+            const clientSelect = document.getElementById('client-select');
+            if (clientSelect && state.clientId !== undefined) {
+                clientSelect.value = state.clientId;
+            }
+            updateCart();
+        }, 0);
+    } catch (e) {
+        console.warn('No se pudo cargar el carrito:', e);
+    }
+}
+
+function renderProducts(products) {
+    const container = document.getElementById('product-results');
+    container.innerHTML = products.map(p => {
+        const hasBulk = p.price_bulk && parseFloat(p.price_bulk) > 0;
+        const displayPrice = parseFloat(hasBulk ? p.price_bulk : p.price || 0);
+
+        return `
+        <div class="product-card" onclick='addToCart(${JSON.stringify(p)})'>
+            <button onclick="event.stopPropagation(); quickEditProduct(${p.id})" class="btn-secondary"
+                style="position: absolute; top: 8px; right: 8px; padding: 4px 8px; font-size: 0.7rem; border-radius: var(--radius-sm);">
+                Editar
+            </button>
+            <div style="font-weight: 700; font-size: 1rem; color: var(--text-main);">${p.name}</div>
+            ${p.item_number ? `<div class="item-num">#${p.item_number}</div>` : ''}
+            <div class="price">
+                $${displayPrice.toFixed(2)}
+                ${hasBulk ? '<div class="bulk-tag">Precio bulto</div>' : ''}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Stock: ${p.stock_quantity}</div>
+        </div>
+        `;
+    }).join('');
+}
+
+
+async function addToCart(product) {
+    const prices = [
+        { key: 'unit', label: 'Por unidad', val: parseFloat(product.price || 0) },
+        { key: 'retail', label: 'Por mostrador', val: product.price_retail ? parseFloat(product.price_retail) : null },
+        { key: 'bulk', label: 'Por bulto', val: product.price_bulk ? parseFloat(product.price_bulk) : null }
+    ];
+
+    const inputOptions = {};
+    const defaultKey = 'bulk';
+
+    prices.forEach(p => {
+        if (p.val && p.val > 0) {
+            inputOptions[p.key] = `${p.label} ($${p.val.toFixed(2)})`;
+        } else if (p.key === 'unit') {
+            inputOptions[p.key] = `${p.label} ($${(p.val || 0).toFixed(2)})`;
+        }
+    });
+
+    const { value: selectedKey } = await Swal.fire({
+        title: 'Seleccionar tarifa',
+        text: product.name,
+        input: 'radio',
+        inputOptions,
+        inputValue: inputOptions[defaultKey] ? defaultKey : 'unit',
+        showCancelButton: true,
+        confirmButtonText: 'Elegir cantidad',
+        confirmButtonColor: '#2563eb',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!selectedKey) return;
+
+    const finalPrice = parseFloat(prices.find(p => p.key === selectedKey).val || 0);
+    const finalLabel = prices.find(p => p.key === selectedKey).label;
+    const lineKey = buildLineKey(product.id, selectedKey);
+
+    const { value: qty } = await Swal.fire({
+        title: 'Cantidad',
+        html: `Producto: <b>${product.name}</b><br>Precio: <span style="color:green; font-weight:bold;">${finalLabel} ($${finalPrice.toFixed(2)})</span>`,
+        input: 'number',
+        inputValue: document.getElementById('pos-qty').value || 1,
+        inputAttributes: { min: 1, step: 1 },
+        showCancelButton: true,
+        confirmButtonText: 'Agregar al carrito'
+    });
+
+    if (!qty || qty <= 0) return;
+
+    const quantity = parseInt(qty, 10);
+    const existing = cart.find(item => item.line_key === lineKey);
+    if (existing) {
+        existing.quantity += quantity;
+    } else {
+        cart.push({
+            line_key: lineKey,
+            price_key: selectedKey,
+            product_id: product.id,
+            product_name: product.name,
+            item_number: product.item_number,
+            unit_price: finalPrice,
+            quantity,
+            price_type: finalLabel
+        });
+    }
+
+    document.getElementById('pos-qty').value = 1;
+    document.getElementById('product-search').value = '';
+    document.getElementById('product-search').focus();
+    updateCart();
+    saveCartState();
+
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Agregado',
+        showConfirmButton: false,
+        timer: 1000
+    });
+}
+
+function updateCart() {
+    const tbody = document.getElementById('cart-body');
+    let total = 0;
+
+    if (!cart || cart.length === 0) {
+        tbody.innerHTML = `
+            <div class="pos-cart-empty" id="cart-empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/></svg>
+                <p>El carrito está vacío</p>
+            </div>`;
+        document.getElementById('cart-total').innerText = '$0.00';
+        return;
+    }
+
+    tbody.innerHTML = cart.map((item, idx) => {
+        const unitPrice = parseFloat(item.unit_price || item.price || 0);
+        const qty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+        const lineTotal = unitPrice * qty;
+        total += lineTotal;
+        const key = item.line_key || idx;
+        const formattedUnitPrice = unitPrice.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const formattedTotal = lineTotal.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        return `
+        <div class="cart-line">
+            <div>
+                <div class="cart-line-name" style="font-weight: 700; color: var(--text-main); font-size: 0.9rem;">${item.product_name || item.name}</div>
+                <div class="cart-line-sub" style="font-size: 0.75rem; color: var(--primary-color); font-weight: 600;">${item.price_type || item.priceKey || ''}</div>
+            </div>
+            <div style="font-weight: 600; color: var(--text-muted); font-size: 0.85rem;">
+                ${item.item_number ? '#' + item.item_number : '-'}
+            </div>
+            <div style="display: flex; justify-content: center;">
+                <div class="cart-qty-ctrl">
+                    <button onclick="updateItemQty('${key}', -1)">−</button>
+                    <span style="font-weight: 800; padding: 0 6px;">${qty}</span>
+                    <button onclick="updateItemQty('${key}', 1)">+</button>
+                </div>
+            </div>
+            <div class="cart-line-price" style="text-align: right; font-weight: 600; color: var(--text-main); font-size: 0.9rem;">$${formattedUnitPrice}</div>
+            <div class="cart-line-total" style="text-align: right; font-weight: 800; color: var(--primary-color); font-size: 0.95rem;">$${formattedTotal}</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="cart-remove" onclick="removeFromCart('${key}')" title="Quitar" style="background:none; border:none; color: var(--text-muted); cursor:pointer; font-size: 1.1rem; padding: 4px; border-radius: 4px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+
+    document.getElementById('cart-total').innerText = '$' + total.toLocaleString('es-AR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    if (typeof saveCartState === 'function') saveCartState();
+}
+
+
+function updateItemQty(lineKey, delta) {
+    let item = cart.find(i => i.line_key === lineKey || i.line_key == lineKey);
+    if (!item && typeof lineKey === 'number') item = cart[lineKey];
+    if (!item) return;
+    const currentQty = item.quantity !== undefined ? item.quantity : item.qty;
+    const newQty = currentQty + delta;
+    if (newQty > 0) {
+        if (item.quantity !== undefined) item.quantity = newQty;
+        if (item.qty !== undefined) item.qty = newQty;
+    } else {
+        removeFromCart(lineKey);
+        return;
+    }
+    updateCart();
+}
+
+function removeFromCart(lineKey) {
+    if (typeof lineKey === 'number') {
+        cart.splice(lineKey, 1);
+    } else {
+        cart = cart.filter(i => i.line_key !== lineKey && i.line_key != lineKey);
+    }
+    updateCart();
+}
+
+function openCheckoutModal() {
+    if (!cart || cart.length === 0) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire('Carrito vacío', 'Agregá al menos un producto al carrito.', 'warning');
+        } else {
+            alert('El carrito está vacío');
+        }
+        return;
+    }
+    if (typeof saveCartState === 'function') saveCartState();
+
+    const clientSelect = document.getElementById('client-select');
+    const clientName = clientSelect && clientSelect.value ? clientSelect.options[clientSelect.selectedIndex].text : 'Casual';
+
+    let total = 0;
+    cart.forEach(item => {
+        const uPrice = parseFloat(item.unit_price || item.price || 0);
+        const qty = item.quantity !== undefined ? item.quantity : (item.qty || 1);
+        total += uPrice * qty;
+    });
+
+    const modalTotalDisplay = document.getElementById('modal-total-display');
+    if (modalTotalDisplay) modalTotalDisplay.textContent = '$' + total.toFixed(2);
+
+    const modalClientDisplay = document.getElementById('modal-client-display');
+    if (modalClientDisplay) modalClientDisplay.textContent = clientName;
+
+    const payCash = document.getElementById('pay-cash');
+    if (payCash) payCash.value = total.toFixed(2);
+
+    const payTransfer = document.getElementById('pay-transfer');
+    if (payTransfer) payTransfer.value = (0).toFixed(2);
+
+    const payAccount = document.getElementById('pay-account');
+    if (payAccount) payAccount.value = (0).toFixed(2);
+
+    const isCasual = !clientSelect || !clientSelect.value;
+    const accountRow = document.getElementById('account-row');
+    if (accountRow) accountRow.style.display = isCasual ? 'none' : 'flex';
+
+    const whatsappContainer = document.getElementById('whatsapp-container');
+    if (whatsappContainer) whatsappContainer.style.display = 'none';
+
+    calculateRemaining();
+
+    const paymentModal = document.getElementById('payment-modal');
+    if (paymentModal) {
+        paymentModal.style.display = 'flex';
+        if (payCash) {
+            payCash.focus();
+            payCash.select();
+        }
+    }
+}
+
+// Backward compatibility in case old inline handlers still call checkout()
+window.checkout = openCheckoutModal;
+window.openCheckoutModal = openCheckoutModal;
+
+function calculateRemaining() {
+    const modalTotalEl = document.getElementById('modal-total-display');
+    const totalText = modalTotalEl ? modalTotalEl.textContent.replace('$', '').replace(/\./g, '').replace(',', '.') : '0';
+    const total = parseFloat(totalText) || 0;
+
+    const cashInput = document.getElementById('pay-cash');
+    const cash = parseFloat(cashInput ? cashInput.value : 0) || 0;
+
+    const transferInput = document.getElementById('pay-transfer');
+    const transfer = parseFloat(transferInput ? transferInput.value : 0) || 0;
+
+    const clientSelect = document.getElementById('client-select');
+    const isCasual = !clientSelect || !clientSelect.value;
+
+    const amountPaid = cash + transfer;
+    const remaining = total - amountPaid;
+
+    const totalPaidEl = document.getElementById('total-paid-display');
+    if (totalPaidEl) totalPaidEl.innerText = '$' + amountPaid.toFixed(2);
+
+    const changeDisplay = document.getElementById('change-display');
+    const changeAmount = document.getElementById('change-amount');
+    const payAccount = document.getElementById('pay-account');
+
+    if (remaining < 0) {
+        if (!isCasual && payAccount) payAccount.value = (0).toFixed(2);
+        if (changeDisplay) changeDisplay.style.display = 'flex';
+        if (changeAmount) changeAmount.innerText = '$' + Math.abs(remaining).toFixed(2);
+    } else if (remaining > 0 && !isCasual) {
+        if (payAccount) payAccount.value = remaining.toFixed(2);
+        if (changeDisplay) changeDisplay.style.display = 'none';
+    } else {
+        if (!isCasual && payAccount) payAccount.value = (0).toFixed(2);
+        if (changeDisplay) changeDisplay.style.display = 'none';
+    }
+}
+
+function calcSplit() {
+    const modalTotalEl = document.getElementById('modal-total-display');
+    const totalText = modalTotalEl ? modalTotalEl.textContent.replace('$', '') : '0';
+    const total = parseFloat(totalText) || 0;
+    const cashInput = document.getElementById('pay-cash');
+    const transferInput = document.getElementById('pay-transfer');
+    let cash = parseFloat(cashInput ? cashInput.value : 0) || 0;
+    let trans = parseFloat(transferInput ? transferInput.value : 0) || 0;
+    
+    let rem = total - (cash + trans);
+    if (rem < 0) rem = 0;
+    const payAccount = document.getElementById('pay-account');
+    if (payAccount) payAccount.value = rem.toFixed(2);
+}
+
+function closePaymentModal() {
+    const paymentModal = document.getElementById('payment-modal');
+    if (paymentModal) paymentModal.style.display = 'none';
+}
+
+async function confirmCheckout() {
+    const clientSelect = document.getElementById('client-select');
+    const clientId = clientSelect ? clientSelect.value : null;
+    
+    const cash = parseFloat(document.getElementById('pay-cash').value) || 0;
+    const transfer = parseFloat(document.getElementById('pay-transfer').value) || 0;
+    const account = parseFloat(document.getElementById('pay-account').value) || 0;
+    
+    const amountPaid = cash + transfer;
+    
+    let paymentMethod = 'cash';
+    if (cash > 0 && transfer > 0) paymentMethod = 'Efectivo + Transf.';
+    else if (transfer > 0) paymentMethod = 'transfer';
+    else if (account > 0 && amountPaid === 0) paymentMethod = 'account';
+
+    const salesData = {
+        items: cart.map(i => ({ 
+            product_id: i.product_id, 
+            quantity: i.quantity,
+            price_type: i.price_key // unit, retail, or bulk
+        })),
+        client_id: clientId ? parseInt(clientId, 10) : null,
+        amount_paid: amountPaid,
+        payment_method: paymentMethod
+    };
+
+
+    const btn = document.querySelector('#payment-modal .btn:not([onclick*="close"])');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = 'Procesando...';
+
+    try {
+        const res = await fetch('/api/sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(salesData)
+        });
+
+        if (res.ok) {
+            const sale = await res.json();
+            
+            if (clientId && account > 0) {
+                document.getElementById('whatsapp-container').style.display = 'block';
+                window.lastSale = {
+                    id: sale.id,
+                    total: cart.reduce((acc, item) => acc + (item.unit_price * item.quantity), 0),
+                    paid: amountPaid,
+                    debt: account,
+                    client: allClients.find(c => c.id == clientId),
+                    items: cart.map(item => ({
+                        product_name: item.product_name,
+                        item_number: item.item_number,
+                        quantity: item.quantity,
+                        unit_price: item.unit_price
+                    }))
+                };
+            }
+
+            Swal.fire({
+                title: 'Venta exitosa',
+                text: '¿Desea generar el remito?',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, imprimir',
+                cancelButtonText: 'No'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open(`/sales/${sale.id}/remito`, '_blank');
+                }
+                if (!window.lastSale || window.lastSale.debt === 0) {
+                    closePaymentModal();
+                    resetAfterSale();
+                }
+            });
+            
+        } else {
+            const err = await res.json();
+            alert('Error: ' + err.detail);
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Error de conexion o proceso: ' + e.message);
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
+
+function resetAfterSale() {
+    cart = [];
+    localStorage.removeItem('pos_cart_state');
+    updateCart();
+    fetch('/api/products').then(res => res.json()).then(data => {
+        allProducts = data;
+        renderProducts(allProducts);
+    });
+    document.getElementById('whatsapp-container').style.display = 'none';
+    window.lastSale = null;
+}
+
+function shareWhatsApp() {
+    if (!window.lastSale || !window.lastSale.client) return;
+    
+    const sale = window.lastSale;
+    const client = sale.client;
+    
+    if (!client.phone) {
+        return Swal.fire('Error', 'El cliente no tiene un numero de WhatsApp registrado', 'error');
+    }
+    
+    let phone = client.phone.replace(/\D/g, '');
+    if (!phone.startsWith('54')) phone = '54' + phone;
+    
+    const itemsText = (sale.items || []).map((it) => {
+        const code = it.item_number || '-';
+        const qty = Number(it.quantity || 0);
+        const price = Number(it.unit_price || 0);
+        const lineTotal = qty * price;
+        return `• [${code}] ${it.product_name} | Cant: ${qty} | Precio: $${price.toFixed(2)} | Total: $${lineTotal.toFixed(2)}`;
+    }).join('\n');
+
+    const message = `Hola ${client.name}! Te comparto el detalle de tu compra:\n\n` +
+        `${itemsText ? itemsText + '\n\n' : ''}` +
+        `Total: $${sale.total.toFixed(2)}\n` +
+        `Pagado: $${sale.paid.toFixed(2)}\n` +
+        `Saldo a cuenta: $${sale.debt.toFixed(2)}\n\n` +
+        `Muchas gracias!`;
+        
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    
+    closePaymentModal();
+    resetAfterSale();
+}
+
+
+async function quickEditProduct(productId) {
+    const product = allProducts.find(p => p.id === productId);
+    if (!product) {
+        Swal.fire('Error', 'Producto no encontrado', 'error');
+        return;
+    }
+
+    const { value: formValues } = await Swal.fire({
+        title: `Editar: ${product.name}`,
+        html: `
+            <div style="text-align: left;">
+                <label style="font-weight: bold;">Precio unitario:</label>
+                <input id="edit-price" type="number" step="0.01" value="${product.price || 0}" class="swal2-input" style="width: 90%;">
+                <label style="font-weight: bold; margin-top: 10px; display: block;">Precio mostrador:</label>
+                <input id="edit-price-retail" type="number" step="0.01" value="${product.price_retail || ''}" class="swal2-input" style="width: 90%;">
+                <label style="font-weight: bold; margin-top: 10px; display: block;">Precio bulto:</label>
+                <input id="edit-price-bulk" type="number" step="0.01" value="${product.price_bulk || ''}" class="swal2-input" style="width: 90%;">
+                <label style="font-weight: bold; margin-top: 10px; display: block;">Stock:</label>
+                <input id="edit-stock" type="number" value="${product.stock_quantity || 0}" class="swal2-input" style="width: 90%;">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Guardar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => ({
+            price: parseFloat(document.getElementById('edit-price').value),
+            price_retail: parseFloat(document.getElementById('edit-price-retail').value) || null,
+            price_bulk: parseFloat(document.getElementById('edit-price-bulk').value) || null,
+            stock: parseInt(document.getElementById('edit-stock').value, 10)
+        })
+    });
+
+    if (!formValues) return;
+
+    try {
+        const formData = new FormData();
+        formData.append('name', product.name);
+        formData.append('price', formValues.price);
+        formData.append('stock', formValues.stock);
+        formData.append('description', product.description || '');
+        formData.append('barcode', product.barcode || '');
+        formData.append('category', product.category || '');
+        formData.append('item_number', product.item_number || '');
+        formData.append('cant_bulto', product.cant_bulto || '');
+        formData.append('numeracion', product.numeracion || '');
+        if (formValues.price_retail) formData.append('price_retail', formValues.price_retail);
+        if (formValues.price_bulk) formData.append('price_bulk', formValues.price_bulk);
+
+        const res = await fetch(`/api/products/${productId}`, {
+            method: 'PUT',
+            body: formData
+        });
+
+        if (res.ok) {
+            Swal.fire('Exito', 'Producto actualizado', 'success');
+            const pRes = await fetch('/api/products');
+            allProducts = await pRes.json();
+            const term = document.getElementById('product-search').value.toLowerCase();
+            const filtered = allProducts.filter(p =>
+                p.name.toLowerCase().includes(term) ||
+                (p.barcode && p.barcode.includes(term)) ||
+                (p.item_number && p.item_number.toLowerCase().includes(term))
+            );
+            renderProducts(filtered);
+        } else {
+            Swal.fire('Error', 'No se pudo actualizar', 'error');
+        }
+    } catch (_e) {
+        Swal.fire('Error', 'Fallo de conexion', 'error');
+    }
+}

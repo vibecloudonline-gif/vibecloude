@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Onboarding de Catálogo - VibeCloud{% endblock %}
+{% block header_title %}Onboarding de Catálogo{% endblock %}
+{% block breadcrumb %}Onboarding de Catálogo{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <h2>Carga masiva de catálogo</h2>
+    <p style="color: #6b7280; margin-bottom: 24px;">
+        Subí el Excel con los datos de tus productos (columnas: Name, ItemNumber, Barcode, Price,
+        PriceBulk, Category, Description, Numeracion, CantBulto) y las imágenes de producto.
+        El nombre de archivo de cada imagen (sin extensión) debe ser el <strong>código de
+        producto</strong> (ItemNumber o Barcode) — el sistema las empareja automáticamente,
+        no hace falta ordenarlas a mano.
+    </p>
+
+    <form id="catalog-import-form" onsubmit="submitCatalogImport(event)">
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Excel de productos</label>
+            <input type="file" id="excel-file" name="excel_file" accept=".xlsx,.xls" required>
+        </div>
+
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">Imágenes de producto (podés seleccionar hasta ~3000 juntas)</label>
+            <input type="file" id="images-input" name="images" accept="image/png,image/jpeg,image/webp" multiple>
+            <div id="images-count" style="margin-top: 6px; font-size: 0.85rem; color: #6b7280;"></div>
+        </div>
+
+        <button type="submit" class="btn" id="import-submit-btn">Procesar catálogo</button>
+    </form>
+
+    <div id="import-progress" style="display: none; margin-top: 24px;">
+        <p>Procesando... con catálogos grandes puede tardar varios minutos, no cierres esta página.</p>
+    </div>
+
+    <div id="import-result" style="display: none; margin-top: 24px;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('images-input').addEventListener('change', (e) => {
+    document.getElementById('images-count').textContent =
+        e.target.files.length ? `${e.target.files.length} imágenes seleccionadas` : '';
+});
+
+async function submitCatalogImport(event) {
+    event.preventDefault();
+
+    const excelInput = document.getElementById('excel-file');
+    const imagesInput = document.getElementById('images-input');
+    const submitBtn = document.getElementById('import-submit-btn');
+    const progressEl = document.getElementById('import-progress');
+    const resultEl = document.getElementById('import-result');
+
+    if (!excelInput.files.length) {
+        Swal.fire('Falta el Excel', 'Seleccioná el archivo de datos de productos.', 'warning');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('excel_file', excelInput.files[0]);
+    for (const file of imagesInput.files) {
+        formData.append('images', file);
+    }
+
+    submitBtn.disabled = true;
+    progressEl.style.display = 'block';
+    resultEl.style.display = 'none';
+
+    try {
+        const res = await fetch('/api/catalog/import', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!res.ok) {
+            throw new Error(data.detail || 'Error al procesar la importación');
+        }
+
+        renderImportResult(data);
+    } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        progressEl.style.display = 'none';
+    }
+}
+
+function renderImportResult(data) {
+    const resultEl = document.getElementById('import-result');
+    resultEl.style.display = 'block';
+
+    let html = `
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            <div class="glass-card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700;">${data.products_created}</div>
+                <div style="color: #6b7280; font-size: 0.85rem;">Productos creados</div>
+            </div>
+            <div class="glass-card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700;">${data.products_updated}</div>
+                <div style="color: #6b7280; font-size: 0.85rem;">Productos actualizados</div>
+            </div>
+            <div class="glass-card" style="padding: 16px; text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #10b981;">${data.images_matched}</div>
+                <div style="color: #6b7280; font-size: 0.85rem;">Imágenes emparejadas</div>
+            </div>
+        </div>
+    `;
+
+    if (data.products_without_image && data.products_without_image.length) {
+        html += `<h4 style="margin-bottom: 8px;">Productos sin imagen (${data.products_without_image.length})</h4>
+            <p style="font-size: 0.85rem; color: #6b7280; max-height: 150px; overflow-y: auto;">
+                ${data.products_without_image.join(', ')}
+            </p>`;
+    }
+
+    if (data.unmatched_images && data.unmatched_images.length) {
+        html += `<h4 style="margin: 16px 0 8px;">Imágenes sin producto que las use (${data.unmatched_images.length})</h4>
+            <p style="font-size: 0.85rem; color: #6b7280; max-height: 150px; overflow-y: auto;">
+                Revisá que el código de archivo coincida con ItemNumber/Barcode: ${data.unmatched_images.join(', ')}
+            </p>`;
+    }
+
+    if (data.row_errors && data.row_errors.length) {
+        html += `<h4 style="margin: 16px 0 8px; color: #ef4444;">Filas con error (${data.row_errors.length})</h4>
+            <p style="font-size: 0.85rem; color: #ef4444; max-height: 150px; overflow-y: auto;">
+                ${data.row_errors.join('<br>')}
+            </p>`;
+    }
+
+    resultEl.innerHTML = html;
+}
+</script>
+{% endblock %}

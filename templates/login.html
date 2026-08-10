@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar sesion - VibeCloud Cloud{% endblock %}
+
+{% block head %}
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 84vh;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 460px;
+        text-align: center;
+        padding: 36px;
+    }
+
+    .navbar {
+        display: none;
+    }
+
+    .login-logo img {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card glass-card">
+        <div class="login-logo">
+            <img src="{{ settings.logo_url }}" alt="{{ settings.company_name }}">
+        </div>
+        <p class="eyebrow">Operacion centralizada</p>
+        <h2>{{ settings.company_name }}</h2>
+        <p style="color: var(--text-muted); margin-bottom: 32px;">Ingresa a tu panel para ventas, stock y clientes en un solo lugar.</p>
+
+        {% if error %}
+        <div style="background: rgba(239, 68, 68, 0.12); color: #b91c1c; padding: 12px; border-radius: 12px; margin-bottom: 24px; font-size: 0.95rem;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form action="/login" method="post">
+            <div style="text-align: left;">
+                <label style="display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600;">Usuario</label>
+                <input type="text" name="username" required placeholder="admin" autofocus>
+            </div>
+
+            <div style="text-align: left; margin-top: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600;">Contrasena</label>
+                <input type="password" name="password" required placeholder="Tu acceso seguro">
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; margin-top: 28px; padding: 14px;">Ingresar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

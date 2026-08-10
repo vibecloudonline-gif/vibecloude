@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VibeCloud Cloud{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#14324a">
+    <link rel="apple-touch-icon" href="/static/images/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% block head %}{% endblock %}
+</head>
+<body class="theme-{{ settings.ui_theme }}">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="app-layout">
+        <!-- Sidebar Izquierdo Corporativo -->
+        <aside class="sidebar animate-fade-in">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <div class="logo-box">VC</div>
+                    <div class="logo-text">
+                        <span>VibeCloud</span>
+                        <small>Cloud Retail</small>
+                    </div>
+                </a>
+            </div>
+            
+            <nav class="sidebar-links">
+                <a href="/" class="{% if active_page == 'home' %}active{% endif %}" data-tooltip="Dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/pos" class="{% if active_page == 'pos' %}active{% endif %}" data-tooltip="POS / Ventas">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+                    <span>POS / Ventas</span>
+                </a>
+                <a href="/products" class="{% if active_page == 'products' %}active{% endif %}" data-tooltip="Stock">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                    <span>Stock</span>
+                </a>
+                <a href="/products/labels" class="{% if active_page == 'print_labels' %}active{% endif %}" data-tooltip="Etiquetas">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096a42.42 42.42 0 01-10.56 0m10.56 0L17.66 18m0 0a.75.75 0 01-.75-.75V15m0 3a.75.75 0 00.75-.75V15M6.34 18a.75.75 0 00.75-.75V15m0 3a.75.75 0 01-.75-.75V15m1.08-10.274l-.007-.003-.004-.001a.752.752 0 00-.704.053l-.003.001-.004.004a.752.752 0 00-.276.608V12h11.25V4.783a.75.75 0 00-.276-.608l-.004-.004-.003-.001a.752.752 0 00-.704-.053l-.004.001-.007.003-4.12 2.06a.75.75 0 01-.672 0l-4.12-2.06z" /></svg>
+                    <span>Etiquetas</span>
+                </a>
+                <a href="/sales" class="{% if active_page == 'sales' %}active{% endif %}" data-tooltip="Ventas Historial">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801-1c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 12.408l-2.062 1.03a.75.75 0 01-.672 0l-2.062-1.03A.75.75 0 003 16.735v.23a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-.23a.75.75 0 00-.428-.671l-2.062-1.03a.75.75 0 01-.672 0l-2.062 1.03a2.25 2.25 0 01-2.016 0l-2.062-1.03a.75.75 0 01-.672 0z" /></svg>
+                    <span>Ventas Historial</span>
+                </a>
+                <a href="/cash" class="{% if active_page == 'cash' %}active{% endif %}" data-tooltip="Caja">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Caja</span>
+                </a>
+                <a href="/clients" class="{% if active_page == 'clients' %}active{% endif %}" data-tooltip="Clientes">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72" /></svg>
+                    <span>Clientes</span>
+                </a>
+                <a href="/suppliers" class="{% if active_page == 'suppliers' %}active{% endif %}" data-tooltip="Proveedores">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5-1.5l-3-1m-3.182-3.182a4.5 4.5 0 11-6.364 0M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9" /></svg>
+                    <span>Proveedores</span>
+                </a>
+                <a href="/picking" class="{% if active_page == 'picking' %}active{% endif %}" data-tooltip="Picking">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    <span>Picking</span>
+                </a>
+                <a href="/wms/depositos" class="{% if active_page == 'wms' %}active{% endif %}" data-tooltip="WMS">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15" /></svg>
+                    <span>WMS</span>
+                </a>
+                {% if user and user.role == "admin" %}
+                <a href="/catalog-import" class="{% if active_page == 'catalog_import' %}active{% endif %}" data-tooltip="Onboarding de Catálogo">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    <span>Onboarding Catálogo</span>
+                </a>
+                <a href="/reports" class="{% if active_page == 'reports' %}active{% endif %}" data-tooltip="Reportes">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" /></svg>
+                    <span>Reportes</span>
+                </a>
+                <a href="/settings" class="{% if active_page == 'settings' %}active{% endif %}" data-tooltip="Configuración">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span>Configuración</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            {% if user %}
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <span class="username">{{ user.username }}</span>
+                    <span class="role">{{ user.role }}</span>
+                </div>
+                <a href="/logout" class="logout-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+                </a>
+            </div>
+            {% endif %}
+        </aside>
+
+        <!-- Contenedor Principal Derecho -->
+        <div class="app-body">
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                    </button>
+                    <div class="header-title-area">
+                        <h2>{% block header_title %}Panel de Control{% endblock %}</h2>
+                        <nav class="breadcrumb" aria-label="Breadcrumb">
+                            <a href="/">Inicio</a>
+                            <span class="breadcrumb-sep">/</span>
+                            <span class="breadcrumb-current">{% block breadcrumb %}Dashboard{% endblock %}</span>
+                        </nav>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <!-- Notification Bell -->
+                    <button class="notification-btn" id="notifBtn" aria-label="Notificaciones">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="22" height="22"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+                        {% if low_stock is defined and low_stock > 0 %}
+                        <span class="notif-badge">{{ low_stock }}</span>
+                        {% endif %}
+                    </button>
+                </div>
+            </header>
+            
+            <main class="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock %}
+
+    <script>
+        /* --- Sidebar Toggle (Mobile) --- */
+        (function() {
+            const hamburger = document.getElementById('hamburgerBtn');
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            function openSidebar() {
+                sidebar.classList.add('sidebar-mobile-open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            function closeSidebar() {
+                sidebar.classList.remove('sidebar-mobile-open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (hamburger) hamburger.addEventListener('click', openSidebar);
+            if (overlay) overlay.addEventListener('click', closeSidebar);
+        })();
+    </script>
+</body>
+</html>

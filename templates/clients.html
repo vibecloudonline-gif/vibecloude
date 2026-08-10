@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Gestión de Clientes</h2>
+        <div>
+            <button onclick="importExcel()" class="btn" style="background-color: #f59e0b; margin-right: 8px;">📂
+                Importar</button>
+            <a href="/api/clients/export" class="btn" style="background-color: #10b981; margin-right: 8px;">Exportar
+                Excel</a>
+            <button onclick="window.print()" class="btn" style="background-color: #2c3e50; margin-right: 8px;">🖨️
+                Imprimir Listado</button>
+            <button onclick="openModal()" class="btn">+ Nuevo Cliente</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Cliente / Empresa</th>
+                    <th>Contacto</th>
+                    <th>Saldo / Límite</th>
+                    <th>Transporte</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for client in clients %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 500;">{{ client.name }}</div>
+                        {% if client.razon_social %}
+                        <div style="font-size: 0.8rem; color: #4b5563;">{{ client.razon_social }}</div>
+                        {% endif %}
+                        {% if client.cuit %}
+                        <div style="font-size: 0.75rem; color: #6b7280; font-family: monospace;">CUIT: {{ client.cuit }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if client.phone %}<div>📱 {{ client.phone }}</div>{% endif %}
+                        {% if client.email %}<div>📧 {{ client.email }}</div>{% endif %}
+                        {% if client.address %}
+                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">📍 {{ client.address }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div
+                            style="font-weight: bold; color: {% if balances[client.id] > 0 %}#ef4444{% else %}#10b981{% endif %};">
+                            ${{ balances[client.id] }}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #6b7280;">
+                            Límite: {% if client.credit_limit %}${{ client.credit_limit }}{% else %}No def.{% endif %}
+                        </div>
+                        {% if client.iva_category %}
+                        <div
+                            style="font-size: 0.7rem; background: #e5e7eb; display: inline-block; padding: 2px 4px; border-radius: 4px; margin-top: 4px;">
+                            {{ client.iva_category }}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td style="font-size: 0.85rem;">
+                        {% if client.transport_name %}
+                        <div style="font-weight: 500;">{{ client.transport_name }}</div>
+                        {% endif %}
+                        {% if client.transport_address %}
+                        <div style="font-size: 0.75rem; color: #6b7280;">{{ client.transport_address }}</div>
+                        {% endif %}
+                        {% if not client.transport_name and not client.transport_address %}
+                        <span style="color: #9ca3af;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/clients/{{client.id}}/account" class="btn"
+                            style="padding: 4px 8px; font-size: 0.8rem; background: transparent; border: 1px solid #10b981; color: #10b981; margin-right: 8px; text-decoration: none;">Ver
+                            Cuenta</a>
+                        <button
+                            onclick="editClient('{{client.id}}', '{{client.name}}', '{{client.phone}}', '{{client.email}}', '{{client.address}}', '{{client.credit_limit}}', '{{client.razon_social}}', '{{client.cuit}}', '{{client.iva_category}}', '{{client.transport_name}}', '{{client.transport_address}}')"
+                            class="btn"
+                            style="padding: 4px 8px; font-size: 0.8rem; background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color);">Editar</button>
+                        <button onclick="deleteClient('{{client.id}}')" class="btn"
+                            style="padding: 4px 8px; font-size: 0.8rem; background: transparent; border: 1px solid #ef4444; color: #ef4444; margin-left: 8px;">Eliminar</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 32px;">No hay clientes registrados</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="client-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; justify-content: center; align-items: center;">
+    <div class="glass-card"
+        style="width: 95%; max-width: 900px; background: white; max-height: 90vh; overflow-y: auto;">
+        <h3 id="modal-title" style="margin-bottom: 24px;">Nuevo Cliente</h3>
+        <form id="client-form" onsubmit="submitClient(event)">
+            <input type="hidden" id="edit-id" name="id">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
+                <!-- Left Column: Commercial Info -->
+                <div>
+                    <h4
+                        style="margin-bottom: 16px; color: var(--primary-color); font-size: 1em; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                        Datos Fiscales y Contacto</h4>
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Razón Social / Empresa</label>
+                    <input type="text" id="c-razon-social" name="razon_social" placeholder="Empresa S.A."
+                        style="font-weight: bold; margin-bottom: 16px;">
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">CUIT</label>
+                            <input type="text" id="c-cuit" name="cuit" placeholder="20-12345678-9">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Condición IVA</label>
+                            <select id="c-iva" name="iva_category"
+                                style="width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: white;">
+                                <option value="">Seleccionar...</option>
+                                <option value="Resp. Inscripto">Resp. Inscripto</option>
+                                <option value="Monotributo">Monotributo</option>
+                                <option value="Consumidor Final">Consumidor Final</option>
+                                <option value="Exento">Exento</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nombre Completo (Contacto
+                        Principal)</label>
+                    <input type="text" id="c-name" name="name" required placeholder="Juan Pérez"
+                        style="margin-bottom: 16px;">
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Teléfono / WhatsApp</label>
+                    <input type="text" id="c-phone" name="phone" placeholder="+54 9 11 1234-5678">
+                </div>
+
+                <!-- Right Column: Logistics & Finance -->
+                <div>
+                    <h4
+                        style="margin-bottom: 16px; color: var(--primary-color); font-size: 1em; border-bottom: 1px solid #eee; padding-bottom: 8px;">
+                        Ubicación y Finanzas</h4>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 500;">Límite Crédito
+                                ($)</label>
+                            <input type="number" step="0.01" id="c-limit" name="credit_limit" placeholder="Opcional"
+                                style="border-color: #10b981;">
+                        </div>
+                    </div>
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Email Facturación</label>
+                    <input type="email" id="c-email" name="email" placeholder="juan@ejemplo.com"
+                        style="margin-bottom: 16px;">
+
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Dirección Entrega</label>
+                    <input type="text" id="c-address" name="address" placeholder="Calle Falsa 123"
+                        style="margin-bottom: 24px;">
+
+                    <!-- Transport Box -->
+                    <div style="background: #f9fafb; padding: 16px; border-radius: 12px; border: 1px solid #e5e7eb;">
+                        <h5
+                            style="margin-top: 0; margin-bottom: 12px; color: #6b7280; font-size: 0.85em; text-transform: uppercase; font-weight: 700;">
+                            Datos de Transporte</h5>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 12px;">
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.9em; font-weight: 500;">Nombre
+                                    Transporte</label>
+                                <input type="text" id="c-transport-name" name="transport_name" placeholder="Expreso..."
+                                    style="font-size: 0.9em;">
+                            </div>
+                            <div>
+                                <label
+                                    style="display: block; margin-bottom: 4px; font-size: 0.9em; font-weight: 500;">Dirección
+                                    Transporte</label>
+                                <input type="text" id="c-transport-address" name="transport_address"
+                                    placeholder="Av. Transporte 123" style="font-size: 0.9em;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 32px; text-align: right; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" onclick="closeModal()" class="btn"
+                    style="background: white; color: #666; border: 1px solid #e5e7eb; padding: 10px 24px;">Cancelar</button>
+                <button type="submit" class="btn"
+                    style="padding: 10px 32px; font-size: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">💾
+                    Guardar Cliente</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal() {
+        document.getElementById('client-modal').style.display = 'flex';
+        document.getElementById('client-form').reset();
+        document.getElementById('edit-id').value = '';
+        document.getElementById('modal-title').innerText = 'Nuevo Cliente';
+    }
+    function closeModal() { document.getElementById('client-modal').style.display = 'none'; }
+
+    function editClient(id, name, phone, email, address, limit, razonSocial, cuit, iva, transportName, transportAddress) {
+        document.getElementById('client-modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = 'Editar Cliente';
+        document.getElementById('edit-id').value = id;
+        document.getElementById('c-name').value = name;
+        document.getElementById('c-phone').value = phone === 'None' ? '' : phone;
+        document.getElementById('c-email').value = email === 'None' ? '' : email;
+        document.getElementById('c-address').value = address === 'None' ? '' : address;
+        document.getElementById('c-limit').value = limit === 'None' || limit === '' ? '' : limit;
+
+        // New Fields
+        document.getElementById('c-razon-social').value = razonSocial === 'None' ? '' : razonSocial;
+        document.getElementById('c-cuit').value = cuit === 'None' ? '' : cuit;
+        document.getElementById('c-iva').value = iva === 'None' ? '' : iva;
+        document.getElementById('c-transport-name').value = transportName === 'None' ? '' : transportName;
+        document.getElementById('c-transport-address').value = transportAddress === 'None' ? '' : transportAddress;
+    }
+
+    async function deleteClient(id) {
+        if (!confirm('¿Estás seguro de eliminar este cliente?')) return;
+        try {
+            const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+            if (res.ok) window.location.reload();
+            else alert('Error al eliminar');
+        } catch (e) { alert('Error de conexión'); }
+    }
+
+    async function submitClient(e) {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const form = e.target;
+        const formData = new FormData(form);
+
+        const url = id ? `/api/clients/${id}` : '/api/clients';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, { method: method, body: formData });
+            if (res.ok) window.location.reload();
+            else alert("Error al guardar");
+        } catch (err) { alert("Error de conexión"); }
+    }
+
+    async function importExcel() {
+        const { value: file } = await Swal.fire({
+            title: 'Importar Clientes',
+            html: `
+                <div style="text-align: left;">
+                    <p style="margin-bottom: 12px;">1. Descarga la plantilla base:</p>
+                    <a href="/api/templates/download/clients" class="btn" style="background: #2563eb; display: block; text-align: center; margin-bottom: 24px; text-decoration: none;">📥 Descargar Plantilla Excel</a>
+                    <p style="margin-bottom: 8px;">2. Sube tu archivo con los cambios:</p>
+                </div>
+            `,
+            input: 'file',
+            inputAttributes: {
+                'accept': '.xlsx, .xls',
+                'aria-label': 'Sube tu archivo Excel'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Subir y Procesar',
+            cancelButtonText: 'Cancelar',
+            showLoaderOnConfirm: true,
+            preConfirm: (file) => {
+                if (!file) {
+                    Swal.showValidationMessage('Por favor selecciona un archivo');
+                    return false;
+                }
+                const formData = new FormData();
+                formData.append('file', file);
+
+                return fetch('/api/import/clients', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(response.statusText)
+                        }
+                        return response.json()
+                    })
+                    .catch(error => {
+                        Swal.showValidationMessage(
+                            `Request failed: ${error}`
+                        )
+                    })
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+
+        if (file) {
+            let msg = `Agregados: ${file.added}`;
+            if (file.errors && file.errors.length > 0) {
+                msg += `<br><br><span style="color:red">Errores (${file.errors.length}):</span><br>` + file.errors.slice(0, 5).join('<br>');
+                if (file.errors.length > 5) msg += '<br>...';
+            }
+
+            Swal.fire({
+                title: 'Importación Completada',
+                html: msg,
+                icon: file.errors && file.errors.length > 0 ? 'warning' : 'success'
+            }).then(() => {
+                window.location.reload();
+            });
+        }
+    }
+</script>
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .table-container,
+        .table-container * {
+            visibility: visible;
+        }
+
+        .table-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        /* Hide actions column */
+        th:nth-child(5),
+        td:nth-child(5) {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}

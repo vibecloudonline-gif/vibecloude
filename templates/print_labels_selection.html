@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Imprimir Etiquetas - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h2>Impresor de Etiquetas</h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <label style="font-size: 0.9rem; font-weight: 500;">Formato:</label>
+                <select name="layout_type" form="printForm"
+                    style="padding: 8px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 0.9rem; min-width: 150px;">
+                    <option value="standard">Estándar ({{ settings.label_width_mm }}x{{ settings.label_height_mm }}mm)
+                    </option>
+                    <option value="100x50" selected>Larga (100x50mm)</option>
+                    <option value="55x44">Personalizado (55x44mm)</option>
+                    <option value="exhibition">Exhibición (100x65mm)</option>
+                </select>
+            </div>
+            <label
+                style="display: flex; align-items: center; gap: 8px; cursor: pointer; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e5e7eb; font-size: 0.9rem;">
+                <input type="checkbox" name="hide_price" value="true" form="printForm">
+                <span>Ocultar Precio</span>
+            </label>
+            <button type="submit" form="printForm" class="btn">
+                🖨️ Generar Vista
+            </button>
+        </div>
+    </div>
+
+    <form id="printForm" action="/products/labels/print" method="post" target="_blank">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+                        <th>Producto</th>
+                        <th>Código</th>
+                        <th>Precio</th>
+                        <th style="width: 100px;">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            <input type="checkbox" name="selected_products" value="{{ product.id }}"
+                                class="product-check">
+                        </td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.barcode }}</td>
+                        <td>${{ product.price }}</td>
+                        <td>
+                            <input type="number" name="qty_{{ product.id }}" value="1" min="1" class="qty-input"
+                                style="width: 80px; margin-bottom: 0;">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function toggleAll(source) {
+        checkboxes = document.getElementsByClassName('product-check');
+        for (var i = 0, n = checkboxes.length; i < n; i++) {
+            checkboxes[i].checked = source.checked;
+        }
+    }
+</script>
+{% endblock %}

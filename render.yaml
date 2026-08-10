@@ -1,0 +1,48 @@
+# render.yaml — VibeCloud
+# Infrastructure as Code — 2 servicios
+# Actualizado: 2026-08-10 — Medusa, su worker de sync y el storefront Next.js
+# se sacaron del proyecto (ver VIBECLOUD_ROADMAP_V2.md): el ecommerce ahora
+# se sirve desde el mismo backend FastAPI, sin sistema externo que sincronizar.
+
+services:
+
+  # ── 1. VibeCloud: FastAPI + Python ──────────────────────
+  - type: web
+    name: vibecloud-backend
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port $PORT
+      --workers 2
+      --log-level info
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # ← setear en Render dashboard
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          name: vibecloud-redis
+          type: redis
+          property: connectionString
+      - key: VIBECLOUD_API_KEY
+        generateValue: true  # ← Render genera automáticamente
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+
+  # ── 2. Redis: rate limiting + cache de catálogo/IA ────
+  - type: redis
+    name: vibecloud-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []          # solo acceso interno entre servicios

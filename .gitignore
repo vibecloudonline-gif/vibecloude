@@ -1,0 +1,38 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+.venv
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite3
+backup_pre_migracion_*
+
+# Credentials (NEVER COMMIT)
+credentials.json
+service_account.json
+client_secret.json
+
+# IDEs
+.vscode/
+.idea/
+
+# Temp files & artifacts (Sprint 5.1)
+test_db.py
+fix_schema.py
+dump_db.py
+legacy_data/
+logs/
+old_pos.*
+full_system_export.txt
+crash.log
+e2e_production_readiness.py
+backup_pre_migracion.py
+

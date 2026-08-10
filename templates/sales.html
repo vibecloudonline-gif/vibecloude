@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes de Ventas - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+
+    <!-- Daily Sales Summary & Backup -->
+    <div style="margin-bottom: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="margin: 0;">Reportes y Cierre de Caja</h2>
+
+            <form action="/sales/backup" method="POST"
+                onsubmit="return confirm('¿Estás seguro de cerrar la caja y enviar el backup a Google Sheets?');">
+                <button type="submit" class="btn-primary"
+                    style="background-color: #059669; font-weight: bold; padding: 10px 20px; display: flex; align-items: center; gap: 8px;">
+                    🔒 CERRAR CAJA Y ENVIAR BACKUP
+                </button>
+            </form>
+        </div>
+
+        <!-- Feedback Message -->
+        {% if backup_status %}
+        <div style="margin-bottom: 16px; padding: 12px; border-radius: 8px; font-weight: 500; 
+             background-color: {% if backup_status == 'success' %}#d1fae5{% else %}#fee2e2{% endif %}; 
+             color: {% if backup_status == 'success' %}#065f46{% else %}#b91c1c{% endif %};">
+            {{ backup_message }}
+        </div>
+        {% endif %}
+
+        <div class="glass-card table-container" style="max-height: 300px; overflow-y: auto;">
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="color: var(--primary-color);">Fecha</th>
+                        <th style="color: var(--primary-color);">Total Vendido</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in daily_reports %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ day.date }}</td>
+                        <td style="font-weight: bold; font-size: 1.1em;">${{ "%.2f"|format(day.total) }}</td>
+                        <td><span
+                                style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 99px; font-size: 0.8rem;">Cerrado</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: #999;">Sin movimientos</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Grouped Sales Detail -->
+    <h2 style="margin-bottom: 24px;">Detalle de Ventas por Día</h2>
+
+    {% for report in daily_reports %}
+    <div class="glass-card" style="margin-bottom: 24px;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px;">
+            <h3 style="margin: 0; color: var(--primary-color);">{{ report.date }}</h3>
+            <span style="font-weight: bold; font-size: 1.1em;">Total: ${{ "%.2f"|format(report.total) }}</span>
+        </div>
+
+        <div class="table-container">
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Hora</th>
+                        <th>Cliente</th>
+                        <th>Medio</th>
+                        <th>Vendedor</th>
+                        <th>Total</th>
+                        <th>Pagado</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                        <th>Items</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in report.sales %}
+                    <tr style="{% if sale.payment_status == 'cancelled' %}opacity: 0.55; background: rgba(254, 226, 226, 0.2);{% endif %}">
+                        <td>{{ sale.timestamp.strftime('%H:%M') }}</td>
+                        <td style="font-weight: 500;">
+                            {% if sale.client %}{{ sale.client.name }}{% else %}Consumidor Final{% endif %}
+                        </td>
+                        <td>
+                            {% if sale.payment_method == 'cash' %}💵 Efectivo
+                            {% elif sale.payment_method == 'transfer' %}🏦 Transferencia
+                            {% elif sale.payment_method == 'cuenta_corriente' %}📝 Cta. Corriente
+                            {% elif sale.payment_method == 'card' %}💳 Tarjeta
+                            {% else %}{{ sale.payment_method }}{% endif %}
+                        </td>
+                        <td>
+                            {% if sale.user_id %}Usuario #{{ sale.user_id }}{% else %}Sistema{% endif %}
+                        </td>
+                        <td style="font-weight: bold;">${{ "%.2f"|format(sale.total_amount) }}</td>
+                        <td>${{ "%.2f"|format(sale.amount_paid or 0) }}</td>
+                        <td>
+                            {% if sale.payment_status == 'paid' %}
+                            <span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 99px; font-size: 0.8rem;">Pagado</span>
+                            {% elif sale.payment_status == 'partial' %}
+                            <span style="background: #fef3c7; color: #d97706; padding: 2px 8px; border-radius: 99px; font-size: 0.8rem;">Parcial</span>
+                            {% elif sale.payment_status == 'cancelled' %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 99px; font-size: 0.8rem; font-weight: bold;">🚫 Anulada</span>
+                            {% else %}
+                            <span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 99px; font-size: 0.8rem;">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/sales/{{ sale.id }}/remito" target="_blank" class="btn-small"
+                                style="text-decoration: none; display: inline-block; padding: 4px 8px; background: #e0e7ff; color: #4338ca; border-radius: 4px; font-size: 0.8em;">
+                                📄 Remito
+                            </a>
+                            {% if user.role == 'admin' and sale.payment_status != 'cancelled' and not sale.is_closed %}
+                            <button onclick="anularVenta({{ sale.id }})" class="btn-small"
+                                style="padding: 4px 8px; background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-left: 4px;">
+                                🚫 Anular
+                            </button>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.85rem;">
+                                {% for item in sale.items %}
+                                <li>{{ item.quantity }}x {{ item.product_name }} (${{ item.unit_price }})</li>
+                                {% endfor %}
+                            </ul>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="glass-card">
+        <p style="text-align: center; color: #666;">No hay ventas registradas.</p>
+    </div>
+    {% endfor %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+async function anularVenta(saleId) {
+    const { value: reason, isConfirmed } = await Swal.fire({
+        title: 'Anular Venta #' + saleId,
+        input: 'text',
+        inputLabel: 'Motivo de la anulación',
+        inputPlaceholder: 'Ej: Error de cajero / Devolución',
+        inputValue: 'Anulación manual',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, anular venta',
+        confirmButtonColor: '#ef4444',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!isConfirmed || !reason) return;
+
+    const formData = new FormData();
+    formData.append('reason', reason);
+
+    try {
+        const res = await fetch(`/api/sales/${saleId}/cancel`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            Swal.fire({
+                icon: 'success',
+                title: 'Venta Anulada',
+                text: `La venta #${saleId} fue anulada correctamente. Stock y caja revertidos.`,
+                timer: 2000
+            }).then(() => {
+                window.location.reload();
+            });
+        } else {
+            const err = await res.json().catch(() => ({}));
+            Swal.fire({
+                icon: 'error',
+                title: 'No se pudo anular',
+                text: err.detail || 'Error al procesar la anulación'
+            });
+        }
+    } catch (e) {
+        Swal.fire('Error', 'Fallo de conexión: ' + e.message, 'error');
+    }
+}
+</script>
+{% endblock %}
