@@ -51,30 +51,35 @@ Ya validado según `CLAUDE.md` v1: `tenant_id` en tablas críticas, `get_current
 **Definition of Done:** ✅ verificado con pruebas automatizadas: compra de punta a punta (catálogo → carrito → checkout → confirmación), stock decrementado correctamente, y aislamiento entre dos tenants confirmado (ninguno ve datos/productos del otro, ni por catálogo ni por acceso directo a un product_id ajeno).
 
 ### Fase 3 — Landing Pages con IA (== Fase 4 de v1, sin cambios de fondo)
-- [ ] AI Template Studio con sanitización obligatoria (Regla 1.2) desde el primer commit.
-- [ ] Landing pages dinámicas vía SSR/ISR.
-- Se adelanta en el orden porque ya no depende de que Medusa esté funcionando — antes estaba después de la cascada de IA completa; ahora solo depende del ecommerce propio de Fase 2.
+- [x] AI Template Studio con sanitización obligatoria (Regla 1.2): `services/landing_service.py`. Gemini nunca genera HTML/CSS -- solo texto y elección de color/fuente de una lista cerrada, validado contra schema Pydantic estricto. Chat en `/panel/landing`, landing pública en `/landing`.
+- [ ] Landing pages dinámicas vía SSR/ISR -- lo construido hoy es una sola landing por tenant (no múltiples páginas/rutas todavía).
+- Se adelantó en el orden porque ya no depende de que Medusa esté funcionando — antes estaba después de la cascada de IA completa; ahora solo dependía del ecommerce propio de Fase 2, ya construido.
 
-### Fase 4 — AlexIO Live
+### Fase 4 — AlexIO Live (construido 2026-08-10)
 *De widget de chat a asistente en tiempo real transversal.*
 
-- [ ] Definir el canal real-time: WebSocket propio vs. algo como LiveKit/Pipecat para voz — **no está definido, es la pregunta abierta más grande de todo el documento** (ver sección 4).
-- [ ] Reutiliza `AIBrainService` de Fase 2 de v1 (ya con `tenant_id` inyectado server-side, Regla 1.1 aplicada) como cerebro; "Live" es una capa de transporte nueva, no un cerebro nuevo.
-- [ ] Si incluye voz: el mismo principio de sanitización de Regla 1.2 aplica a cualquier salida generada que se renderice (subtítulos, transcripciones mostradas en UI).
+- [x] Canal: **texto en la web, sin voz** (decisión ya confirmada en sección 4, punto 4). Widget flotante en todas las páginas del storefront (`templates/storefront_base.html`).
+- [x] Reutiliza `AIBrainService` (`tenant_id` inyectado server-side, Regla 1.1 aplicada) — se le agregó un parámetro `allowed_tools` para que el storefront público solo pueda usar `consultar_stock`/`recomendar_productos`, nunca `obtener_metricas_ventas` (dato de negocio que no debe ver un visitante anónimo). Filtrado en dos capas: en el schema que se le declara a Gemini y en la ejecución de la tool.
+- [ ] Voz/tiempo real (WebSocket, LiveKit) — descartado por decisión ya tomada, no es parte del alcance.
 
-**Definition of Done:** un usuario interactúa por voz o chat en tiempo real con AlexIO durante una sesión de compra en el ecommerce propio, sin romper el aislamiento de tenant ni exceder cuota de créditos de IA a mitad de conversación.
+**Definition of Done:** ✅ verificado con pruebas automatizadas: el widget responde en el storefront y el payload enviado a Gemini confirmado sin `obtener_metricas_ventas` en la lista de herramientas.
 
-### Fase 5 — Capa de "hosting provider"
+### Fase 5 — Capa de "hosting provider" (scaffolding construido 2026-08-10, sin probar contra servicios externos reales)
 *Esto es lo nuevo que no estaba en v1 en absoluto.*
 
-- [ ] Provisión de dominios custom por tenant (hoy solo hay subdominio vía `BASE_DOMAIN`, ver `_resolve_tenant_from_host` en `web/dependencies.py`) — falta: verificación de dominio, SSL automático (Let's Encrypt / Caddy / el proveedor de hosting que se use).
-- [ ] Aislamiento de recursos por tenant a nivel de hosting (no solo `tenant_id` en DB): almacenamiento de assets, límites de uso, posible aislamiento de proceso si un tenant abusa de IA o tráfico.
-- [ ] Facturación de hosting como línea de producto separada de los créditos de IA (`ai_tier`/`ai_credits` ya existe para IA; hosting necesita su propio modelo de plan).
+- [x] Modelo `TenantDomain` + verificación por registro TXT DNS + panel en `/tenants/{id}/domains` (SuperAdmin). `_resolve_tenant_from_host` ahora resuelve por dominio custom verificado además del subdominio de `BASE_DOMAIN`.
+- [x] Cliente de **NameSilo** (`services/domain_registrar_service.py`) siguiendo su API pública documentada — **sin probar contra la API real**, no hay `NAMESILO_API_KEY` disponible en este entorno. Probarlo con una cuenta real antes de usarlo en producción.
+- [ ] SSL automático (Cloudflare for SaaS, según se confirmó en sección 6) — no implementado, requiere cuenta de Cloudflare real.
+- [ ] Aislamiento de recursos por tenant a nivel de hosting (storage, límites de uso).
+- [ ] Facturación de hosting como línea de producto separada.
 
-**Definition of Done:** un tenant puede conectar un dominio propio y quedar activo con SSL sin intervención manual del equipo.
+**Definition of Done:** ⚠️ parcial. La resolución de tenant por dominio custom verificado está probada end-to-end (con la verificación TXT mockeada, ya que no hay un dominio real apuntando a este entorno). Falta: SSL automático y probar el cliente de NameSilo contra la API real.
 
-### Fase 6 — Operación/SuperAdmin (== Fase 5 de v1, sin cambios de fondo)
-Dashboard, métricas, health checks — igual que v1, corre en paralelo a partir de que hay tenants reales, no antes.
+### Fase 6 — Operación/SuperAdmin (construido 2026-08-10, parcial)
+- [x] `/health` y `/ready`. **Bug encontrado y corregido en el camino:** `/health` (el mismo path que usa `healthCheckPath` en `render.yaml`) llamaba a `text("SELECT 1")` sin importar `text` en `main.py` -- reportaba "degraded" siempre por un `NameError`, no por un problema real de conexión a la base. Si el deploy actual en Render está usando este healthcheck, probablemente lo esté marcando como no saludable incorrectamente.
+- [x] Gestión de dominios agregada a `/tenants` (ver Fase 5).
+- [ ] Dashboard de métricas de consumo de IA y bandwidth por tenant — el endpoint `/api/v1/superadmin/dashboard` ya existe (JWT-based, separado del panel de sesión) pero no se conectó a una UI con estas métricas específicas.
+- [ ] Auditoría automática de logs de acceso — ya existe `/api/v1/superadmin/security-audit` (analiza logs con IA) pero no está conectado a logs reales, usa datos mock por default.
 
 ---
 
@@ -92,9 +97,18 @@ Las reglas de la sección 5 de `CLAUDE.md` siguen vigentes tal cual:
 
 Esto viene del review de código hecho sobre el estado actual del repo, sigue pendiente y el pivot de producto no lo toca:
 
-1. **`routers/auth.py:44`** — el override de admin (`ADMIN_EMAIL`/`ADMIN_PASSWORD` por env var) compara password en texto plano con `==`, no `secrets.compare_digest()`, y bypasea el hash de la tabla `User`. Si el ecommerce propio va a exponer más superficie pública, esta puerta trasera de admin es más peligrosa que antes, no menos.
-2. **Rate limit de login no wireado** — `RATE_LIMIT_LOGIN=5/minute` existe en `core/config.py` pero no hay `@limiter.limit(...)` en el endpoint `/login`; corre bajo el límite global de 30/minute.
-3. **Datos reales expuestos en el repo** (`clientes.xlsx`, `productos.xlsx`, `server_stdout.txt`, `error.log`, `crash.log`, `full_system_export.txt`, el bundle de Medusa) — ver plan de limpieza ya entregado en la conversación. Esto es más urgente ahora, no menos: si se arranca a construir el ecommerce propio sobre este mismo repo, conviene limpiar el historial antes de que el repo tenga más actividad y colaboradores.
+1. ~~`routers/auth.py:44` — override de admin en texto plano~~ **Resuelto 2026-08-10**: se eliminó por completo el bypass, no solo se le agregó `compare_digest`. El bootstrap de admin ya funciona vía `AuthService.create_default_user_and_settings` (hash real sincronizado desde `ADMIN_PASSWORD`).
+2. ~~Rate limit de login no wireado~~ **Resuelto 2026-08-10**: `@limiter.limit(...)` conectado a `/login`, verificado con pruebas (6ta request seguida da 429).
+3. **Datos reales expuestos en el repo viejo** (`sistemasberelk-cyber/vibecloud`) — sigue sin resolverse. El trabajo se movió a un repo nuevo y limpio (`vibecloudonline-gif/vibecloude`) que nunca tuvo esos archivos, pero el repo viejo con el historial expuesto (CUIT/DNI reales de clientes) sigue público. Bloqueado por falta de acceso de colaborador — ver resumen final.
+
+### 3.1 Bugs adicionales encontrados durante la construcción (2026-08-10)
+
+Ninguno de estos estaba relacionado con lo que se pidió construir, se encontraron por las pruebas automatizadas end-to-end:
+
+1. **`routers/store.py` filtraba datos entre tenants** (ya corregido) — `/api/v1/store/public-info` y `/public-catalog`, endpoints públicos preexistentes, no filtraban por `tenant_id`: cualquier visitante veía el catálogo mezclado de todos los tenants. Corregido antes de construir el storefront nuevo encima (sección "Fase 2" más arriba).
+2. **`main.py` — `/health` roto** (ya corregido) — llamaba a `text("SELECT 1")` sin importar `text` de `sqlalchemy`. Reportaba `"degraded"` siempre por un `NameError`, no por un problema real de conexión. Es el mismo path que usa `healthCheckPath` en `render.yaml` — si el deploy activo en Render usa este healthcheck, puede estar marcando el servicio como no saludable incorrectamente.
+3. **`requirements.txt` incompleto** (ya corregido) — `cryptography`, `requests` y `dnspython` se usan en el código (`database/models.py`, `routers/admin.py`, verificación de dominios) pero no estaban listados. Un `pip install -r requirements.txt` limpio fallaba.
+4. **`routers/admin.py` — guardado de API key de IA por tenant roto, sin corregir** — `set_ai_key`/`get_ai_key` le escriben/leen `.api_key` a un `AICredential`, pero el campo real del modelo es `api_key_enc` (encriptado). La función parece guardar la key pero no persiste nada utilizable. No se tocó porque requiere entender el flujo de encriptación (`Fernet`) que no se investigó a fondo esta sesión — queda para revisar aparte.
 
 ---
 
