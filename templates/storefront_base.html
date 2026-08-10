@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ settings.company_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    {% block head %}{% endblock %}
+    <style>
+        .storefront-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 24px; background: var(--bg-card, #fff);
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+        }
+        .storefront-header a { text-decoration: none; color: inherit; }
+        .storefront-brand { font-size: 1.25rem; font-weight: 700; }
+        .storefront-main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .storefront-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        .storefront-card {
+            border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden;
+            text-decoration: none; color: inherit; display: block;
+        }
+        .storefront-card img { width: 100%; height: 180px; object-fit: cover; background: #f3f4f6; }
+        .storefront-card-body { padding: 12px; }
+        .storefront-card-name { font-weight: 600; margin-bottom: 4px; }
+        .storefront-card-price { color: #10b981; font-weight: 700; }
+        .storefront-cart-badge {
+            background: #ef4444; color: #fff; border-radius: 999px; padding: 2px 8px;
+            font-size: 0.75rem; margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+    <header class="storefront-header">
+        <a href="/tienda" class="storefront-brand">{{ settings.company_name }}</a>
+        <a href="/tienda/carrito" class="btn">Carrito{% if cart_count %}<span class="storefront-cart-badge">{{ cart_count }}</span>{% endif %}</a>
+    </header>
+    <main class="storefront-main">
+        {% if error %}
+        <div class="glass-card" style="border-left: 4px solid #ef4444; margin-bottom: 16px;">
+            {{ error }}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

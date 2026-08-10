@@ -1,0 +1,16 @@
+{% extends "storefront_base.html" %}
+
+{% block title %}Pedido confirmado - {{ settings.company_name }}{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="text-align: center; padding: 40px;">
+    <h1 style="color: #10b981;">¡Pedido recibido!</h1>
+    <p style="margin: 16px 0; color: #6b7280;">
+        Pedido #{{ sale.id }} por un total de <strong>${{ "%.2f"|format(sale.total_amount) }}</strong>.
+    </p>
+    <p style="color: #6b7280;">
+        Nos vamos a contactar para coordinar la entrega y confirmar el pago.
+    </p>
+    <a href="/tienda" class="btn" style="display: inline-block; margin-top: 20px;">Seguir comprando</a>
+</div>
+{% endblock %}

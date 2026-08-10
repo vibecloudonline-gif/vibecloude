@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from typing import List
 from database.session import get_session
 from database.models import Settings, User, TenantCatalog, Product
-from web.dependencies import get_current_user, require_roles
+from web.dependencies import get_current_user, require_roles, get_public_tenant
 
 router = APIRouter(prefix="/api/v1/store", tags=["Store Settings"])
 
@@ -81,8 +81,8 @@ async def get_tenant_catalog(db: Session = Depends(get_session), current_user: U
 
 
 @router.get("/public-info")
-async def get_public_store_info(db: Session = Depends(get_session)):
-    settings = db.exec(select(Settings).order_by(Settings.id)).first()
+async def get_public_store_info(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
+    settings = db.exec(select(Settings).where(Settings.tenant_id == tenant_id)).first()
     if not settings:
         return {
             "company_name": "VibeCloud",
@@ -99,7 +99,15 @@ async def get_public_store_info(db: Session = Depends(get_session)):
 
 
 @router.get("/public-catalog")
-async def get_public_catalog(db: Session = Depends(get_session)):
-    results = db.exec(select(Product).where(Product.is_deleted == False)).all()
+async def get_public_catalog(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
+    # Si el tenant curo su catalogo (TenantCatalog), mostrar solo esos productos;
+    # si todavia no curo ninguno, mostrar todo su catalogo activo por default.
+    curated_ids = db.exec(
+        select(TenantCatalog.product_id).where(TenantCatalog.tenant_id == tenant_id)
+    ).all()
+    query = select(Product).where(Product.tenant_id == tenant_id, Product.is_deleted == False)
+    if curated_ids:
+        query = query.where(Product.id.in_(curated_ids))
+    results = db.exec(query).all()
     return {"items": [r.model_dump() if hasattr(r, "model_dump") else r.dict() for r in results], "total": len(results)}
 

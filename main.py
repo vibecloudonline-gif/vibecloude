@@ -40,6 +40,7 @@ from routers.ai import router as ai_router
 from routers.superadmin import router as superadmin_router
 from routers.store import router as store_router
 from routers.catalog_import import router as catalog_import_router
+from routers.storefront import router as storefront_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -102,6 +103,7 @@ app.include_router(reports_router)
 app.include_router(picking_router)
 app.include_router(wms_router)
 app.include_router(catalog_import_router)
+app.include_router(storefront_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])

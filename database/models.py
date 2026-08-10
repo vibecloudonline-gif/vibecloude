@@ -222,6 +222,7 @@ class Product(SQLModel, table=True):
     category: Optional[str] = None
     item_number: Optional[str] = Field(default=None, index=True)
     image_url: Optional[str] = None
+    tiktok_url: Optional[str] = None
     cant_bulto: Optional[int] = Field(default=None)
     numeracion: Optional[str] = None
     curve_quantity: int = Field(default=1)

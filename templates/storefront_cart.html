@@ -1,0 +1,75 @@
+{% extends "storefront_base.html" %}
+
+{% block title %}Carrito - {{ settings.company_name }}{% endblock %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px;">Tu carrito</h1>
+
+{% if not lines %}
+<p style="color: #6b7280;">Todavía no agregaste productos. <a href="/tienda">Ir al catálogo</a></p>
+{% else %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <table style="width: 100%;">
+        <thead>
+            <tr>
+                <th style="text-align: left;">Producto</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Subtotal</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in lines %}
+            <tr>
+                <td>{{ line.product.name }}</td>
+                <td style="text-align: center;">{{ line.quantity }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(line.unit_price) }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(line.line_total) }}</td>
+                <td>
+                    <form method="post" action="/tienda/carrito/quitar">
+                        <input type="hidden" name="product_id" value="{{ line.product.id }}">
+                        <button type="submit" class="btn" style="background: transparent; border: 1px solid #ef4444; color: #ef4444;">Quitar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div style="text-align: right; font-size: 1.25rem; font-weight: 700; margin-top: 16px;">
+        Total: ${{ "%.2f"|format(total) }}
+    </div>
+</div>
+
+<div class="glass-card">
+    <h3 style="margin-bottom: 16px;">Datos para el pedido</h3>
+    <form method="post" action="/tienda/checkout">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Nombre y apellido</label>
+        <input type="text" name="buyer_name" required style="margin-bottom: 16px; width: 100%;">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div>
+                <label style="display: block; margin-bottom: 4px; font-weight: 500;">Teléfono</label>
+                <input type="text" name="buyer_phone" style="width: 100%;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 4px; font-weight: 500;">Email</label>
+                <input type="email" name="buyer_email" style="width: 100%;">
+            </div>
+        </div>
+
+        <label style="display: block; margin-bottom: 4px; font-weight: 500;">Dirección de entrega</label>
+        <input type="text" name="buyer_address" style="margin-bottom: 16px; width: 100%;">
+
+        <label style="display: block; margin-bottom: 4px; font-weight: 500;">Forma de pago</label>
+        <select name="payment_method" style="margin-bottom: 20px; width: 100%;">
+            <option value="pendiente">A coordinar / contra entrega</option>
+            <option value="transfer">Transferencia</option>
+            <option value="cash">Efectivo</option>
+        </select>
+
+        <button type="submit" class="btn">Confirmar pedido</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

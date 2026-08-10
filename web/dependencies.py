@@ -132,6 +132,34 @@ def get_current_tenant(
 
 
 
+def get_public_tenant(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> int:
+    """
+    Resuelve el tenant para endpoints PUBLICOS del storefront (sin sesion,
+    sin JWT) exclusivamente por subdominio/host. Nunca acepta tenant_id como
+    parametro de query/body -- mismo principio que get_current_tenant, pero
+    sin caer nunca al primer usuario logueado, porque acá no hay usuario.
+    """
+    host_tenant_id = _resolve_tenant_from_host(request.headers.get("host"), session)
+    if host_tenant_id:
+        host_tenant = session.get(Tenant, host_tenant_id)
+        if host_tenant and host_tenant.is_active:
+            return host_tenant.id
+
+    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    if is_production:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
+
+    # Solo en desarrollo, para poder probar sin configurar BASE_DOMAIN/subdominios.
+    fallback_tenant = session.exec(select(Tenant).order_by(Tenant.id)).first()
+    if fallback_tenant and fallback_tenant.is_active:
+        return fallback_tenant.id
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
+
+
 def require_superadmin(user: User = Depends(require_auth)) -> User:
     if not user or user.role != "superadmin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado. Se requiere rol superadmin.")

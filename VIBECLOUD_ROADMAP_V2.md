@@ -36,15 +36,19 @@ Ya validado según `CLAUDE.md` v1: `tenant_id` en tablas críticas, `get_current
 
 **Deuda heredada que sí hay que cerrar acá, no después** (ver sección 3): el override de admin por env var en `routers/auth.py` y el rate limit de login que no está wireado.
 
-### Fase 2 — Ecommerce propio reemplaza a Medusa
+### Fase 2 — Ecommerce propio reemplaza a Medusa (construido 2026-08-10)
 *Objetivo: que un comprador final pueda navegar y comprar sin pasar por Medusa.*
 
-- [ ] Endpoints públicos de storefront en el Core (`routers/store.py` ya existe — confirmar si ya sirve como base o si es admin-facing).
-- [ ] Carrito y checkout usando `BinStock`/`stock_service.py` directamente (mismo locking que ya usa el POS).
-- [ ] Definir si el storefront público es server-rendered desde el mismo FastAPI (Jinja, como ya se usa en `templates/`) o un frontend separado que consume una API pública — **esto es una decisión de arquitectura que falta tomar, no la asumo acá**.
-- [ ] Checkout público **nunca** debe aceptar `tenant_id` como parámetro de request — mismo principio que la Regla 1.1 de IA, aplicado a cualquier endpoint público: el tenant se resuelve por subdominio/dominio custom, nunca por body/query.
+- [x] Catálogo público, detalle de producto (con embed de TikTok), carrito (sesión) y checkout: `routers/storefront.py` + `templates/storefront_*.html`.
+- [x] Checkout reutiliza el locking de stock de `stock_service.process_sale` (mismo mecanismo que el POS) vía `services/storefront_order_service.py`.
+- [x] Storefront server-rendered desde el mismo FastAPI (Jinja) — sin frontend separado, según lo ya decidido.
+- [x] Tenant resuelto exclusivamente por subdominio (`get_public_tenant` en `web/dependencies.py`), nunca por parámetro de request. En producción, un dominio no reconocido da 404, no cae a ningún tenant por defecto.
+- [x] **Bug de seguridad encontrado y corregido en el camino:** `routers/store.py` (`/api/v1/store/public-info` y `/public-catalog`, preexistentes) no filtraban por tenant — devolvían el catálogo mezclado de todos los tenants a cualquier visitante. Se corrigió antes de construir el storefront nuevo encima.
+- [x] Respeta `TenantCatalog` si el tenant curó su catálogo; si no curó ninguno, muestra todo su catálogo activo por default.
+- [ ] Pasarela de pago real — hoy el pedido queda `payment_status="pending"` y lo confirma el vendedor manualmente (efectivo/transferencia) desde el panel. No hay proveedor de pagos online decidido todavía.
+- [ ] Object storage (DigitalOcean Spaces) para imágenes — sigue en disco local hasta la migración de infraestructura (Fase de despliegue, sección 6).
 
-**Definition of Done:** un comprador anónimo completa una compra de punta a punta en un tenant de prueba sin que exista ninguna llamada a la API de Medusa en el flujo.
+**Definition of Done:** ✅ verificado con pruebas automatizadas: compra de punta a punta (catálogo → carrito → checkout → confirmación), stock decrementado correctamente, y aislamiento entre dos tenants confirmado (ninguno ve datos/productos del otro, ni por catálogo ni por acceso directo a un product_id ajeno).
 
 ### Fase 3 — Landing Pages con IA (== Fase 4 de v1, sin cambios de fondo)
 - [ ] AI Template Studio con sanitización obligatoria (Regla 1.2) desde el primer commit.

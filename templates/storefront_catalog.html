@@ -1,0 +1,25 @@
+{% extends "storefront_base.html" %}
+
+{% block content %}
+<h1 style="margin-bottom: 20px;">Catálogo</h1>
+
+{% if not products %}
+<p style="color: #6b7280;">Todavía no hay productos publicados en esta tienda.</p>
+{% else %}
+<div class="storefront-grid">
+    {% for product in products %}
+    <a href="/tienda/producto/{{ product.id }}" class="storefront-card">
+        {% if product.image_url %}
+        <img src="{{ product.image_url }}" alt="{{ product.name }}">
+        {% else %}
+        <img src="/static/images/logo.png" alt="{{ product.name }}">
+        {% endif %}
+        <div class="storefront-card-body">
+            <div class="storefront-card-name">{{ product.name }}</div>
+            <div class="storefront-card-price">${{ "%.2f"|format(product.price_retail or product.price) }}</div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "storefront_base.html" %}
+
+{% block title %}{{ product.name }} - {{ settings.company_name }}{% endblock %}
+
+{% block content %}
+<a href="/tienda" style="display: inline-block; margin-bottom: 16px;">&larr; Volver al catálogo</a>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start;">
+    <div>
+        {% if product.image_url %}
+        <img src="{{ product.image_url }}" alt="{{ product.name }}" style="width: 100%; border-radius: 10px; background: #f3f4f6;">
+        {% endif %}
+
+        {% if product.tiktok_url %}
+        <div style="margin-top: 20px;">
+            <blockquote class="tiktok-embed" cite="{{ product.tiktok_url }}" style="max-width: 100%; min-width: 280px;">
+                <section><a target="_blank" href="{{ product.tiktok_url }}">Ver video en TikTok</a></section>
+            </blockquote>
+            <script async src="https://www.tiktok.com/embed.js"></script>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <h1>{{ product.name }}</h1>
+        <p style="font-size: 1.5rem; font-weight: 700; color: #10b981; margin: 12px 0;">
+            ${{ "%.2f"|format(product.price_retail or product.price) }}
+        </p>
+        {% if product.description %}
+        <p style="color: #6b7280; margin-bottom: 20px;">{{ product.description }}</p>
+        {% endif %}
+
+        <form method="post" action="/tienda/carrito/agregar" style="display: flex; gap: 8px; align-items: center;">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            <input type="number" name="quantity" value="1" min="1" style="width: 80px;">
+            <button type="submit" class="btn">Agregar al carrito</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
