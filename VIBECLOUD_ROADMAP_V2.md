@@ -150,4 +150,25 @@ Google Cloud **queda descartado** como proveedor de infraestructura (Gemini se s
 
 **Etapa 2 — cuando los ajustes estén cerrados: migrar a DigitalOcean** (`digitalocean.yaml`), siguiendo lo definido en el punto 1-4 de esta sección: App Platform + DO Managed PostgreSQL + Cloudflare for SaaS + Redis. Ahí sí se hace la migración de base de datos y el corte de Supabase.
 
+---
+
+## 7. Pivot a hosting multi-producto (confirmado 2026-08-11) — "no es un ERP, es un hosting"
+
+Corrección de visión: VibeCloud no es el ERP con un ecommerce opcional colgado — es un **hosting** donde el cliente se crea una cuenta y decide qué producto(s) usar (ERP, ecommerce, landing con IA, dominios, AlexIO web), libremente combinables, no en una jerarquía. El "cerebro" de generación de web va a cascada de 3 IAs: **Claude primario → Gemini fallback → Qwen tercer fallback** para contenido creativo/landing/ecommerce; **Gemini primario → Qwen fallback** para el chat de AlexIO. Plan completo aprobado en 5 fases:
+
+### Fase 1 — Flags de producto por tenant (completada 2026-08-11)
+Reemplaza el viejo `Tenant.product_plan` (string jerárquico `full`/`ecommerce`/`landing`) por cuatro booleanas independientes y libremente combinables: `has_erp`, `has_ecommerce`, `has_landing`, `has_alexio` (default `True` los cuatro, para no romper tenants existentes). Migración `e5f6a7b8c9d0` data-migra desde `product_plan` y lo dropea. Switcher del sidebar (`/panel/nav-view`) pasó de un `<select>` de una sola opción a checkboxes de `modules[]`, validado contra `session["tenant_flags"]` (seteado en `/login`) — no se puede "prender" un módulo que el tenant no tiene contratado. Alta/edición de tenant en SuperAdmin (`/tenants`) actualizada a las tres flags (con checkboxes). Probado end-to-end con `TestClient`: tenant full sin regresión, tenant solo-landing oculta ERP/Ecommerce en dashboard y sidebar, rechazo de módulos no contratados (403) y de altas sin ningún producto activo (400). Desplegado y verificado en Render (`/health`, `/login` 200 sobre el commit `897021d`).
+
+### Fase 2 — Conector ERP↔Ecommerce (completada 2026-08-11)
+Toggle en Configuración → Tienda Online (`Settings.ecommerce_connected_to_erp`, default `False`): prendido, el storefront comparte el mismo `BinStock` que el POS (comportamiento histórico); apagado, usa su propio depósito `"ONLINE"` — así un tenant que solo contrató ecommerce no depende de tener el módulo ERP para vender. `StockService.process_sale(target_bin_name=...)` es el nuevo punto de extensión (opcional, no rompe al POS que sigue sin pasarlo); crea el depósito `"ONLINE"` la primera vez que hace falta y lo *commitea* de inmediato (no solo `flush`) aunque la venta que lo disparó falle después por falta de stock — si no, un tenant recién desconectado nunca podría cargarle stock a mano (la primera venta siempre fallaría y de-crearía el bin al hacer rollback). `storefront_order_service.create_order` ahora atrapa el `ValueError` de stock insuficiente y lo muestra como error prolijo en el carrito en vez de un 500. Probado end-to-end (aislamiento real de stock en ambos sentidos) y sin regresiones en la suite de stock/crédito/caja (29 tests) ni en el resto de la suite (62/65, los 3 failures restantes son preexistentes y no relacionados — `test_superadmin.py` testea el bypass de rol `"admin"` que ya se había cerrado antes en esta sesión). Desplegado a Render sobre el commit `956b0a2`.
+
+### Fase 3 — Self-service signup (`/registro`) — pendiente
+Chequeo de disponibilidad de subdominio, checkboxes de producto, alta automática de tenant + admin + settings + auto-login. Explícitamente sin billing/pagos todavía (no definido).
+
+### Fase 4 — Wizard guiado de onboarding (Landing/Ecommerce) — pendiente
+Preguntas + upload de imagen de referencia de estilo (nunca se copia la imagen directo — se describe al modelo como referencia estética únicamente, mismo principio "inspirado no copiado" ya definido en la sección 4). Pasa por la misma sanitización obligatoria (Regla 1.2).
+
+### Fase 5 — Cascada multi-LLM (`services/ai_gateway_service.py`) — pendiente, bloqueada por credenciales
+Claude → Gemini → Qwen para generación de contenido web; Gemini → Qwen para AlexIO chat. Necesita API key de Anthropic y de Qwen (Alibaba/DashScope), no provistas todavía — se puede construir y commitear sin probar contra el proveedor real (mismo patrón que se usó con NameSilo), pero no se activa en producción hasta tener las keys.
+
 No se tocan ambos `render.yaml`/`digitalocean.yaml` en paralelo de forma indefinida — Render es la etapa de prueba, DigitalOcean es el destino final.
