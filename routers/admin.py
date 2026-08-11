@@ -46,30 +46,32 @@ def _templates():
     return CompatTemplates(directory="templates")
 
 
-_PLAN_RANK = {"landing": 0, "ecommerce": 1, "full": 2}
+_NAV_MODULES = ("erp", "ecommerce", "landing")
 
 
 @router.post("/panel/nav-view")
 def set_nav_view(
     request: Request,
-    view: str = Form(...),
+    modules: list[str] = Form(default=[]),
     user: User = Depends(require_auth),
 ):
     """
-    Switcher de vista del sidebar (no cambia el plan contratado del tenant,
-    solo que se muestra en esta sesion). Solo puede achicar respecto al plan
-    real: un tenant "full" puede verse como "ecommerce"/"landing", pero uno
-    "landing" no puede verse como "full" -- no tiene esas funciones.
+    Switcher del sidebar (no cambia lo que el tenant tiene contratado, solo
+    que se muestra en esta sesion). Cada modulo pedido tiene que estar entre
+    los que el tenant realmente tiene activados (session["tenant_flags"],
+    seteado en el login) -- no se puede "prender" algo que no tiene.
     """
-    if view not in _PLAN_RANK:
-        raise HTTPException(400, "Vista inválida")
+    selected = set(modules) & set(_NAV_MODULES)
+    if not selected:
+        raise HTTPException(400, "Elegí al menos un módulo")
 
-    actual_plan = request.session.get("product_plan", "full")
-    if _PLAN_RANK[view] > _PLAN_RANK.get(actual_plan, 2):
-        raise HTTPException(403, "Tu plan no incluye esa vista")
+    tenant_flags = request.session.get("tenant_flags", {"erp": True, "ecommerce": True, "landing": True})
+    not_allowed = [m for m in selected if not tenant_flags.get(m, False)]
+    if not_allowed:
+        raise HTTPException(403, f"Tu cuenta no tiene contratado: {', '.join(not_allowed)}")
 
-    request.session["nav_view"] = view
-    return {"status": "success", "view": view}
+    request.session["nav_view"] = sorted(selected)
+    return {"status": "success", "view": sorted(selected)}
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -549,7 +551,9 @@ def create_tenant(
     admin_username: str = Form(...),
     admin_password: str = Form(...),
     admin_full_name: Optional[str] = Form(None),
-    product_plan: str = Form("full"),
+    has_erp: bool = Form(True),
+    has_ecommerce: bool = Form(True),
+    has_landing: bool = Form(True),
     session: Session = Depends(get_session),
     user: User = Depends(require_superadmin),
 ):
@@ -559,10 +563,13 @@ def create_tenant(
         if existing:
             raise HTTPException(400, "Subdomain already in use")
 
-    if product_plan not in ("full", "ecommerce", "landing"):
-        raise HTTPException(400, "product_plan inválido")
+    if not (has_erp or has_ecommerce or has_landing):
+        raise HTTPException(400, "El tenant necesita al menos un producto activado")
 
-    tenant = Tenant(name=name.strip(), subdomain=sub, product_plan=product_plan)
+    tenant = Tenant(
+        name=name.strip(), subdomain=sub,
+        has_erp=has_erp, has_ecommerce=has_ecommerce, has_landing=has_landing,
+    )
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -752,19 +759,23 @@ async def buy_tenant_domain(
 @router.post("/api/tenants/{tenant_id}/plan")
 def update_tenant_plan(
     tenant_id: int,
-    product_plan: str = Form(...),
+    has_erp: bool = Form(False),
+    has_ecommerce: bool = Form(False),
+    has_landing: bool = Form(False),
     user: User = Depends(require_superadmin),
     session: Session = Depends(get_session),
 ):
-    if product_plan not in ("full", "ecommerce", "landing"):
-        raise HTTPException(400, "product_plan inválido")
+    if not (has_erp or has_ecommerce or has_landing):
+        raise HTTPException(400, "El tenant necesita al menos un producto activado")
     tenant = session.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(404, "Tenant no encontrado")
-    tenant.product_plan = product_plan
+    tenant.has_erp = has_erp
+    tenant.has_ecommerce = has_ecommerce
+    tenant.has_landing = has_landing
     session.add(tenant)
     session.commit()
-    return {"status": "success", "product_plan": tenant.product_plan}
+    return {"status": "success", "has_erp": tenant.has_erp, "has_ecommerce": tenant.has_ecommerce, "has_landing": tenant.has_landing}
 
 
 @router.get("/api/admin/backup")

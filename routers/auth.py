@@ -46,7 +46,14 @@ def login(
         )
     request.session["user_id"] = user.id
     tenant = session.get(Tenant, user.tenant_id) if user.tenant_id else None
-    request.session["product_plan"] = tenant.product_plan if tenant else "full"
+    tenant_flags = {
+        "erp": tenant.has_erp if tenant else True,
+        "ecommerce": tenant.has_ecommerce if tenant else True,
+        "landing": tenant.has_landing if tenant else True,
+    }
+    request.session["tenant_flags"] = tenant_flags
+    # Vista inicial: todo lo que tiene contratado, se puede achicar despues con el switcher.
+    request.session["nav_view"] = [k for k, v in tenant_flags.items() if v]
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
     return RedirectResponse("/", status_code=302)

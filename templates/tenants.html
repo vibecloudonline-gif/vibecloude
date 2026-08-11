@@ -8,7 +8,7 @@
   </div>
   <div class="table-container">
     <table>
-      <thead><tr><th>ID</th><th>Nombre</th><th>Subdominio</th><th>Usuarios</th><th>Estado</th><th>Plan</th><th>Creado</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Subdominio</th><th>Usuarios</th><th>Estado</th><th>Productos</th><th>Creado</th><th></th></tr></thead>
       <tbody>
       {% for t in tenants %}
         <tr>
@@ -18,11 +18,11 @@
           <td>{{ user_counts.get(t.id, 0) }}</td>
           <td>{{ 'Activo' if t.is_active else 'Inactivo' }}</td>
           <td>
-            <select onchange="cambiarPlan({{ t.id }}, this.value)" style="padding: 4px 8px; font-size: 0.85rem;">
-              <option value="full" {% if t.product_plan == 'full' %}selected{% endif %}>ERP completo</option>
-              <option value="ecommerce" {% if t.product_plan == 'ecommerce' %}selected{% endif %}>Solo ecommerce</option>
-              <option value="landing" {% if t.product_plan == 'landing' %}selected{% endif %}>Solo landing</option>
-            </select>
+            <div class="tenant-plan-checks" data-tenant-id="{{ t.id }}" style="display:flex; gap:10px; flex-wrap:wrap; font-size:0.8rem;">
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_erp" onchange="cambiarPlan({{ t.id }})" {% if t.has_erp %}checked{% endif %}> ERP</label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_ecommerce" onchange="cambiarPlan({{ t.id }})" {% if t.has_ecommerce %}checked{% endif %}> Ecommerce</label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_landing" onchange="cambiarPlan({{ t.id }})" {% if t.has_landing %}checked{% endif %}> Landing</label>
+            </div>
           </td>
           <td>{{ t.created_at }}</td>
           <td><a href="/tenants/{{ t.id }}/domains" class="btn" style="padding:4px 10px; font-size:0.8rem;">Dominios</a></td>
@@ -41,12 +41,12 @@
     <form id="tenant-form">
       <label>Nombre</label><input type="text" name="name" required style="width:100%; margin-bottom:10px;">
       <label>Subdominio (opcional)</label><input type="text" name="subdomain" placeholder="miempresa" style="width:100%; margin-bottom:10px;">
-      <label>Plan</label>
-      <select name="product_plan" style="width:100%; margin-bottom:10px;">
-        <option value="full">ERP completo (POS, caja, WMS, proveedores...)</option>
-        <option value="ecommerce">Solo ecommerce (catálogo, tienda, sin POS/caja)</option>
-        <option value="landing">Solo landing con IA</option>
-      </select>
+      <label>Productos contratados</label>
+      <div style="display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-erp" checked> ERP (POS, caja, WMS, proveedores...)</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-ecommerce" checked> Ecommerce</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-landing" checked> Landing con IA</label>
+      </div>
       <label>Usuario admin</label><input type="text" name="admin_username" required style="width:100%; margin-bottom:10px;">
       <label>Password admin</label><input type="password" name="admin_password" required style="width:100%; margin-bottom:10px;">
       <label>Nombre completo admin (opcional)</label><input type="text" name="admin_full_name" style="width:100%; margin-bottom:16px;">
@@ -63,14 +63,18 @@ function closeModal(){document.getElementById('tenant-modal').style.display='non
 document.getElementById('tenant-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const data = new FormData(e.target);
+  data.append('has_erp', document.getElementById('new-has-erp').checked);
+  data.append('has_ecommerce', document.getElementById('new-has-ecommerce').checked);
+  data.append('has_landing', document.getElementById('new-has-landing').checked);
   const res = await fetch('/api/tenants', {method:'POST', body:data});
   const payload = await res.json().catch(()=>({}));
   if(res.ok){window.location.reload();} else {alert(payload.detail || payload.error || 'Error al crear tenant');}
 });
 
-async function cambiarPlan(tenantId, plan) {
+async function cambiarPlan(tenantId) {
+  const row = document.querySelector(`.tenant-plan-checks[data-tenant-id="${tenantId}"]`);
   const data = new FormData();
-  data.append('product_plan', plan);
+  row.querySelectorAll('.plan-check').forEach(chk => data.append(chk.dataset.flag, chk.checked));
   const res = await fetch(`/api/tenants/${tenantId}/plan`, {method:'POST', body:data});
   if (!res.ok) {
     const payload = await res.json().catch(()=>({}));

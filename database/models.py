@@ -74,11 +74,13 @@ class Tenant(SQLModel, table=True):
     ai_tier: str = Field(default="free")
     ai_credits: int = Field(default=100)
 
-    # Que le mostramos en el panel: "landing" (solo AI Template Studio),
-    # "ecommerce" (catalogo/tienda, sin POS fisico/caja/WMS), "full" (ERP
-    # completo, comportamiento historico -- default para no romper tenants
-    # existentes).
-    product_plan: str = Field(default="full")
+    # Que productos tiene contratados este tenant -- combinacion libre, no
+    # jerarquia (reemplaza al viejo product_plan de un solo nivel). Default
+    # True en los 3 para no romper tenants existentes que ya usaban todo.
+    has_erp: bool = Field(default=True)
+    has_ecommerce: bool = Field(default=True)
+    has_landing: bool = Field(default=True)
+    has_alexio: bool = Field(default=True)
 
     users: List["User"] = Relationship(sa_relationship=relationship("User", back_populates="tenant"))
     settings: List["Settings"] = Relationship(sa_relationship=relationship("Settings", back_populates="tenant"))
@@ -129,6 +131,11 @@ class Settings(SQLModel, table=True):
     storefront_template: str = Field(default="elegante")  # elegante, urbano, natural, tech
     is_onboarded: bool = Field(default=False)
     onboarding_step: int = Field(default=1)
+
+    # Conector ERP<->Ecommerce (Fase 2): apagado = el storefront usa su
+    # propio deposito de stock, separado del ERP. Prendido = comparte el
+    # mismo stock que el POS/ERP. Lo decide el tenant, no es automatico.
+    ecommerce_connected_to_erp: bool = Field(default=False)
 
 
 # ===========================================================================
