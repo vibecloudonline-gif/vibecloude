@@ -18,7 +18,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from database.models import Client, Product, Sale, TenantCatalog
+from database.models import Client, Product, Sale, Settings, TenantCatalog
 from services.stock_service import StockService
 
 stock_service = StockService()
@@ -110,19 +110,34 @@ def create_order(
     if not items_data:
         raise StorefrontOrderError("El carrito está vacío")
 
+    # Conector ERP<->Ecommerce (Fase 2): si el tenant lo dejó apagado, el
+    # storefront descuenta de su propio deposito "ONLINE", separado del que
+    # usa el POS/ERP. Si está prendido, comparte el mismo stock (comportamiento
+    # de siempre, target_bin_name=None -> SIN-UBICACION / bin activo).
+    settings = session.exec(select(Settings).where(Settings.tenant_id == tenant_id)).first()
+    connected = bool(settings and settings.ecommerce_connected_to_erp)
+    target_bin_name = None if connected else "ONLINE"
+
     # user_id=None, client_id=None: process_sale no dispara el chequeo de
     # crédito (solo corre si client_id está seteado) y Sale.user_id/
     # StockMovement.user_id son nullable -- una venta online no tiene un
     # usuario del staff detrás.
-    sale = stock_service.process_sale(
-        session=session,
-        user_id=None,
-        tenant_id=tenant_id,
-        items_data=items_data,
-        payment_method=payment_method,
-        client_id=None,
-        amount_paid=0,
-    )
+    try:
+        sale = stock_service.process_sale(
+            session=session,
+            user_id=None,
+            tenant_id=tenant_id,
+            items_data=items_data,
+            payment_method=payment_method,
+            client_id=None,
+            amount_paid=0,
+            target_bin_name=target_bin_name,
+        )
+    except ValueError as exc:
+        # Sin stock suficiente (frecuente ahora que, desconectado del ERP, la
+        # tienda tiene su propio deposito "ONLINE" que puede estar vacio) ->
+        # mensaje entendible para el comprador, no un 500.
+        raise StorefrontOrderError(str(exc)) from exc
 
     buyer = _get_or_create_buyer_client(
         session, tenant_id, buyer_name.strip(), buyer_phone, buyer_email, buyer_address

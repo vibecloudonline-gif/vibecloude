@@ -120,6 +120,7 @@ async def update_settings(
     label_height_mm: Optional[int] = Form(None),
     ui_theme: Optional[str] = Form(None),
     storefront_template: Optional[str] = Form(None),
+    ecommerce_connected_to_erp: Optional[bool] = Form(None),
     logo_file: Optional[UploadFile] = File(None),
     session: Session = Depends(get_session),
     user: User = Depends(require_auth),
@@ -139,6 +140,7 @@ async def update_settings(
         logo_file=logo_file,
         ui_theme=ui_theme,
         storefront_template=storefront_template,
+        ecommerce_connected_to_erp=ecommerce_connected_to_erp,
     )
     return {"status": "success"}
 

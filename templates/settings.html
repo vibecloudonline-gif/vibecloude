@@ -266,6 +266,19 @@
         </div>
         
         <div class="glass-card" style="margin-bottom: 24px;">
+            <h4>Conector con el ERP</h4>
+            <p style="color: #64748b; margin-bottom: 16px;">
+                Prendido: la tienda online descuenta del mismo stock que el POS/ERP (un solo inventario compartido).
+                Apagado: la tienda online tiene su propio depósito, separado del ERP -- vos decidís cuánto stock le asignás.
+            </p>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
+                <input type="checkbox" id="s-ecommerce-connected" onchange="toggleEcommerceConnector(this.checked)">
+                Conectar la tienda online al stock del ERP
+            </label>
+            <div id="ecommerce-connector-msg" style="margin-top: 10px; font-size: 0.85rem; color:#0f766e; font-weight:600;"></div>
+        </div>
+
+        <div class="glass-card" style="margin-bottom: 24px;">
             <h4>Configuración B2B</h4>
             <p style="color: #64748b; margin-bottom: 16px;">El descuento base para clientes mayoristas (por defecto 30%).</p>
             <form id="medusa-config-form" style="max-width: 400px;">
@@ -583,6 +596,24 @@
         }
     }
 
+    // --- Conector ERP<->Ecommerce (Fase 2) ---
+    async function toggleEcommerceConnector(connected) {
+        const data = new FormData();
+        data.append('ecommerce_connected_to_erp', connected);
+        const msg = document.getElementById('ecommerce-connector-msg');
+        const res = await fetch('/api/settings', { method: 'POST', body: data });
+        if (res.ok) {
+            msg.style.color = '#0f766e';
+            msg.textContent = connected
+                ? 'Conectado: la tienda online ahora comparte stock con el ERP.'
+                : 'Desconectado: la tienda online usa su propio depósito ("ONLINE"), separado del ERP.';
+        } else {
+            document.getElementById('s-ecommerce-connected').checked = !connected;
+            msg.style.color = '#b91c1c';
+            msg.textContent = 'No se pudo guardar el cambio.';
+        }
+    }
+
     // --- Settings Load ---
     document.addEventListener('DOMContentLoaded', () => {
         // Preload settings into form
@@ -593,6 +624,7 @@
         if (settings.label_height_mm) document.getElementById('s-label-h').value = settings.label_height_mm;
         if (settings.ui_theme) document.getElementById('s-theme').value = settings.ui_theme;
         if (settings.storefront_template) document.getElementById('s-storefront-template').value = settings.storefront_template;
+        document.getElementById('s-ecommerce-connected').checked = !!settings.ecommerce_connected_to_erp;
         loadBackupFiles();
     });
 

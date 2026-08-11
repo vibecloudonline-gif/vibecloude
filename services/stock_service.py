@@ -25,7 +25,38 @@ class StockService:
         code.save(full_path) # saves as filename.svg
         return f"{filename}.svg"
 
-    def process_sale(self, session: Session, user_id: int, tenant_id: int, items_data: List[dict], payment_method: str = "cash", client_id: Optional[int] = None, amount_paid: Optional[float] = None, split_cash: Optional[float] = None, split_transfer: Optional[float] = None) -> Sale:
+    def _get_or_create_named_bin(self, session: Session, tenant_id: int, bin_name: str):
+        from database.models import Bin, Location
+        existing = session.exec(
+            select(Bin).where(Bin.tenant_id == tenant_id, Bin.name == bin_name)
+        ).first()
+        if existing:
+            return existing
+        location = session.exec(
+            select(Location).where(Location.tenant_id == tenant_id, Location.is_active == True)
+        ).first()
+        if not location:
+            location = Location(tenant_id=tenant_id, name="Depósito Online")
+            session.add(location)
+            session.flush()
+        new_bin = Bin(
+            tenant_id=tenant_id,
+            location_id=location.id,
+            name=bin_name,
+            description="Stock exclusivo del ecommerce (desconectado del ERP)",
+        )
+        session.add(new_bin)
+        # Commit (no solo flush): el deposito tiene que quedar creado incluso
+        # si la venta que lo disparo despues falla por falta de stock -- si no,
+        # un tenant recien desconectado del ERP nunca podria cargarle stock
+        # (la primera venta siempre fallaria y de-crearia el bin al hacer rollback).
+        # Seguro: en este punto de process_sale todavia no se agrego "sale" a
+        # la sesion, asi que este commit no persiste nada mas que el bin/location.
+        session.commit()
+        session.refresh(new_bin)
+        return new_bin
+
+    def process_sale(self, session: Session, user_id: int, tenant_id: int, items_data: List[dict], payment_method: str = "cash", client_id: Optional[int] = None, amount_paid: Optional[float] = None, split_cash: Optional[float] = None, split_transfer: Optional[float] = None, target_bin_name: Optional[str] = None) -> Sale:
         """
         Creates a Sale record and updates product stock.
 
@@ -72,15 +103,20 @@ class StockService:
                 unit_price = Decimal(str(product.price))
 
             # ── SECCIÓN CRÍTICA: SELECT FOR UPDATE ───────────────────────────────
-            target_bin = session.exec(
-                select(Bin).where(Bin.tenant_id == tenant_id, Bin.name == "SIN-UBICACION")
-            ).first()
-            if not target_bin:
+            if target_bin_name:
+                # Ecommerce desconectado del ERP: usa su propio deposito, separado
+                # del stock del POS. Se crea solo la primera vez que se necesita.
+                target_bin = self._get_or_create_named_bin(session, tenant_id, target_bin_name)
+            else:
                 target_bin = session.exec(
-                    select(Bin).where(Bin.tenant_id == tenant_id, Bin.is_active == True)
+                    select(Bin).where(Bin.tenant_id == tenant_id, Bin.name == "SIN-UBICACION")
                 ).first()
-            if not target_bin:
-                raise ValueError("No hay ubicaciones configuradas para descontar stock.")
+                if not target_bin:
+                    target_bin = session.exec(
+                        select(Bin).where(Bin.tenant_id == tenant_id, Bin.is_active == True)
+                    ).first()
+                if not target_bin:
+                    raise ValueError("No hay ubicaciones configuradas para descontar stock.")
 
             locked_bin_stock = session.exec(
                 select(BinStock)

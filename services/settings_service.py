@@ -38,6 +38,7 @@ class SettingsService:
         "logo_file",
         "ui_theme",
         "storefront_template",
+        "ecommerce_connected_to_erp",
     }
     SUPPORTED_LOGO_CONTENT_TYPES = {"image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"}
 
@@ -88,6 +89,7 @@ class SettingsService:
         logo_file: Optional[UploadFile] = None,
         ui_theme: Optional[str] = None,
         storefront_template: Optional[str] = None,
+        ecommerce_connected_to_erp: Optional[bool] = None,
     ) -> Settings:
         if company_name is not None:
             normalized_company_name = company_name.strip()
@@ -144,6 +146,9 @@ class SettingsService:
             if storefront_template not in ("elegante", "urbano", "natural", "tech"):
                 raise HTTPException(status_code=400, detail="Invalid storefront_template value")
             settings.storefront_template = storefront_template
+
+        if ecommerce_connected_to_erp is not None:
+            settings.ecommerce_connected_to_erp = ecommerce_connected_to_erp
 
         session.add(settings)
         session.commit()
