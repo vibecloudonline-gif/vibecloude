@@ -21,6 +21,7 @@ from web.compat_templates import CompatTemplates
 
 # Routers
 from routers.auth import router as auth_router
+from routers.signup import router as signup_router
 from routers.admin import router as admin_router
 from routers.products import router as products_router
 from routers.sales import router as sales_router
@@ -100,6 +101,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Register all routers
 app.include_router(auth_router)
+app.include_router(signup_router)
 app.include_router(admin_router)
 app.include_router(products_router)
 app.include_router(sales_router)

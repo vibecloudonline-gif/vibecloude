@@ -15,6 +15,7 @@ from sqlmodel import Session, select
 from database.models import Product, Sale, Settings, Tenant, TenantCatalog
 from database.session import get_session
 from services.ai_brain_service import ai_brain_service
+from services.ai_gateway_service import ai_gateway_service
 from services.storefront_order_service import StorefrontOrderError, create_order
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_public_tenant
@@ -128,6 +129,42 @@ def storefront_product_detail(
         "storefront_product.html",
         {"request": request, "settings": settings, "product": product, "cart_count": cart_count},
     )
+
+
+def _serialize_recommendation(product: Product) -> dict:
+    price = product.price_retail or product.price
+    return {
+        "id": product.id,
+        "name": product.name,
+        "price": float(price) if price is not None else None,
+        "image_url": product.image_url,
+    }
+
+
+@router.get("/tienda/producto/{product_id}/recomendados")
+async def storefront_product_recommendations(
+    product_id: int,
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_public_tenant),
+):
+    """Recomendación predictiva (Qwen, actualización 2026-08-11) para un producto puntual."""
+    recommended = await ai_gateway_service.recommend_products(
+        session, tenant_id, seed_product_ids=[product_id]
+    )
+    return {"recommended": [_serialize_recommendation(p) for p in recommended]}
+
+
+@router.get("/tienda/carrito/recomendados")
+async def storefront_cart_recommendations(
+    request: Request,
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_public_tenant),
+):
+    """Recomendación predictiva (Qwen, actualización 2026-08-11) en base al carrito actual."""
+    cart = _get_cart(request)
+    seed_ids = [int(pid) for pid in cart.keys()]
+    recommended = await ai_gateway_service.recommend_products(session, tenant_id, seed_product_ids=seed_ids)
+    return {"recommended": [_serialize_recommendation(p) for p in recommended]}
 
 
 @router.post("/tienda/carrito/agregar")

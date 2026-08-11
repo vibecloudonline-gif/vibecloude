@@ -50,9 +50,9 @@
         <button type="submit" class="btn">Agregar</button>
     </form>
 
-    <h3 style="margin-bottom: 4px;">Comprar un dominio nuevo (NameSilo)</h3>
+    <h3 style="margin-bottom: 4px;">Comprar un dominio nuevo (GoDaddy)</h3>
     <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 12px;">
-        Busca disponibilidad y lo compra directo por API. Requiere <code>NAMESILO_API_KEY</code> configurada en el servidor.
+        Busca disponibilidad y lo compra directo por API. Requiere <code>GODADDY_API_KEY</code> y <code>GODADDY_API_SECRET</code> configuradas en el servidor.
     </p>
     <form id="buy-domain-form" onsubmit="buscarDisponibilidad(event)" style="display: flex; gap: 8px; margin-bottom: 12px;">
         <input type="text" id="buy-domain-input" placeholder="miempresa.com" required style="flex: 1;">
@@ -129,7 +129,7 @@ async function buscarDisponibilidad(event) {
 async function comprarDominio(domain) {
     const confirm = await Swal.fire({
         title: `¿Comprar ${domain}?`,
-        text: 'Se compra directo por la API de NameSilo, con costo real.',
+        text: 'Se compra directo por la API de GoDaddy, con costo real.',
         showCancelButton: true,
         confirmButtonText: 'Comprar',
     });

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creá tu cuenta - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            padding: 32px 16px;
+        }
+        .signup-card {
+            width: 100%;
+            max-width: 560px;
+            padding: 40px;
+        }
+        .signup-card h1 { margin-bottom: 4px; }
+        .signup-card .subtitle { color: var(--text-muted); margin-bottom: 28px; }
+        .field { margin-bottom: 18px; }
+        .field label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+        .field input[type="text"], .field input[type="password"] {
+            width: 100%; padding: 12px 14px; border-radius: 10px;
+            border: 1px solid var(--border-color); font-size: 0.95rem;
+        }
+        .field-hint { font-size: 0.8rem; margin-top: 6px; min-height: 1.1em; }
+        .field-hint.ok { color: var(--success-color); }
+        .field-hint.error { color: var(--danger-color); }
+        .subdomain-row { display: flex; align-items: center; gap: 8px; }
+        .subdomain-row input { flex: 1; }
+        .subdomain-suffix { color: var(--text-muted); white-space: nowrap; font-size: 0.9rem; }
+        .products-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+            margin-bottom: 24px;
+        }
+        .product-check {
+            display: flex; align-items: flex-start; gap: 10px; padding: 14px;
+            border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer;
+        }
+        .product-check input { margin-top: 3px; }
+        .product-check .name { font-weight: 600; display: block; }
+        .product-check .desc { font-size: 0.78rem; color: var(--text-muted); }
+        .form-error {
+            background: rgba(239, 68, 68, 0.12); color: #b91c1c; padding: 12px;
+            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem;
+        }
+        .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); }
+        .login-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="signup-card glass-card">
+        <h1>Creá tu cuenta en VibeCloud</h1>
+        <p class="subtitle">Elegí qué producto(s) querés usar. Podés combinarlos o cambiarlos después.</p>
+
+        {% if error %}
+        <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        <form id="signup-form" method="post" action="/registro">
+            <div class="field">
+                <label for="empresa">Nombre de tu empresa</label>
+                <input type="text" id="empresa" name="empresa" required placeholder="Mi Empresa SRL" autofocus>
+            </div>
+
+            <div class="field">
+                <label for="subdominio">Subdominio</label>
+                <div class="subdomain-row">
+                    <input type="text" id="subdominio" name="subdominio" required placeholder="mi-empresa" pattern="[a-z0-9-]+">
+                    <span class="subdomain-suffix">.vibecloud.online</span>
+                </div>
+                <div id="subdomain-hint" class="field-hint"></div>
+            </div>
+
+            <div class="field">
+                <label>Productos</label>
+                <div class="products-grid">
+                    <label class="product-check">
+                        <input type="checkbox" name="has_erp" checked>
+                        <span><span class="name">ERP</span><span class="desc">POS, stock, clientes, caja</span></span>
+                    </label>
+                    <label class="product-check">
+                        <input type="checkbox" name="has_ecommerce" checked>
+                        <span><span class="name">Ecommerce</span><span class="desc">Tienda online propia</span></span>
+                    </label>
+                    <label class="product-check">
+                        <input type="checkbox" name="has_landing">
+                        <span><span class="name">Landing con IA</span><span class="desc">Página generada por IA</span></span>
+                    </label>
+                    <label class="product-check">
+                        <input type="checkbox" name="has_alexio" checked>
+                        <span><span class="name">AlexIO</span><span class="desc">Asistente de IA transversal</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="admin_username">Usuario admin</label>
+                <input type="text" id="admin_username" name="admin_username" required placeholder="admin">
+            </div>
+
+            <div class="field">
+                <label for="admin_password">Contraseña</label>
+                <input type="password" id="admin_password" name="admin_password" required placeholder="Al menos 12 caracteres, mayúscula, número y símbolo">
+            </div>
+
+            <div class="field">
+                <label for="admin_full_name">Tu nombre (opcional)</label>
+                <input type="text" id="admin_full_name" name="admin_full_name" placeholder="Nombre completo">
+            </div>
+
+            <button type="submit" id="submit-btn" class="btn btn-primary" style="width: 100%; padding: 14px;">Crear cuenta</button>
+        </form>
+
+        <p class="login-link">¿Ya tenés cuenta? <a href="/login">Iniciar sesión</a></p>
+    </div>
+
+    <script>
+        const subdomainInput = document.getElementById('subdominio');
+        const subdomainHint = document.getElementById('subdomain-hint');
+        const submitBtn = document.getElementById('submit-btn');
+        let debounceTimer = null;
+        let lastCheckedAvailable = null;
+
+        subdomainInput.addEventListener('input', () => {
+            const value = subdomainInput.value.trim().toLowerCase();
+            subdomainInput.value = value;
+            lastCheckedAvailable = null;
+            clearTimeout(debounceTimer);
+            if (!value) {
+                subdomainHint.textContent = '';
+                subdomainHint.className = 'field-hint';
+                return;
+            }
+            debounceTimer = setTimeout(() => checkSubdomain(value), 400);
+        });
+
+        async function checkSubdomain(value) {
+            subdomainHint.textContent = 'Verificando...';
+            subdomainHint.className = 'field-hint';
+            try {
+                const res = await fetch(`/api/registro/subdominio-disponible?subdominio=${encodeURIComponent(value)}`);
+                const data = await res.json();
+                lastCheckedAvailable = data.available;
+                if (data.available) {
+                    subdomainHint.textContent = `¡Disponible! ${value}.vibecloud.online`;
+                    subdomainHint.className = 'field-hint ok';
+                } else {
+                    subdomainHint.textContent = data.reason || 'No disponible';
+                    subdomainHint.className = 'field-hint error';
+                }
+            } catch (err) {
+                subdomainHint.textContent = '';
+                subdomainHint.className = 'field-hint';
+            }
+        }
+
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            const anyProduct = document.querySelectorAll('.product-check input:checked').length > 0;
+            if (!anyProduct) {
+                e.preventDefault();
+                alert('Elegí al menos un producto');
+                return;
+            }
+            if (lastCheckedAvailable === false) {
+                e.preventDefault();
+                alert('Elegí un subdominio disponible antes de continuar');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -696,14 +696,14 @@ async def check_domain_availability(
     dominio: str,
     user: User = Depends(require_superadmin),
 ):
-    from services.domain_registrar_service import DomainRegistrarError, NameSiloClient
+    from services.domain_registrar_service import DomainRegistrarError, GoDaddyClient
 
     dominio_clean = dominio.strip().lower()
     if not dominio_clean or "." not in dominio_clean:
         raise HTTPException(400, "Dominio inválido")
 
     try:
-        client = NameSiloClient()
+        client = GoDaddyClient()
         disponible = await client.check_availability(dominio_clean)
     except DomainRegistrarError as exc:
         raise HTTPException(400, str(exc))
@@ -720,7 +720,7 @@ async def buy_tenant_domain(
 ):
     from datetime import datetime, timezone
 
-    from services.domain_registrar_service import DomainRegistrarError, NameSiloClient
+    from services.domain_registrar_service import DomainRegistrarError, GoDaddyClient
 
     tenant = session.get(Tenant, tenant_id)
     if not tenant:
@@ -732,7 +732,7 @@ async def buy_tenant_domain(
         raise HTTPException(400, "Ese dominio ya está registrado en la plataforma")
 
     try:
-        client = NameSiloClient()
+        client = GoDaddyClient()
         disponible = await client.check_availability(domain_clean)
         if not disponible:
             raise HTTPException(400, f"{domain_clean} no está disponible para comprar")
