@@ -9,6 +9,16 @@ from database.models import Product, Sale, Tenant, User
 
 logger = logging.getLogger("ai_brain")
 
+
+class GeminiUnavailableError(ValueError):
+    """Gemini no respondió (sin key, error de API, respuesta vacía/inválida)
+    -- distinto de un ValueError de regla de negocio (créditos insuficientes,
+    tenant inexistente). Solo este tipo dispara el fallback a Qwen en
+    chat_response (Fase 5); las reglas de negocio nunca se saltean con un
+    fallback, eso sería un bypass de seguridad, no una alta disponibilidad."""
+    pass
+
+
 class AIBrainService:
     @staticmethod
     def _get_api_key(session: Session, tenant_id: int) -> str:
@@ -113,6 +123,39 @@ class AIBrainService:
         allowed_tools: list[str] | None = None,
     ) -> str:
         """
+        Punto de entrada público. Intenta Gemini primero; si Gemini no está
+        disponible (sin key, error de API, respuesta vacía/inválida --
+        GeminiUnavailableError), cae a Qwen como fallback de texto plano
+        (Fase 5, sección 7 del roadmap). Errores de negocio (tenant
+        inexistente, créditos insuficientes) NUNCA disparan el fallback --
+        se propagan tal cual, saltear una regla de créditos con un
+        proveedor distinto sería un bypass, no alta disponibilidad.
+        """
+        try:
+            return await cls._chat_response_gemini(
+                session, tenant_id, history, new_message, system_instruction, model_name, allowed_tools
+            )
+        except GeminiUnavailableError as gemini_error:
+            from services.ai_gateway_service import ai_gateway_service
+
+            logger.info(f"Gemini no disponible, probando fallback a Qwen: {gemini_error}")
+            fallback_text = await ai_gateway_service.chat_fallback_qwen(history, new_message, system_instruction)
+            if fallback_text is not None:
+                return fallback_text
+            raise gemini_error
+
+    @classmethod
+    async def _chat_response_gemini(
+        cls,
+        session: Session,
+        tenant_id: int,
+        history: list,
+        new_message: str,
+        system_instruction: str = "Eres un asistente virtual de ventas amable.",
+        model_name: str = "gemini-3.5-flash",
+        allowed_tools: list[str] | None = None,
+    ) -> str:
+        """
         Processes a chat conversation turn with Gemini using cascading model.
         Supports multi-turn tool calling with secure backend-injected tenant_id.
         Deducts credits based on model used.
@@ -142,7 +185,7 @@ class AIBrainService:
 
         api_key = cls._get_api_key(session, tenant_id)
         if not api_key:
-            raise ValueError("GEMINI_API_KEY no configurada.")
+            raise GeminiUnavailableError("GEMINI_API_KEY no configurada.")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
 
@@ -228,17 +271,17 @@ class AIBrainService:
                 response = await client.post(url, json=payload, timeout=30.0)
                 if response.status_code != 200:
                     logger.error(f"Gemini error response: {response.text}")
-                    raise ValueError(f"Error de Gemini API: {response.status_code}")
+                    raise GeminiUnavailableError(f"Error de Gemini API: {response.status_code}")
 
                 res_data = response.json()
                 candidates = res_data.get("candidates", [])
                 if not candidates:
-                    raise ValueError("No candidates returned from Gemini API")
+                    raise GeminiUnavailableError("No candidates returned from Gemini API")
 
                 content = candidates[0].get("content", {})
                 parts = content.get("parts", [])
                 if not parts:
-                    raise ValueError("Empty response parts from Gemini")
+                    raise GeminiUnavailableError("Empty response parts from Gemini")
 
                 part = parts[0]
                 

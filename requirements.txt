@@ -25,4 +25,5 @@ httpx
 python-json-logger
 cryptography
 requests
-dnspython
+dnspython
+anthropic

@@ -9,16 +9,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session
 
-from core.config import settings as app_settings
 from database.models import Settings, User
 from database.session import get_session
-from services.landing_service import (
-    LandingGenerationError,
-    LandingPageContent,
-    generate_landing_content,
-    get_landing,
-    save_landing,
-)
+from services.ai_gateway_service import ai_gateway_service
+from services.landing_service import LandingGenerationError, get_landing, save_landing
 from services.settings_service import SettingsService
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_public_tenant, get_settings, get_tenant, require_auth
@@ -66,13 +60,11 @@ async def landing_studio_generate(
 ):
     SettingsService.ensure_admin(user)
 
-    if not app_settings.GEMINI_API_KEY:
-        raise HTTPException(400, "GEMINI_API_KEY no configurada en el servidor")
     if not idea or not idea.strip():
         raise HTTPException(400, "Contame tu idea para poder generar la landing")
 
     try:
-        content: LandingPageContent = await generate_landing_content(idea.strip(), app_settings.GEMINI_API_KEY)
+        content, provider_used = await ai_gateway_service.generate_landing_content_cascade(idea.strip())
     except LandingGenerationError as exc:
         raise HTTPException(422, str(exc))
 
@@ -81,6 +73,7 @@ async def landing_studio_generate(
         "status": "success",
         "landing_id": landing.id,
         "content": content.model_dump(),
+        "provider_used": provider_used,
         "public_url": "/landing",
     }
 

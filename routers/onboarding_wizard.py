@@ -23,16 +23,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session
 
-from core.config import settings as app_settings
 from database.models import Settings, Tenant, User
 from database.session import get_session
-from services.landing_service import (
-    LandingGenerationError,
-    LandingPageContent,
-    generate_landing_content,
-    get_landing,
-    save_landing,
-)
+from services.ai_gateway_service import ai_gateway_service
+from services.landing_service import LandingGenerationError, get_landing, save_landing
 from services.settings_service import MAX_LOGO_SIZE_BYTES, SettingsService, _has_valid_image_signature
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
@@ -97,9 +91,6 @@ async def onboarding_wizard_landing(
     if not tenant.has_landing:
         raise HTTPException(403, "Tu cuenta no tiene contratado Landing con IA")
 
-    if not app_settings.GEMINI_API_KEY:
-        raise HTTPException(400, "GEMINI_API_KEY no configurada en el servidor")
-
     business_name = business_name.strip()
     rubro = rubro.strip()
     tono = tono.strip()
@@ -140,8 +131,8 @@ async def onboarding_wizard_landing(
     prompt = " ".join(prompt_parts)
 
     try:
-        content: LandingPageContent = await generate_landing_content(
-            prompt, app_settings.GEMINI_API_KEY, reference_image_path=reference_image_path
+        content, provider_used = await ai_gateway_service.generate_landing_content_cascade(
+            prompt, reference_image_path=reference_image_path
         )
     except LandingGenerationError as exc:
         raise HTTPException(422, str(exc))
@@ -152,6 +143,7 @@ async def onboarding_wizard_landing(
         "landing_id": landing.id,
         "content": content.model_dump(),
         "reference_image_url": reference_image_url,
+        "provider_used": provider_used,
         "public_url": "/landing",
         "editor_url": "/panel/landing",
     }

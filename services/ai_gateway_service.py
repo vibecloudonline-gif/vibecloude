@@ -1,26 +1,37 @@
-"""services/ai_gateway_service.py — Gateway de IA multi-proveedor.
+"""services/ai_gateway_service.py — Gateway de IA multi-proveedor (Fase 5,
+sección 7 del roadmap).
 
-Hoy solo implementa el cliente de Qwen (DashScope) para la feature de
-recomendación predictiva de productos del ecommerce (actualización
-2026-08-11, ver VIBECLOUD_ROADMAP_V2.md). La cascada completa
-Claude→Gemini→Qwen para generación de contenido web sigue pendiente (Fase 5
-de la sección 7 del roadmap) -- esta feature se activa independiente de esa
-cascada, en el mismo servicio, para no bloquear el resto del trabajo por
-falta de credenciales.
+Cascada de generación de contenido web (Landing/Ecommerce): Claude
+(primario) → Gemini (fallback) → Qwen (tercer fallback). Cascada de chat de
+AlexIO (Gemini → Qwen) vive en services/ai_brain_service.py, que importa
+`ai_gateway_service` para el segundo salto. También implementa el cliente de
+Qwen (DashScope) para la recomendación predictiva de productos del ecommerce
+(actualización 2026-08-11).
 
-ADVERTENCIA: sin QWEN_API_KEY (DashScope) real disponible en este entorno.
-Construido contra la API pública documentada de DashScope (modo compatible
-OpenAI), no probado contra el proveedor real -- mismo patrón que se usó con
-NameSilo/GoDaddy. Si no hay key configurada, la recomendación cae a una
-heurística simple (misma categoría) en vez de romper el endpoint.
+Claude usa el SDK oficial de Anthropic (`anthropic`), como corresponde a
+código Python que llama a la API de Claude. Gemini y Qwen no tienen SDK
+propio en este proyecto -- siguen llamándose por HTTP directo (httpx), igual
+que ya hacía el resto del código antes de esta fase.
+
+ADVERTENCIA: sin ANTHROPIC_API_KEY ni QWEN_API_KEY (DashScope) reales
+disponibles en este entorno. Construido contra las APIs públicas
+documentadas, no probado contra los proveedores reales -- mismo patrón que
+se usó con NameSilo/GoDaddy. Si Claude no está configurado, la cascada cae a
+Gemini; si ninguno de los tres está disponible, se rechaza con un mensaje
+claro (nunca se rompe el endpoint). La recomendación de productos, en
+particular, cae a una heurística simple (misma categoría) si Qwen no está
+disponible.
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import mimetypes
 import os
 from typing import Optional
 
+import anthropic
 import httpx
 from sqlmodel import Session, select
 
@@ -29,6 +40,11 @@ from database.models import Product
 logger = logging.getLogger("ai_gateway")
 
 QWEN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+
+# Modelo por defecto para generación de contenido -- ver la skill de
+# referencia de la API de Claude: usar claude-opus-5 salvo pedido explícito
+# de otro modelo.
+ANTHROPIC_MODEL = "claude-opus-5"
 
 
 class AIGatewayError(Exception):
@@ -60,6 +76,52 @@ class QwenClient:
                 return data["choices"][0]["message"]["content"]
             except (KeyError, IndexError) as exc:
                 raise AIGatewayError(f"Respuesta inesperada de Qwen: {data}") from exc
+
+
+def _build_anthropic_image_block(reference_image_path: str) -> dict:
+    mime_type, _ = mimetypes.guess_type(reference_image_path)
+    if not mime_type or not mime_type.startswith("image/"):
+        mime_type = "image/jpeg"
+    with open(reference_image_path, "rb") as f:
+        encoded = base64.standard_b64encode(f.read()).decode("ascii")
+    return {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": encoded}}
+
+
+class AnthropicClient:
+    """Cliente de Claude vía el SDK oficial de Anthropic (no HTTP directo)."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = ANTHROPIC_MODEL):
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        self.model = model
+        if not self.api_key:
+            raise AIGatewayError("ANTHROPIC_API_KEY no configurada")
+        self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
+
+    async def generate(
+        self, system_prompt: str, user_prompt: str, reference_image_path: Optional[str] = None
+    ) -> str:
+        content_blocks: list = []
+        if reference_image_path:
+            content_blocks.append(_build_anthropic_image_block(reference_image_path))
+        content_blocks.append({"type": "text", "text": user_prompt})
+
+        try:
+            response = await self._client.messages.create(
+                model=self.model,
+                max_tokens=2048,
+                system=system_prompt,
+                messages=[{"role": "user", "content": content_blocks}],
+            )
+        except anthropic.APIError as exc:
+            raise AIGatewayError(f"Claude API error: {exc}") from exc
+
+        if response.stop_reason == "refusal":
+            raise AIGatewayError("Claude rechazó la solicitud (stop_reason=refusal)")
+
+        text_parts = [block.text for block in response.content if block.type == "text"]
+        if not text_parts:
+            raise AIGatewayError("Claude no devolvió contenido de texto")
+        return "".join(text_parts)
 
 
 class AIGatewayService:
@@ -179,6 +241,92 @@ class AIGatewayService:
             if same_category:
                 return same_category
         return [p.id for p in candidates]
+
+    # ------------------------------------------------------------------
+    # Cascada de generación de contenido web: Claude -> Gemini -> Qwen
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def generate_landing_content_cascade(
+        prompt: str, reference_image_path: Optional[str] = None
+    ):
+        """
+        Cascada de Fase 5: Claude (primario) -> Gemini (fallback) -> Qwen
+        (tercer fallback) para generación de contenido de landing/ecommerce.
+        Cada intento se valida contra el MISMO schema estricto
+        (LandingPageContent, Regla 1.2) sin importar qué proveedor respondió
+        -- la sanitización nunca depende del proveedor. Devuelve
+        (content, provider_used).
+        """
+        from services.landing_service import (
+            SYSTEM_INSTRUCTION,
+            LandingGenerationError,
+            _validate,
+        )
+        from services.landing_service import generate_landing_content as _generate_with_gemini
+
+        errors: list[str] = []
+
+        try:
+            client = AnthropicClient()
+            raw = await client.generate(SYSTEM_INSTRUCTION, prompt, reference_image_path)
+            return _validate(raw), "claude"
+        except Exception as exc:  # noqa: BLE001 - se agrega al log de errores del intento, no se propaga
+            errors.append(f"Claude: {exc}")
+
+        try:
+            api_key = os.getenv("GEMINI_API_KEY", "")
+            if not api_key:
+                raise AIGatewayError("GEMINI_API_KEY no configurada")
+            content = await _generate_with_gemini(prompt, api_key, reference_image_path)
+            return content, "gemini"
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Gemini: {exc}")
+
+        try:
+            client = QwenClient()  # sin soporte de imagen todavía -- fallback de texto
+            raw = await client.chat(SYSTEM_INSTRUCTION, prompt)
+            return _validate(raw), "qwen"
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Qwen: {exc}")
+
+        raise LandingGenerationError(
+            "Ningún proveedor de IA disponible para generar la landing. " + " | ".join(errors)
+        )
+
+    # ------------------------------------------------------------------
+    # Fallback de chat de AlexIO: Gemini -> Qwen (llamado desde
+    # services/ai_brain_service.py cuando Gemini no está disponible)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def chat_fallback_qwen(
+        history: list, new_message: str, system_instruction: str
+    ) -> Optional[str]:
+        """
+        Fallback degradado: sin function-calling (Qwen no tiene las tools
+        de AIBrainService wireadas todavía) y sin descuento de créditos de
+        IA (el modelo de costos actual solo cubre Gemini) -- mejor una
+        respuesta de texto que un error, pero es intencionalmente un
+        camino de emergencia, no un reemplazo de Gemini. Devuelve None si
+        Qwen tampoco está disponible, para que el caller decida si
+        re-lanzar el error original de Gemini.
+        """
+        try:
+            client = QwenClient()
+        except AIGatewayError:
+            return None
+
+        history_text = "\n".join(
+            f"{'Usuario' if h.get('role') == 'user' else 'Asistente'}: {h.get('parts', [{}])[0].get('text', '')}"
+            for h in history
+        )
+        user_prompt = f"{history_text}\nUsuario: {new_message}" if history_text else new_message
+
+        try:
+            return await client.chat(system_instruction, user_prompt)
+        except AIGatewayError:
+            return None
 
 
 ai_gateway_service = AIGatewayService()
