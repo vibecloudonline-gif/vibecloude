@@ -24,6 +24,7 @@ disponible.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -372,38 +373,70 @@ class AIGatewayService:
             f"a un precio promedio de ${float(avg_price):.2f}."
         )
 
-    @classmethod
-    async def predict_product_success(
-        cls,
-        session: Session,
-        tenant_id: int,
+    # Mini-swarm de perfiles de comprador (4 agentes) -- en vez de una sola
+    # respuesta del modelo, se corren en paralelo 4 llamadas a Qwen, cada
+    # una jugando un perfil de comprador distinto, y se promedian.
+    _VIABILITY_PERSONAS = [
+        {
+            "id": "precio",
+            "label": "Comprador sensible al precio",
+            "role": (
+                "Te importa sobre todo el precio: comparás con alternativas similares y "
+                "dudás si algo te parece caro para lo que es."
+            ),
+        },
+        {
+            "id": "calidad",
+            "label": "Comprador que prioriza calidad y marca",
+            "role": (
+                "Confiás en productos con buena reputación y descripciones que transmiten "
+                "calidad; desconfiás de lo genérico o mal descripto."
+            ),
+        },
+        {
+            "id": "impulsivo",
+            "label": "Comprador impulsivo / de tendencia",
+            "role": (
+                "Comprás por impulso cosas que se ven atractivas o de moda ahora mismo; "
+                "te aburren los productos genéricos de siempre."
+            ),
+        },
+        {
+            "id": "esceptico",
+            "label": "Comprador escéptico / que compara",
+            "role": (
+                "Investigás bastante antes de comprar, buscás razones para NO comprar, y "
+                "sos el más difícil de convencer del grupo."
+            ),
+        },
+    ]
+
+    @staticmethod
+    def _veredicto_from_score(score: float) -> str:
+        if score >= 70:
+            return "alto potencial"
+        if score >= 40:
+            return "potencial moderado"
+        return "riesgo alto"
+
+    @staticmethod
+    async def _run_viability_agent(
+        persona: dict,
+        category_context: str,
         name: str,
         category: Optional[str],
         price: Decimal,
-        description: Optional[str] = None,
-    ) -> dict:
-        """
-        Devuelve {available: bool, ...}. Cuando Qwen no está configurado o
-        la respuesta no se puede interpretar, available=False con un
-        mensaje claro -- a propósito no hay heurística de respaldo acá
-        (a diferencia de recommend_products): "predecir éxito" sin un
-        modelo detrás no tiene una regla objetiva razonable, así que es
-        más honesto decir "no disponible" que devolver un score inventado.
-        """
-        category_context = cls._category_sales_context(session, tenant_id, category)
-
+        description: Optional[str],
+    ) -> Optional[dict]:
         system_prompt = (
-            "Sos un analista de retail que evalúa la viabilidad comercial de productos "
-            "para pequeños y medianos negocios. Te dan un producto nuevo o en evaluación "
-            "y el rendimiento histórico (si existe) de esa categoría en ESTE negocio puntual. "
-            "Devolvé SOLO un objeto JSON con las claves: "
-            '"score" (entero de 0 a 100, qué tan probable es que el producto funcione bien), '
-            '"veredicto" (uno de: "alto potencial", "potencial moderado", "riesgo alto"), '
-            '"razones" (array de 2 a 4 strings breves), '
-            '"recomendacion" (un string corto y accionable). '
-            "Si no hay historial de ventas de la categoría, decilo explícitamente en las "
-            "razones -- nunca inventes cifras de ventas que no te dieron. "
-            "No agregues texto fuera del JSON."
+            f"Sos un comprador de retail con este perfil: {persona['role']} "
+            "Te muestran un producto y el rendimiento histórico (si existe) de esa "
+            "categoría en el negocio que lo vende. Devolvé SOLO un objeto JSON con las "
+            'claves "score" (entero de 0 a 100, qué tan probable es que compres este '
+            'producto, o que le vaya bien a alguien con tu perfil) y "razon" (un string '
+            "breve, 1-2 oraciones, tu razón desde tu perspectiva de comprador). Si no hay "
+            "historial de ventas de la categoría, no inventes cifras. No agregues texto "
+            "fuera del JSON."
         )
         user_prompt = (
             f"Producto: {name}\n"
@@ -416,12 +449,8 @@ class AIGatewayService:
         try:
             client = QwenClient()
             raw = (await client.chat(system_prompt, user_prompt)).strip()
-        except AIGatewayError as exc:
-            logger.info(f"Predicción de viabilidad no disponible: {exc}")
-            return {
-                "available": False,
-                "message": "La predicción con IA no está disponible en este momento (QWEN_API_KEY no configurada).",
-            }
+        except AIGatewayError:
+            return None
 
         if raw.startswith("```"):
             raw = raw.strip("`")
@@ -432,22 +461,68 @@ class AIGatewayService:
         try:
             parsed = json.loads(raw)
             score = max(0, min(100, int(parsed["score"])))
-            veredicto = str(parsed["veredicto"])
-            razones = [str(r) for r in parsed.get("razones", [])][:4]
-            recomendacion = str(parsed.get("recomendacion", ""))
+            razon = str(parsed.get("razon", "")).strip()
         except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-            logger.warning(f"Qwen devolvió una respuesta inesperada para predicción de producto: {raw[:200]}")
+            logger.warning(f"Qwen devolvió una respuesta inesperada para el perfil '{persona['id']}': {raw[:200]}")
+            return None
+
+        return {"id": persona["id"], "label": persona["label"], "score": score, "razon": razon}
+
+    @classmethod
+    async def predict_product_success(
+        cls,
+        session: Session,
+        tenant_id: int,
+        name: str,
+        category: Optional[str],
+        price: Decimal,
+        description: Optional[str] = None,
+    ) -> dict:
+        """
+        Devuelve {available: bool, ...}. Corre los 4 perfiles de
+        _VIABILITY_PERSONAS en paralelo y promedia sus scores -- si alguno
+        falla individualmente (respuesta rota, etc.) el resultado sigue
+        siendo válido con los que sí respondieron. Cuando QWEN_API_KEY no
+        está configurada, o ninguno de los 4 devuelve algo interpretable,
+        available=False con un mensaje claro -- a propósito no hay
+        heurística de respaldo: "predecir éxito" sin un modelo detrás no
+        tiene una regla objetiva razonable, así que es más honesto decir
+        "no disponible" que devolver un score inventado.
+        """
+        if not os.getenv("QWEN_API_KEY", ""):
+            return {
+                "available": False,
+                "message": "La predicción con IA no está disponible en este momento (QWEN_API_KEY no configurada).",
+            }
+
+        category_context = cls._category_sales_context(session, tenant_id, category)
+
+        results = await asyncio.gather(*[
+            cls._run_viability_agent(persona, category_context, name, category, price, description)
+            for persona in cls._VIABILITY_PERSONAS
+        ])
+        successful = [r for r in results if r is not None]
+
+        if not successful:
             return {
                 "available": False,
                 "message": "No se pudo interpretar la respuesta de la IA. Probá de nuevo en un momento.",
             }
 
+        for r in successful:
+            r["veredicto"] = cls._veredicto_from_score(r["score"])
+
+        avg_score = round(sum(r["score"] for r in successful) / len(successful))
+        veredicto = cls._veredicto_from_score(avg_score)
+        alto_count = sum(1 for r in successful if r["veredicto"] == "alto potencial")
+
         return {
             "available": True,
-            "score": score,
+            "score": avg_score,
             "veredicto": veredicto,
-            "razones": razones,
-            "recomendacion": recomendacion,
+            "agentes_consultados": len(successful),
+            "agentes_alto_potencial": alto_count,
+            "perfiles": successful,
             "category_context": category_context,
         }
 

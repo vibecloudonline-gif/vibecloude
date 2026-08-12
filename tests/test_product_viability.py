@@ -160,18 +160,17 @@ def test_predict_sin_qwen_configurada_no_rompe(session):
     assert "no está disponible" in result["message"]
 
 
-def test_predict_con_qwen_devuelve_score_parseado(session, monkeypatch):
+def test_predict_con_qwen_devuelve_score_promediado_de_4_perfiles(session, monkeypatch):
     import asyncio
 
     monkeypatch.setenv("QWEN_API_KEY", "fake-key-for-test")
 
+    # Cada uno de los 4 perfiles devuelve un score distinto -- el resultado
+    # final tiene que ser el promedio, no el de una sola llamada.
+    scores_by_call = iter([80, 90, 70, 60])  # promedio = 75
+
     async def fake_chat(self, system_prompt, user_prompt):
-        return json.dumps({
-            "score": 82,
-            "veredicto": "alto potencial",
-            "razones": ["Buena categoria historica", "Precio competitivo"],
-            "recomendacion": "Sumalo al catalogo destacado.",
-        })
+        return json.dumps({"score": next(scores_by_call), "razon": "Porque si."})
 
     monkeypatch.setattr(QwenClient, "chat", fake_chat)
 
@@ -182,9 +181,11 @@ def test_predict_con_qwen_devuelve_score_parseado(session, monkeypatch):
         )
     )
     assert result["available"] is True
-    assert result["score"] == 82
+    assert result["score"] == 75
     assert result["veredicto"] == "alto potencial"
-    assert len(result["razones"]) == 2
+    assert result["agentes_consultados"] == 4
+    assert len(result["perfiles"]) == 4
+    assert all("razon" in p and "label" in p for p in result["perfiles"])
 
 
 def test_predict_respuesta_no_json_no_rompe(session, monkeypatch):
@@ -204,6 +205,31 @@ def test_predict_respuesta_no_json_no_rompe(session, monkeypatch):
         )
     )
     assert result["available"] is False
+
+
+def test_predict_tolera_falla_de_un_perfil(session, monkeypatch):
+    import asyncio
+
+    monkeypatch.setenv("QWEN_API_KEY", "fake-key-for-test")
+
+    # El primer perfil consultado devuelve basura; los otros 3 responden bien
+    # -- el resultado tiene que seguir siendo valido con esos 3.
+    responses = iter(["no es json", json.dumps({"score": 60, "razon": "r1"}), json.dumps({"score": 60, "razon": "r2"}), json.dumps({"score": 60, "razon": "r3"})])
+
+    async def fake_chat(self, system_prompt, user_prompt):
+        return next(responses)
+
+    monkeypatch.setattr(QwenClient, "chat", fake_chat)
+
+    tenant, _ = _make_tenant_with_admin(session, "falla-parcial")
+    result = asyncio.run(
+        AIGatewayService.predict_product_success(
+            session=session, tenant_id=tenant.id, name="Zapatillas", category="Calzado", price=Decimal("45000"),
+        )
+    )
+    assert result["available"] is True
+    assert result["agentes_consultados"] == 3
+    assert result["score"] == 60
 
 
 # ---------------------------------------------------------------------------
