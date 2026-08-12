@@ -31,6 +31,12 @@ class ThemeRequest(BaseModel):
 class ImageRequest(BaseModel):
     prompt: str
 
+class PredictProductRequest(BaseModel):
+    name: str
+    category: Optional[str] = None
+    price: float = 0.0
+    description: Optional[str] = None
+
 @router.post("/copy")
 async def generate_copy(req: CopyRequest, db: Session = Depends(get_session), current_user: User = Depends(require_auth)):
     if current_user.tenant_id:
@@ -87,6 +93,32 @@ async def generate_theme(req: ThemeRequest, db: Session = Depends(get_session), 
     except Exception as e:
         logger.error(f"Error generando tema: {e}")
         raise HTTPException(status_code=500, detail="Error interno al generar paleta de colores.")
+
+
+@router.post("/predict-product")
+async def predict_product(
+    req: PredictProductRequest,
+    db: Session = Depends(get_session),
+    current_user: User = Depends(require_auth),
+):
+    """Predicción de viabilidad comercial de un producto (Qwen), disponible
+    para cualquier tenant -- con historial de ventas propio si existe, o
+    solo con la metadata del producto si el tenant recién arranca."""
+    if current_user.tenant_id:
+        _check_ai_rate_limit(current_user.tenant_id)
+
+    from decimal import Decimal
+
+    from services.ai_gateway_service import AIGatewayService
+
+    return await AIGatewayService.predict_product_success(
+        session=db,
+        tenant_id=current_user.tenant_id,
+        name=req.name,
+        category=req.category,
+        price=Decimal(str(req.price)),
+        description=req.description,
+    )
 
 
 import logging

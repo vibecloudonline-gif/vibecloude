@@ -205,7 +205,17 @@
 
                     <label style="display: block; margin-bottom: 8px; font-weight: 500;">Descripción</label>
                     <textarea id="p-description" name="description" rows="2" placeholder="Detalles adicionales..."
-                        style="width: 100%; margin-bottom: 24px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+                        style="width: 100%; margin-bottom: 16px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+
+                    <!-- Predicción de viabilidad (Qwen) -->
+                    <div id="p-viability-box" style="margin-bottom: 24px; background: #fdf4ff; padding: 16px; border-radius: 12px; border: 1px solid #f0abfc;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                            <span style="font-weight: 700; color: #a21caf;">🔮 Predicción de viabilidad</span>
+                            <button type="button" onclick="predictViability()" id="p-viability-btn" class="btn"
+                                style="padding: 8px 16px; font-size: 0.85rem; background: #a21caf;">Analizar con IA</button>
+                        </div>
+                        <div id="p-viability-result" style="margin-top: 12px; font-size: 0.88rem; display: none;"></div>
+                    </div>
 
                     <!-- Pricing Section -->
                     <div style="background: #f0f9ff; padding: 20px; border-radius: 12px; border: 1px solid #bae6fd;">
@@ -299,6 +309,63 @@
 
 <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str === null || str === undefined ? '' : String(str);
+        return div.innerHTML;
+    }
+
+    async function predictViability() {
+        const btn = document.getElementById('p-viability-btn');
+        const box = document.getElementById('p-viability-result');
+        const name = document.getElementById('p-name').value.trim();
+        if (!name) {
+            alert('Ingresá al menos el nombre del producto antes de analizarlo.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Analizando...';
+        box.style.display = 'block';
+        box.innerHTML = 'Consultando...';
+
+        try {
+            const resp = await fetch('/api/v1/ai/predict-product', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    category: document.getElementById('p-category').value.trim() || null,
+                    price: parseFloat(document.getElementById('p-price').value) || 0,
+                    description: document.getElementById('p-description').value.trim() || null,
+                }),
+            });
+            const data = await resp.json();
+
+            if (!data.available) {
+                box.innerHTML = `<div style="color: #6b7280;">${escapeHtml(data.message || 'No disponible.')}</div>`;
+                return;
+            }
+
+            const colors = { 'alto potencial': '#16a34a', 'potencial moderado': '#ca8a04', 'riesgo alto': '#dc2626' };
+            const color = colors[data.veredicto] || '#6b7280';
+            const razonesHtml = (data.razones || []).map(r => `<li>${escapeHtml(r)}</li>`).join('');
+            box.innerHTML = `
+                <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px;">
+                    <span style="font-size: 1.6rem; font-weight: 800; color: ${color};">${Number(data.score) || 0}</span>
+                    <span style="font-weight: 700; color: ${color}; text-transform: capitalize;">${escapeHtml(data.veredicto)}</span>
+                </div>
+                <ul style="margin: 0 0 8px 18px; padding: 0;">${razonesHtml}</ul>
+                ${data.recomendacion ? `<div style="font-style: italic; color: #4b5563;">💡 ${escapeHtml(data.recomendacion)}</div>` : ''}
+            `;
+        } catch (e) {
+            box.innerHTML = '<div style="color: #dc2626;">Error de conexión. Intentá de nuevo.</div>';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Analizar con IA';
+        }
+    }
+
     let html5QrcodeScanner = null;
 
     function startScanner() {

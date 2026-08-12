@@ -29,13 +29,16 @@ import json
 import logging
 import mimetypes
 import os
+from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional
 
 import anthropic
 import httpx
+from sqlalchemy import func
 from sqlmodel import Session, select
 
-from database.models import Product
+from database.models import Product, Sale, SaleItem
 
 logger = logging.getLogger("ai_gateway")
 
@@ -327,6 +330,126 @@ class AIGatewayService:
             return await client.chat(system_instruction, user_prompt)
         except AIGatewayError:
             return None
+
+    # ------------------------------------------------------------------
+    # Predicción de viabilidad de producto -- módulo disponible para
+    # cualquier tenant (con o sin historial de ventas propio). Usa Qwen
+    # con el mismo patrón que recommend_products: prompt + JSON, filtrado
+    # siempre por tenant_id (Regla 1.1).
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _category_sales_context(session: Session, tenant_id: int, category: Optional[str]) -> str:
+        if not category:
+            return "El producto no tiene categoría asignada."
+
+        cutoff = datetime.utcnow() - timedelta(days=90)
+        row = session.exec(
+            select(
+                func.count(func.distinct(SaleItem.product_id)),
+                func.coalesce(func.sum(SaleItem.quantity), 0),
+                func.coalesce(func.avg(SaleItem.unit_price), 0),
+            )
+            .join(Sale, SaleItem.sale_id == Sale.id)
+            .join(Product, SaleItem.product_id == Product.id)
+            .where(
+                Product.tenant_id == tenant_id,
+                Product.category == category,
+                Sale.tenant_id == tenant_id,
+                Sale.timestamp >= cutoff,
+            )
+        ).first()
+
+        distinct_products, total_units, avg_price = row or (0, 0, 0)
+        if not distinct_products:
+            return (
+                f"Sin ventas registradas en la categoría '{category}' en los últimos 90 días "
+                "-- este tenant todavía no tiene historial propio en esta categoría."
+            )
+        return (
+            f"En los últimos 90 días, este negocio vendió {int(total_units)} unidades de "
+            f"{distinct_products} producto(s) distinto(s) de la categoría '{category}', "
+            f"a un precio promedio de ${float(avg_price):.2f}."
+        )
+
+    @classmethod
+    async def predict_product_success(
+        cls,
+        session: Session,
+        tenant_id: int,
+        name: str,
+        category: Optional[str],
+        price: Decimal,
+        description: Optional[str] = None,
+    ) -> dict:
+        """
+        Devuelve {available: bool, ...}. Cuando Qwen no está configurado o
+        la respuesta no se puede interpretar, available=False con un
+        mensaje claro -- a propósito no hay heurística de respaldo acá
+        (a diferencia de recommend_products): "predecir éxito" sin un
+        modelo detrás no tiene una regla objetiva razonable, así que es
+        más honesto decir "no disponible" que devolver un score inventado.
+        """
+        category_context = cls._category_sales_context(session, tenant_id, category)
+
+        system_prompt = (
+            "Sos un analista de retail que evalúa la viabilidad comercial de productos "
+            "para pequeños y medianos negocios. Te dan un producto nuevo o en evaluación "
+            "y el rendimiento histórico (si existe) de esa categoría en ESTE negocio puntual. "
+            "Devolvé SOLO un objeto JSON con las claves: "
+            '"score" (entero de 0 a 100, qué tan probable es que el producto funcione bien), '
+            '"veredicto" (uno de: "alto potencial", "potencial moderado", "riesgo alto"), '
+            '"razones" (array de 2 a 4 strings breves), '
+            '"recomendacion" (un string corto y accionable). '
+            "Si no hay historial de ventas de la categoría, decilo explícitamente en las "
+            "razones -- nunca inventes cifras de ventas que no te dieron. "
+            "No agregues texto fuera del JSON."
+        )
+        user_prompt = (
+            f"Producto: {name}\n"
+            f"Categoría: {category or 'sin categoría'}\n"
+            f"Precio: ${price}\n"
+            f"Descripción: {description or 'sin descripción'}\n\n"
+            f"Contexto de ventas del negocio: {category_context}"
+        )
+
+        try:
+            client = QwenClient()
+            raw = (await client.chat(system_prompt, user_prompt)).strip()
+        except AIGatewayError as exc:
+            logger.info(f"Predicción de viabilidad no disponible: {exc}")
+            return {
+                "available": False,
+                "message": "La predicción con IA no está disponible en este momento (QWEN_API_KEY no configurada).",
+            }
+
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+
+        try:
+            parsed = json.loads(raw)
+            score = max(0, min(100, int(parsed["score"])))
+            veredicto = str(parsed["veredicto"])
+            razones = [str(r) for r in parsed.get("razones", [])][:4]
+            recomendacion = str(parsed.get("recomendacion", ""))
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            logger.warning(f"Qwen devolvió una respuesta inesperada para predicción de producto: {raw[:200]}")
+            return {
+                "available": False,
+                "message": "No se pudo interpretar la respuesta de la IA. Probá de nuevo en un momento.",
+            }
+
+        return {
+            "available": True,
+            "score": score,
+            "veredicto": veredicto,
+            "razones": razones,
+            "recomendacion": recomendacion,
+            "category_context": category_context,
+        }
 
 
 ai_gateway_service = AIGatewayService()
