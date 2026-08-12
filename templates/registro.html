@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creá tu cuenta - VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
     <style>
         body {
             min-height: 100vh;
@@ -16,11 +16,24 @@
         }
         .signup-card {
             width: 100%;
-            max-width: 560px;
+            max-width: 620px;
             padding: 40px;
         }
-        .signup-card h1 { margin-bottom: 4px; }
-        .signup-card .subtitle { color: var(--text-muted); margin-bottom: 28px; }
+        .signup-card h1 { margin-bottom: 4px; font-size: 1.5rem; }
+        .signup-card .subtitle { color: var(--text-muted); margin-bottom: 8px; }
+
+        /* Progreso del wizard */
+        .wizard-progress { display: flex; gap: 6px; margin-bottom: 28px; }
+        .wizard-progress .dot { flex: 1; height: 4px; border-radius: 4px; background: var(--border-color); transition: background 0.2s; }
+        .wizard-progress .dot.active { background: var(--accent-color, #2563eb); }
+        .wizard-progress .dot.done { background: var(--success-color, #16a34a); }
+
+        .wizard-step { display: none; }
+        .wizard-step.active { display: block; animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .wizard-step h2 { font-size: 1.15rem; margin-bottom: 6px; }
+        .wizard-step .step-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 20px; }
+
         .field { margin-bottom: 18px; }
         .field label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
         .field input[type="text"], .field input[type="password"] {
@@ -33,10 +46,21 @@
         .subdomain-row { display: flex; align-items: center; gap: 8px; }
         .subdomain-row input { flex: 1; }
         .subdomain-suffix { color: var(--text-muted); white-space: nowrap; font-size: 0.9rem; }
-        .products-grid {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-            margin-bottom: 24px;
+
+        /* Cards grandes de eleccion (ERP / Sitio Web) */
+        .choice-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px; }
+        .choice-card {
+            display: block; padding: 20px 16px; border: 2px solid var(--border-color);
+            border-radius: 14px; cursor: pointer; text-align: center; transition: border-color 0.15s, background 0.15s;
         }
+        .choice-card input { position: absolute; opacity: 0; pointer-events: none; }
+        .choice-card .choice-icon { font-size: 1.8rem; margin-bottom: 8px; }
+        .choice-card .choice-name { font-weight: 700; font-size: 1.05rem; display: block; }
+        .choice-card .choice-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: block; }
+        .choice-card.selected { border-color: var(--accent-color, #2563eb); background: rgba(37, 99, 235, 0.06); }
+
+        .sub-choices { margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--border-color); }
+        .products-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .product-check {
             display: flex; align-items: flex-start; gap: 10px; padding: 14px;
             border: 1px solid var(--border-color); border-radius: 10px; cursor: pointer;
@@ -44,91 +68,223 @@
         .product-check input { margin-top: 3px; }
         .product-check .name { font-weight: 600; display: block; }
         .product-check .desc { font-size: 0.78rem; color: var(--text-muted); }
+
+        /* Paso dominio */
+        .domain-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .domain-search-row input { flex: 1; }
+        .domain-result { padding: 12px 14px; border-radius: 10px; font-size: 0.88rem; margin-bottom: 14px; min-height: 1.2em; }
+        .domain-result.ok { background: rgba(22,163,74,0.1); color: var(--success-color); }
+        .domain-result.no { background: rgba(239,68,68,0.1); color: var(--danger-color); }
+        .domain-choice-row { display: flex; flex-direction: column; gap: 8px; }
+        .domain-choice-row label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+
+        .connector-explain {
+            background: rgba(37, 99, 235, 0.06); border-radius: 12px; padding: 14px 16px;
+            font-size: 0.88rem; margin-bottom: 16px; line-height: 1.5;
+        }
+
         .form-error {
             background: rgba(239, 68, 68, 0.12); color: #b91c1c; padding: 12px;
             border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem;
         }
         .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); }
         .login-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+
+        .wizard-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
+        .wizard-nav button { flex: 1; }
+        .wizard-nav .btn-back { background: transparent; border: 1px solid var(--border-color); color: var(--text-color, #1e293b); }
     </style>
 </head>
 <body>
     <div class="signup-card glass-card">
         <h1>Creá tu cuenta en VibeCloud</h1>
-        <p class="subtitle">Elegí qué producto(s) querés usar. Podés combinarlos o cambiarlos después.</p>
+        <p class="subtitle">Elegí qué vas a usar. Podés combinarlo o ajustarlo después.</p>
 
         {% if error %}
         <div class="form-error">{{ error }}</div>
         {% endif %}
 
+        <div class="wizard-progress" id="wizard-progress"></div>
+
         <form id="signup-form" method="post" action="/registro">
-            <div class="field">
-                <label for="empresa">Nombre de tu empresa</label>
-                <input type="text" id="empresa" name="empresa" required placeholder="Mi Empresa SRL" autofocus>
-            </div>
+            <!-- Paso 1: cuenta / subdominio -->
+            <div class="wizard-step active" data-step="cuenta">
+                <h2>Tu empresa</h2>
+                <p class="step-desc">Así te vamos a identificar en la plataforma.</p>
 
-            <div class="field">
-                <label for="subdominio">Subdominio</label>
-                <div class="subdomain-row">
-                    <input type="text" id="subdominio" name="subdominio" required placeholder="mi-empresa" pattern="[a-z0-9-]+">
-                    <span class="subdomain-suffix">.vibecloud.online</span>
+                <div class="field">
+                    <label for="empresa">Nombre de tu empresa</label>
+                    <input type="text" id="empresa" name="empresa" required placeholder="Mi Empresa SRL" autofocus>
                 </div>
-                <div id="subdomain-hint" class="field-hint"></div>
-            </div>
 
-            <div class="field">
-                <label>Productos</label>
-                <div class="products-grid">
-                    <label class="product-check">
-                        <input type="checkbox" name="has_erp" checked>
-                        <span><span class="name">ERP</span><span class="desc">POS, stock, clientes, caja</span></span>
-                    </label>
-                    <label class="product-check">
-                        <input type="checkbox" name="has_ecommerce" checked>
-                        <span><span class="name">Ecommerce</span><span class="desc">Tienda online propia</span></span>
-                    </label>
-                    <label class="product-check">
-                        <input type="checkbox" name="has_landing">
-                        <span><span class="name">Landing con IA</span><span class="desc">Página generada por IA</span></span>
-                    </label>
-                    <label class="product-check">
-                        <input type="checkbox" name="has_alexio" checked>
-                        <span><span class="name">AlexIO</span><span class="desc">Asistente de IA transversal</span></span>
-                    </label>
+                <div class="field">
+                    <label for="subdominio">Subdominio</label>
+                    <div class="subdomain-row">
+                        <input type="text" id="subdominio" name="subdominio" required placeholder="mi-empresa" pattern="[a-z0-9-]+">
+                        <span class="subdomain-suffix">.vibecloud.online</span>
+                    </div>
+                    <div id="subdomain-hint" class="field-hint"></div>
                 </div>
             </div>
 
-            <div class="field">
-                <label for="admin_username">Usuario admin</label>
-                <input type="text" id="admin_username" name="admin_username" required placeholder="admin">
+            <!-- Paso 2: ERP vs Sitio Web -->
+            <div class="wizard-step" data-step="productos">
+                <h2>¿Qué vas a usar?</h2>
+                <p class="step-desc">Podés elegir las dos. Cada una habilita su propio panel.</p>
+
+                <div class="choice-cards">
+                    <label class="choice-card" id="card-erp">
+                        <input type="checkbox" name="has_erp" id="has_erp" checked>
+                        <span class="choice-icon">🏭</span>
+                        <span class="choice-name">ERP</span>
+                        <span class="choice-desc">POS, stock, clientes, caja</span>
+                    </label>
+                    <label class="choice-card" id="card-web">
+                        <input type="checkbox" id="wants_web" checked>
+                        <span class="choice-icon">🌐</span>
+                        <span class="choice-name">Sitio Web</span>
+                        <span class="choice-desc">Landing, tienda online y/o AlexIO</span>
+                    </label>
+                </div>
+
+                <div class="sub-choices" id="web-sub-choices">
+                    <div class="products-grid">
+                        <label class="product-check">
+                            <input type="checkbox" name="has_ecommerce" id="has_ecommerce" checked>
+                            <span><span class="name">Ecommerce</span><span class="desc">Tienda online propia</span></span>
+                        </label>
+                        <label class="product-check">
+                            <input type="checkbox" name="has_landing" id="has_landing">
+                            <span><span class="name">Landing con IA</span><span class="desc">Página generada por IA</span></span>
+                        </label>
+                        <label class="product-check">
+                            <input type="checkbox" name="has_alexio" id="has_alexio" checked>
+                            <span><span class="name">AlexIO</span><span class="desc">Asistente de IA transversal</span></span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
-            <div class="field">
-                <label for="admin_password">Contraseña</label>
-                <input type="password" id="admin_password" name="admin_password" required placeholder="Al menos 12 caracteres, mayúscula, número y símbolo">
+            <!-- Paso 3: dominio (solo si Sitio Web) -->
+            <div class="wizard-step" data-step="dominio">
+                <h2>¿Con qué dominio?</h2>
+                <p class="step-desc">Podés usar gratis tu subdominio de VibeCloud, o pedir uno propio.</p>
+
+                <div class="domain-search-row">
+                    <input type="text" id="desired_domain_input" placeholder="miempresa.com">
+                    <button type="button" class="btn" id="check-domain-btn">Verificar disponibilidad</button>
+                </div>
+                <div id="domain-result" class="domain-result"></div>
+
+                <div class="domain-choice-row">
+                    <label>
+                        <input type="radio" name="domain_choice" value="subdominio" id="domain-choice-subdominio" checked>
+                        Uso mi subdominio gratis (<span id="domain-choice-subdomain-preview">tu-subdominio</span>.vibecloud.online)
+                    </label>
+                    <label>
+                        <input type="radio" name="domain_choice" value="comprar" id="domain-choice-comprar" disabled>
+                        Quiero comprar el dominio que verifiqué arriba
+                    </label>
+                </div>
+                <input type="hidden" name="desired_domain" id="desired_domain_hidden" value="">
+                <p class="field-hint" style="margin-top:10px;">
+                    Si pedís comprarlo, queda como solicitud pendiente — nunca te cobramos nada automáticamente.
+                    Nuestro equipo la confirma y activa el dominio a mano.
+                </p>
             </div>
 
-            <div class="field">
-                <label for="admin_full_name">Tu nombre (opcional)</label>
-                <input type="text" id="admin_full_name" name="admin_full_name" placeholder="Nombre completo">
+            <!-- Paso 4: conector ERP+Ecommerce (solo si ambos) -->
+            <div class="wizard-step" data-step="conector">
+                <h2>Conectar ERP con tu tienda</h2>
+                <p class="step-desc">Elegís si tu tienda online comparte el mismo stock que tu ERP.</p>
+
+                <div class="connector-explain">
+                    Si lo activás, cada venta online descuenta del mismo stock que ves en el ERP (un solo inventario).
+                    Si lo dejás apagado, tu tienda online tiene su propio depósito separado — útil si querés vender
+                    online con un stock distinto al del local. Podés cambiarlo cuando quieras desde Configuración.
+                </div>
+
+                <label class="product-check">
+                    <input type="checkbox" name="ecommerce_connected_to_erp" id="ecommerce_connected_to_erp">
+                    <span><span class="name">Conectar tienda online con el stock del ERP</span><span class="desc">Apagado por defecto</span></span>
+                </label>
             </div>
 
-            <button type="submit" id="submit-btn" class="btn btn-primary" style="width: 100%; padding: 14px;">Crear cuenta</button>
+            <!-- Paso 5: cuenta de acceso -->
+            <div class="wizard-step" data-step="acceso">
+                <h2>Tu acceso de administrador</h2>
+                <p class="step-desc">Con esto entrás a tu panel apenas termines.</p>
+
+                <div class="field">
+                    <label for="admin_username">Usuario admin</label>
+                    <input type="text" id="admin_username" name="admin_username" required placeholder="admin">
+                </div>
+
+                <div class="field">
+                    <label for="admin_password">Contraseña</label>
+                    <input type="password" id="admin_password" name="admin_password" required placeholder="Al menos 12 caracteres, mayúscula, número y símbolo">
+                </div>
+
+                <div class="field">
+                    <label for="admin_full_name">Tu nombre (opcional)</label>
+                    <input type="text" id="admin_full_name" name="admin_full_name" placeholder="Nombre completo">
+                </div>
+            </div>
+
+            <div class="wizard-nav">
+                <button type="button" class="btn btn-back" id="wizard-back" style="visibility:hidden;">Atrás</button>
+                <button type="button" class="btn btn-primary" id="wizard-next">Siguiente</button>
+                <button type="submit" id="submit-btn" class="btn btn-primary" style="display:none;">Crear cuenta</button>
+            </div>
         </form>
 
         <p class="login-link">¿Ya tenés cuenta? <a href="/login">Iniciar sesión</a></p>
     </div>
 
     <script>
+        // ---- Cards grandes ERP / Sitio Web ----
+        const cardErp = document.getElementById('card-erp');
+        const cardWeb = document.getElementById('card-web');
+        const hasErp = document.getElementById('has_erp');
+        const wantsWeb = document.getElementById('wants_web');
+        const webSubChoices = document.getElementById('web-sub-choices');
+        const hasEcommerce = document.getElementById('has_ecommerce');
+        const hasLanding = document.getElementById('has_landing');
+
+        function syncCardVisual(card, checkbox) {
+            card.classList.toggle('selected', checkbox.checked);
+        }
+        function toggleCard(card, checkbox) {
+            checkbox.checked = !checkbox.checked;
+            syncCardVisual(card, checkbox);
+            refreshWebSubChoices();
+        }
+        function refreshWebSubChoices() {
+            webSubChoices.style.display = wantsWeb.checked ? 'block' : 'none';
+            if (!wantsWeb.checked) {
+                hasEcommerce.checked = false;
+                hasLanding.checked = false;
+                document.getElementById('has_alexio').checked = false;
+            }
+        }
+        cardErp.addEventListener('click', (e) => { e.preventDefault(); toggleCard(cardErp, hasErp); });
+        cardWeb.addEventListener('click', (e) => { e.preventDefault(); toggleCard(cardWeb, wantsWeb); });
+        syncCardVisual(cardErp, hasErp);
+        syncCardVisual(cardWeb, wantsWeb);
+        refreshWebSubChoices();
+        hasEcommerce.addEventListener('change', refreshWebSubChoices);
+
+        // ---- Subdominio: chequeo de disponibilidad ----
         const subdomainInput = document.getElementById('subdominio');
         const subdomainHint = document.getElementById('subdomain-hint');
-        const submitBtn = document.getElementById('submit-btn');
+        const subdomainPreview = document.getElementById('domain-choice-subdomain-preview');
         let debounceTimer = null;
         let lastCheckedAvailable = null;
 
         subdomainInput.addEventListener('input', () => {
             const value = subdomainInput.value.trim().toLowerCase();
             subdomainInput.value = value;
+            subdomainPreview.textContent = value || 'tu-subdominio';
             lastCheckedAvailable = null;
             clearTimeout(debounceTimer);
             if (!value) {
@@ -159,11 +315,126 @@
             }
         }
 
+        // ---- Paso dominio: verificar disponibilidad real ----
+        const desiredDomainInput = document.getElementById('desired_domain_input');
+        const desiredDomainHidden = document.getElementById('desired_domain_hidden');
+        const checkDomainBtn = document.getElementById('check-domain-btn');
+        const domainResult = document.getElementById('domain-result');
+        const domainChoiceComprar = document.getElementById('domain-choice-comprar');
+        const domainChoiceSubdominio = document.getElementById('domain-choice-subdominio');
+
+        checkDomainBtn.addEventListener('click', async () => {
+            const domain = desiredDomainInput.value.trim().toLowerCase();
+            if (!domain || !domain.includes('.')) {
+                domainResult.textContent = 'Escribí un dominio válido (ej: miempresa.com)';
+                domainResult.className = 'domain-result no';
+                return;
+            }
+            checkDomainBtn.disabled = true;
+            domainResult.textContent = 'Buscando...';
+            domainResult.className = 'domain-result';
+            try {
+                const res = await fetch(`/api/registro/dominio-disponible?dominio=${encodeURIComponent(domain)}`);
+                const data = await res.json();
+                if (data.available) {
+                    domainResult.textContent = `¡${data.domain} está disponible!`;
+                    domainResult.className = 'domain-result ok';
+                    domainChoiceComprar.disabled = false;
+                    desiredDomainHidden.value = data.domain;
+                } else {
+                    domainResult.textContent = data.reason || `${domain} no está disponible.`;
+                    domainResult.className = 'domain-result no';
+                    domainChoiceComprar.disabled = true;
+                    domainChoiceSubdominio.checked = true;
+                    desiredDomainHidden.value = '';
+                }
+            } catch (err) {
+                domainResult.textContent = 'Error al verificar. Probá de nuevo.';
+                domainResult.className = 'domain-result no';
+            } finally {
+                checkDomainBtn.disabled = false;
+            }
+        });
+
+        // ---- Wizard: pasos, navegacion, saltar los que no aplican ----
+        const allSteps = Array.from(document.querySelectorAll('.wizard-step'));
+        const progressEl = document.getElementById('wizard-progress');
+        const backBtn = document.getElementById('wizard-back');
+        const nextBtn = document.getElementById('wizard-next');
+        const submitBtn = document.getElementById('submit-btn');
+        let currentIndex = 0;
+
+        function stepApplies(stepName) {
+            if (stepName === 'dominio') return wantsWeb.checked;
+            if (stepName === 'conector') return hasErp.checked && hasEcommerce.checked && wantsWeb.checked;
+            return true;
+        }
+        function visibleSteps() {
+            return allSteps.filter(s => stepApplies(s.dataset.step));
+        }
+        function renderProgress() {
+            const visible = visibleSteps();
+            progressEl.innerHTML = '';
+            visible.forEach((step, idx) => {
+                const dot = document.createElement('div');
+                const realIdx = allSteps.indexOf(step);
+                dot.className = 'dot' + (realIdx === currentIndex ? ' active' : (realIdx < currentIndex ? ' done' : ''));
+                progressEl.appendChild(dot);
+            });
+        }
+        function showStep(index) {
+            allSteps.forEach((s, i) => s.classList.toggle('active', i === index));
+            const visible = visibleSteps();
+            const isLast = visible[visible.length - 1] === allSteps[index];
+            backBtn.style.visibility = index === 0 ? 'hidden' : 'visible';
+            nextBtn.style.display = isLast ? 'none' : 'block';
+            submitBtn.style.display = isLast ? 'block' : 'none';
+            renderProgress();
+        }
+        function stepValid(index) {
+            const step = allSteps[index];
+            if (step.dataset.step === 'cuenta') {
+                if (!document.getElementById('empresa').value.trim()) { alert('Contanos el nombre de tu empresa'); return false; }
+                if (!subdomainInput.value.trim()) { alert('Elegí un subdominio'); return false; }
+                if (lastCheckedAvailable === false) { alert('Elegí un subdominio disponible antes de continuar'); return false; }
+            }
+            if (step.dataset.step === 'productos') {
+                if (!hasErp.checked && !wantsWeb.checked) { alert('Elegí al menos ERP o Sitio Web'); return false; }
+                if (wantsWeb.checked && !hasEcommerce.checked && !hasLanding.checked && !document.getElementById('has_alexio').checked) {
+                    alert('Dentro de Sitio Web, elegí Ecommerce, Landing o AlexIO');
+                    return false;
+                }
+            }
+            return true;
+        }
+        function nextIndex(from, direction) {
+            let i = from + direction;
+            while (i >= 0 && i < allSteps.length && !stepApplies(allSteps[i].dataset.step)) {
+                i += direction;
+            }
+            return i;
+        }
+        nextBtn.addEventListener('click', () => {
+            if (!stepValid(currentIndex)) return;
+            const ni = nextIndex(currentIndex, 1);
+            if (ni >= 0 && ni < allSteps.length) {
+                currentIndex = ni;
+                showStep(currentIndex);
+            }
+        });
+        backBtn.addEventListener('click', () => {
+            const pi = nextIndex(currentIndex, -1);
+            if (pi >= 0 && pi < allSteps.length) {
+                currentIndex = pi;
+                showStep(currentIndex);
+            }
+        });
+        showStep(currentIndex);
+
         document.getElementById('signup-form').addEventListener('submit', (e) => {
-            const anyProduct = document.querySelectorAll('.product-check input:checked').length > 0;
-            if (!anyProduct) {
+            if (!hasErp.checked && !wantsWeb.checked) {
                 e.preventDefault();
-                alert('Elegí al menos un producto');
+                alert('Elegí al menos ERP o Sitio Web');
                 return;
             }
             if (lastCheckedAvailable === false) {

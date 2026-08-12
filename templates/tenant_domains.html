@@ -24,15 +24,23 @@
                 <td>
                     {% if d.status == 'verified' %}
                     <span class="badge badge-success">Verificado</span>
+                    {% elif d.status == 'purchase_requested' %}
+                    <span class="badge badge-warning">Solicitado por el cliente</span>
                     {% else %}
                     <span class="badge badge-warning">Pendiente</span>
                     {% endif %}
                 </td>
                 <td style="font-family: monospace; font-size: 0.8rem;">
+                    {% if d.status != 'purchase_requested' %}
                     _vibecloud-verify.{{ d.domain }} = {{ d.verification_token }}
+                    {% else %}
+                    <span style="color:#6b7280; font-style: italic;">Se genera al confirmar la compra</span>
+                    {% endif %}
                 </td>
                 <td>
-                    {% if d.status != 'verified' %}
+                    {% if d.status == 'purchase_requested' %}
+                    <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="confirmarCompraSolicitada({{ d.id }}, '{{ d.domain }}')">Confirmar y comprar</button>
+                    {% elif d.status != 'verified' %}
                     <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="verificarDominio({{ d.id }})">Verificar</button>
                     {% endif %}
                     <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:transparent; border:1px solid #ef4444; color:#ef4444;" onclick="eliminarDominio({{ d.id }})">Eliminar</button>
@@ -93,6 +101,27 @@ async function eliminarDominio(domainId) {
     if (!confirm.isConfirmed) return;
     await fetch(`/api/tenants/${tenantId}/domains/${domainId}`, { method: 'DELETE' });
     window.location.reload();
+}
+
+async function confirmarCompraSolicitada(domainId, domain) {
+    const confirm = await Swal.fire({
+        title: `¿Comprar ${domain}?`,
+        text: 'El cliente lo pidió durante el alta. Se compra directo por la API de GoDaddy, con costo real.',
+        showCancelButton: true,
+        confirmButtonText: 'Comprar',
+    });
+    if (!confirm.isConfirmed) return;
+
+    const formData = new FormData();
+    formData.append('domain', domain);
+    formData.append('years', '1');
+    const res = await fetch(`/api/tenants/${tenantId}/domains/comprar`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+        Swal.fire('Error', data.detail || 'No se pudo comprar el dominio', 'error');
+        return;
+    }
+    Swal.fire('¡Comprado!', `${data.domain} ya está conectado y verificado.`, 'success').then(() => window.location.reload());
 }
 
 async function buscarDisponibilidad(event) {

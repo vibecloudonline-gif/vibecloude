@@ -728,7 +728,11 @@ async def buy_tenant_domain(
 
     domain_clean = domain.strip().lower()
     existing = session.exec(select(TenantDomain).where(TenantDomain.domain == domain_clean)).first()
-    if existing:
+    # Una solicitud "purchase_requested" del propio tenant (creada desde el
+    # signup self-service) no cuenta como dominio ya registrado -- es
+    # justamente la fila que esta compra viene a confirmar y upgradear.
+    pending_request = existing if (existing and existing.tenant_id == tenant_id and existing.status == "purchase_requested") else None
+    if existing and not pending_request:
         raise HTTPException(400, "Ese dominio ya está registrado en la plataforma")
 
     try:
@@ -745,13 +749,19 @@ async def buy_tenant_domain(
     # tenant ya tenía de antes.
     import secrets as _secrets
 
-    td = TenantDomain(
-        tenant_id=tenant_id,
-        domain=domain_clean,
-        verification_token=_secrets.token_hex(16),
-        status="verified",
-        verified_at=datetime.now(timezone.utc),
-    )
+    if pending_request:
+        pending_request.status = "verified"
+        pending_request.verification_token = _secrets.token_hex(16)
+        pending_request.verified_at = datetime.now(timezone.utc)
+        td = pending_request
+    else:
+        td = TenantDomain(
+            tenant_id=tenant_id,
+            domain=domain_clean,
+            verification_token=_secrets.token_hex(16),
+            status="verified",
+            verified_at=datetime.now(timezone.utc),
+        )
     session.add(td)
     session.commit()
     session.refresh(td)

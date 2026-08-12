@@ -58,6 +58,8 @@
         </div>
     </div>
 
+    {% set view = request.session.get('nav_view') or ['erp', 'ecommerce', 'landing'] %}
+    {% if "ecommerce" in view %}
     <!-- Ecommerce (storefront propio) -->
     <div class="glass-card stat-card">
         <div class="stat-card-header">
@@ -71,9 +73,9 @@
         </div>
         <a href="/tienda" target="_blank" style="font-size: 0.85rem; color: var(--accent-color); text-decoration: none; margin-top: 4px;">Ver tienda →</a>
     </div>
+    {% endif %}
 </div>
 
-{% set view = request.session.get('nav_view') or ['erp', 'ecommerce', 'landing'] %}
 <!-- Quick Access -->
 <div class="quick-access-grid animate-fade-in">
     {% if "erp" in view %}
@@ -119,28 +121,7 @@
 </div>
 
 {% if "erp" in view or "ecommerce" in view %}
-<!-- Ingest Data Section -->
-<div class="glass-card" style="margin-bottom: 24px;">
-    <h2 style="margin-bottom: 16px;">Ingresar Datos</h2>
-    <div class="grid-dashboard" style="display: flex; gap: 16px; flex-wrap: wrap;">
-        <a href="/products" class="no-underline" style="flex: 1; min-width: 200px; max-width: 300px;">
-            <div class="glass-card clickable-card" style="border: 2px solid var(--accent-color); text-align: center; padding: 16px;">
-                <div style="font-size: 2em; margin-bottom: 10px;">📦</div>
-                <h3 style="margin: 0; font-size: 1.2rem;">Productos</h3>
-                <p style="color: var(--text-muted); font-size: 0.85em; margin-top: 6px;">Crear, editar y gestionar stock</p>
-            </div>
-        </a>
-        <a href="/clients" class="no-underline" style="flex: 1; min-width: 200px; max-width: 300px;">
-            <div class="glass-card clickable-card" style="border: 2px solid var(--success-color); text-align: center; padding: 16px;">
-                <div style="font-size: 2em; margin-bottom: 10px;">👥</div>
-                <h3 style="margin: 0; font-size: 1.2rem;">Clientes</h3>
-                <p style="color: var(--text-muted); font-size: 0.85em; margin-top: 6px;">Registrar nuevos clientes y cuentas</p>
-            </div>
-        </a>
-    </div>
-</div>
-
-<!-- Quick Actions & Recent -->
+<!-- Actividad Reciente -->
 <div class="glass-card">
     <h2 style="margin-bottom: 16px;">Actividad Reciente</h2>
 
@@ -156,7 +137,6 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- Placeholder Data -->
                 {% for sale in recent_sales %}
                 <tr>
                     <td>#{{ sale.id }}</td>
@@ -173,12 +153,6 @@
             </tbody>
         </table>
     </div>
-
-    {% if "erp" in view %}
-    <div style="margin-top: 24px; text-align: right;">
-        <a href="/pos" class="btn">Nueva Venta</a>
-    </div>
-    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

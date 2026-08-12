@@ -14,13 +14,16 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+import secrets as _secrets
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from core.config import settings as app_settings
 from core.limiter import limiter
-from database.models import Settings, Tenant, User
+from database.models import Settings, Tenant, TenantDomain, User
 from database.session import get_session
 from routers.admin import _validate_password_strength
 from services.auth_service import AuthService
@@ -86,6 +89,35 @@ def check_subdomain_available(
     return {"subdomain": sub, "available": True, "reason": None}
 
 
+@router.get("/api/registro/dominio-disponible")
+@limiter.limit(app_settings.RATE_LIMIT_PUBLIC)
+async def check_desired_domain_available(
+    request: Request,
+    dominio: str,
+    session: Session = Depends(get_session),
+):
+    """Chequeo público de disponibilidad de un dominio propio (no el
+    subdominio gratuito). Solo consulta -- nunca compra ni cobra nada, eso
+    sigue siendo exclusivo de routers/admin.py::buy_tenant_domain."""
+    from services.domain_registrar_service import DomainRegistrarError, GoDaddyClient
+
+    dominio_clean = dominio.strip().lower()
+    if not dominio_clean or "." not in dominio_clean:
+        return {"domain": dominio_clean, "available": False, "reason": "Dominio inválido"}
+
+    existing = session.exec(select(TenantDomain).where(TenantDomain.domain == dominio_clean)).first()
+    if existing:
+        return {"domain": dominio_clean, "available": False, "reason": "Ese dominio ya está registrado en la plataforma"}
+
+    try:
+        client = GoDaddyClient()
+        disponible = await client.check_availability(dominio_clean)
+    except DomainRegistrarError as exc:
+        return {"domain": dominio_clean, "available": False, "reason": str(exc)}
+
+    return {"domain": dominio_clean, "available": disponible, "reason": None if disponible else "No disponible"}
+
+
 @router.post("/registro")
 @limiter.limit(app_settings.RATE_LIMIT_LOGIN)
 def signup_submit(
@@ -99,6 +131,9 @@ def signup_submit(
     has_ecommerce: bool = Form(False),
     has_landing: bool = Form(False),
     has_alexio: bool = Form(False),
+    domain_choice: str = Form("subdominio"),
+    desired_domain: Optional[str] = Form(None),
+    ecommerce_connected_to_erp: bool = Form(False),
     session: Session = Depends(get_session),
 ):
     empresa_clean = empresa.strip()
@@ -144,10 +179,24 @@ def signup_submit(
         has_alexio=has_alexio,
     )
     session.add(tenant)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        # Dos requests simultaneos pueden pasar el chequeo previo de
+        # disponibilidad y competir por el mismo subdominio -- la unique
+        # constraint de la DB es la que realmente lo previene.
+        session.rollback()
+        return _templates().TemplateResponse(
+            "registro.html", {"request": request, "error": "Ese subdominio ya está en uso"}, status_code=400
+        )
     session.refresh(tenant)
 
-    settings_obj = Settings(tenant_id=tenant.id, company_name=empresa_clean, logo_url="/static/images/logo.png")
+    settings_obj = Settings(
+        tenant_id=tenant.id,
+        company_name=empresa_clean,
+        logo_url="/static/images/logo.png",
+        ecommerce_connected_to_erp=ecommerce_connected_to_erp if (has_erp and has_ecommerce) else False,
+    )
     session.add(settings_obj)
 
     admin_user = User(
@@ -173,6 +222,21 @@ def signup_submit(
         )
 
     session.refresh(admin_user)
+
+    # Solicitud de dominio propio -- nunca se compra en el acto (nunca se
+    # llama a GoDaddyClient.register_domain acá). Queda pendiente para que
+    # el SuperAdmin la confirme y compre a mano desde /tenants/{id}/domains.
+    if domain_choice == "comprar" and desired_domain and (has_landing or has_ecommerce or has_alexio):
+        domain_clean = desired_domain.strip().lower()
+        if domain_clean and not session.exec(select(TenantDomain).where(TenantDomain.domain == domain_clean)).first():
+            pending_domain = TenantDomain(
+                tenant_id=tenant.id,
+                domain=domain_clean,
+                verification_token=_secrets.token_hex(16),
+                status="purchase_requested",
+            )
+            session.add(pending_domain)
+            session.commit()
 
     request.session["user_id"] = admin_user.id
     tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
