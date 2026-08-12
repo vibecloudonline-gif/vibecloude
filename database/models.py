@@ -203,8 +203,12 @@ class User(SQLModel, table=True):
     username: str = Field(index=True)
     password_hash: str
     full_name: Optional[str] = None
+    email: Optional[str] = Field(default=None)
     role: str = Field(default="admin")  # admin, cashier, seller, client
     client_id: Optional[int] = Field(default=None, foreign_key="client.id")
+    # False mientras espera confirmar el mail (solo cuando ese modo esta
+    # activo, ver services/email_service.py) -- reusa el flag que login()
+    # ya chequea, no hace falta un campo nuevo para esto.
     is_active: bool = Field(default=False if False else True)
 
     # FIX #2: soft delete en User

@@ -75,6 +75,7 @@ BASE_FORM = {
     "empresa": "Mi Empresa SRL",
     "admin_username": "admin1",
     "admin_password": "Contrasena123!",
+    "admin_email": "admin1@example.com",
     "admin_full_name": "Alex",
 }
 

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link inválido - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--main-bg);
+            padding: 32px 16px;
+        }
+        .confirm-card { width: 100%; max-width: 460px; padding: 40px; text-align: center; }
+        .confirm-icon { font-size: 2.4rem; margin-bottom: 12px; }
+        .confirm-card h1 { font-size: 1.3rem; margin-bottom: 10px; }
+        .confirm-card p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; }
+        .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); }
+        .login-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="confirm-card glass-card">
+        <div class="confirm-icon">⚠️</div>
+        <h1>Este link ya no es válido</h1>
+        <p>Puede haber vencido (dura 24 horas) o ya lo usaste antes. Si tu cuenta sigue sin activarse, escribinos y te ayudamos.</p>
+    </div>
+    <p class="login-link"><a href="/registro">Volver a registrarme</a></p>
+</body>
+</html>

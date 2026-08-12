@@ -27,6 +27,12 @@ from database.models import Settings, Tenant, TenantDomain, User
 from database.session import get_session
 from routers.admin import _validate_password_strength
 from services.auth_service import AuthService
+from services.email_service import (
+    generate_confirm_token,
+    is_email_confirmation_enabled,
+    send_confirmation_email,
+    verify_confirm_token,
+)
 from web.compat_templates import CompatTemplates
 
 router = APIRouter(tags=["Signup"])
@@ -34,6 +40,8 @@ router = APIRouter(tags=["Signup"])
 # Mismo largo/regla que un label DNS valido (RFC 1035): minusculas, numeros,
 # guiones, no puede empezar ni terminar en guion.
 SUBDOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # Subdominios que no se pueden autoasignar porque ya tienen o van a tener un
 # significado especial en la plataforma (paneles propios, infraestructura).
@@ -126,6 +134,7 @@ def signup_submit(
     subdominio: str = Form(...),
     admin_username: str = Form(...),
     admin_password: str = Form(...),
+    admin_email: str = Form(...),
     admin_full_name: Optional[str] = Form(None),
     has_erp: bool = Form(False),
     has_ecommerce: bool = Form(False),
@@ -161,6 +170,12 @@ def signup_submit(
     if not admin_username_clean:
         return _templates().TemplateResponse(
             "registro.html", {"request": request, "error": "El usuario admin es obligatorio"}, status_code=400
+        )
+
+    admin_email_clean = admin_email.strip().lower()
+    if not EMAIL_RE.match(admin_email_clean):
+        return _templates().TemplateResponse(
+            "registro.html", {"request": request, "error": "Ingresá un email válido"}, status_code=400
         )
 
     try:
@@ -199,12 +214,19 @@ def signup_submit(
     )
     session.add(settings_obj)
 
+    email_confirmation_on = is_email_confirmation_enabled()
     admin_user = User(
         username=admin_username_clean,
         password_hash=AuthService.get_password_hash(admin_password),
         role="admin",
         full_name=(admin_full_name or "").strip() or None,
+        email=admin_email_clean,
         tenant_id=tenant.id,
+        # Sin SMTP_HOST configurada, la cuenta queda activa de una (como
+        # siempre funcionó). Con el modo prendido, arranca inactiva hasta
+        # que confirme el mail -- routers/auth.py::login ya rechaza
+        # is_active=False, no hace falta un chequeo nuevo ahí.
+        is_active=not email_confirmation_on,
     )
     session.add(admin_user)
 
@@ -238,6 +260,22 @@ def signup_submit(
             session.add(pending_domain)
             session.commit()
 
+    if email_confirmation_on:
+        token = generate_confirm_token(admin_user.id)
+        confirm_url = f"{request.url.scheme}://{request.url.netloc}/confirmar-email?token={token}"
+        try:
+            send_confirmation_email(admin_email_clean, confirm_url, empresa_clean)
+        except Exception:
+            # La cuenta ya existe (inactiva) -- no la deshacemos por un
+            # fallo de envío (SMTP mal configurada, proveedor caído, host
+            # sin responder), mostramos el mismo mensaje igual. Si el mail
+            # nunca llega, el tenant puede escribirnos para que lo
+            # activemos a mano; no queda bloqueado sin salida.
+            pass
+        return _templates().TemplateResponse(
+            "registro_confirmar.html", {"request": request, "email": admin_email_clean}
+        )
+
     request.session["user_id"] = admin_user.id
     tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
     request.session["tenant_flags"] = tenant_flags
@@ -246,6 +284,38 @@ def signup_submit(
     # popea explícitamente por si el navegador traía un nav_view viejo de
     # otra cuenta logueada antes en el mismo origen (la cookie de sesión
     # sobrevive entre requests si no se toca esa key).
+    request.session.pop("nav_view", None)
+
+    return RedirectResponse("/", status_code=302)
+
+
+@router.get("/confirmar-email", response_class=HTMLResponse)
+def confirm_email(request: Request, token: str, session: Session = Depends(get_session)):
+    user_id = verify_confirm_token(token)
+    if not user_id:
+        return _templates().TemplateResponse(
+            "registro_confirmar_error.html", {"request": request}, status_code=400
+        )
+
+    user = session.get(User, user_id)
+    if not user:
+        return _templates().TemplateResponse(
+            "registro_confirmar_error.html", {"request": request}, status_code=400
+        )
+
+    if not user.is_active:
+        user.is_active = True
+        session.add(user)
+        session.commit()
+
+    request.session["user_id"] = user.id
+    tenant = session.get(Tenant, user.tenant_id) if user.tenant_id else None
+    tenant_flags = {
+        "erp": tenant.has_erp if tenant else True,
+        "ecommerce": tenant.has_ecommerce if tenant else True,
+        "landing": tenant.has_landing if tenant else True,
+    }
+    request.session["tenant_flags"] = tenant_flags
     request.session.pop("nav_view", None)
 
     return RedirectResponse("/", status_code=302)

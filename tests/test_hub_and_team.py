@@ -146,6 +146,7 @@ def test_registro_limpia_nav_view_viejo_de_otra_sesion(client, session):
             "subdominio": "nueva-empresa",
             "admin_username": "nuevoadmin",
             "admin_password": "Contrasena123!",
+            "admin_email": "nuevoadmin@example.com",
             "has_erp": "true",
         },
         follow_redirects=False,

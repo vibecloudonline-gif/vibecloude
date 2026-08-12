@@ -63,12 +63,34 @@ def get_current_user(
     return user
 
 
-def require_auth(user: Optional[User] = Depends(get_current_user)) -> User:
+def require_auth(
+    request: Request,
+    session: Session = Depends(get_session),
+    user: Optional[User] = Depends(get_current_user),
+) -> User:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_302_FOUND,
             headers={"Location": "/login"},
         )
+
+    # tenant_flags/nav_view viven en la sesión (evita pegarle a la DB en cada
+    # link del sidebar), pero eso significa que si el SuperAdmin le cambia el
+    # plan a un tenant (routers/admin.py::update_tenant_plan) despues de que
+    # el usuario ya inicio sesion, el cambio no se veia hasta re-loguearse.
+    # Se relee fresco en cada request autenticado, aca, que es el unico punto
+    # por el que pasan todas las paginas protegidas.
+    if user.tenant_id:
+        tenant = session.get(Tenant, user.tenant_id)
+        if tenant:
+            fresh_flags = {"erp": tenant.has_erp, "ecommerce": tenant.has_ecommerce, "landing": tenant.has_landing}
+            request.session["tenant_flags"] = fresh_flags
+            current_view = request.session.get("nav_view")
+            if current_view:
+                clamped = [m for m in current_view if fresh_flags.get(m)]
+                if clamped != current_view:
+                    request.session["nav_view"] = clamped
+
     return user
 
 
