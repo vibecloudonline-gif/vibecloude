@@ -86,7 +86,7 @@ async def get_public_store_info(db: Session = Depends(get_session), tenant_id: i
     if not settings:
         return {
             "company_name": "VibeCloud",
-            "logo_url": "/static/images/berelk_logo.png",
+            "logo_url": "/static/images/logo.png",
             "storefront_template": "elegante",
             "ui_theme": "standard"
         }

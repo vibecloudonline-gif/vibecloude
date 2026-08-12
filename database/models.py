@@ -119,8 +119,8 @@ class Settings(SQLModel, table=True):
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id")
     tenant: Optional[Tenant] = Relationship(sa_relationship=relationship("Tenant", back_populates="settings"))
 
-    company_name: str = Field(default="Berel K")
-    logo_url: str = Field(default="/static/images/berelk_logo.png")
+    company_name: str = Field(default="VibeCloud")
+    logo_url: str = Field(default="/static/images/logo.png")
     tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), sa_column=Column(Numeric(5, 4), nullable=True))
     printer_name: Optional[str] = Field(default=None)
     label_width_mm: int = Field(default=60)

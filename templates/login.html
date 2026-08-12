@@ -1,65 +1,112 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión - {{ settings.company_name }}</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--main-bg);
+            padding: 32px 16px;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 40px;
+            text-align: center;
+        }
+        .login-logo {
+            width: 64px;
+            height: 64px;
+            border-radius: var(--radius-lg);
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--accent-light);
+            overflow: hidden;
+        }
+        .login-logo img { width: 100%; height: 100%; object-fit: contain; }
+        .login-card h1 { font-size: 1.4rem; margin-bottom: 4px; }
+        .login-card .subtitle { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 24px; }
 
-{% block title %}Iniciar sesion - VibeCloud Cloud{% endblock %}
+        .auth-tabs {
+            display: flex;
+            background: var(--main-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            margin-bottom: 28px;
+        }
+        .auth-tabs a, .auth-tabs span {
+            flex: 1;
+            padding: 9px 0;
+            border-radius: calc(var(--radius-md) - 4px);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+        }
+        .auth-tabs .tab-active {
+            background: var(--surface-color);
+            color: var(--text-main);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .auth-tabs .tab-link { color: var(--text-muted); }
+        .auth-tabs .tab-link:hover { color: var(--text-main); }
 
-{% block head %}
-<style>
-    .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 84vh;
-    }
+        .field { margin-bottom: 18px; text-align: left; }
+        .field label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+        .field input {
+            width: 100%; padding: 12px 14px; border-radius: 10px;
+            border: 1px solid var(--border-color); font-size: 0.95rem;
+        }
 
-    .login-card {
-        width: 100%;
-        max-width: 460px;
-        text-align: center;
-        padding: 36px;
-    }
-
-    .navbar {
-        display: none;
-    }
-
-    .login-logo img {
-        width: 72px;
-        height: 72px;
-        object-fit: contain;
-        margin-bottom: 16px;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="login-container">
+        .form-error {
+            background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border);
+            padding: 12px; border-radius: var(--radius-md); margin-bottom: 20px; font-size: 0.9rem; text-align: left;
+        }
+        .signup-link { text-align: center; margin-top: 22px; font-size: 0.9rem; color: var(--text-muted); }
+        .signup-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+    </style>
+</head>
+<body>
     <div class="login-card glass-card">
         <div class="login-logo">
             <img src="{{ settings.logo_url }}" alt="{{ settings.company_name }}">
         </div>
-        <p class="eyebrow">Operacion centralizada</p>
-        <h2>{{ settings.company_name }}</h2>
-        <p style="color: var(--text-muted); margin-bottom: 32px;">Ingresa a tu panel para ventas, stock y clientes en un solo lugar.</p>
+        <h1>Bienvenido</h1>
+        <p class="subtitle">Ingresá a tu cuenta de {{ settings.company_name }}</p>
+
+        <div class="auth-tabs">
+            <span class="tab-active">Iniciar Sesión</span>
+            <a href="/registro" class="tab-link">Registrarse</a>
+        </div>
 
         {% if error %}
-        <div style="background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); padding: 12px; border-radius: var(--radius-md); margin-bottom: 24px; font-size: 0.95rem;">
-            {{ error }}
-        </div>
+        <div class="form-error">{{ error }}</div>
         {% endif %}
 
         <form action="/login" method="post">
-            <div style="text-align: left;">
-                <label style="display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600;">Usuario</label>
-                <input type="text" name="username" required placeholder="admin" autofocus>
+            <div class="field">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" required placeholder="admin" autofocus>
             </div>
 
-            <div style="text-align: left; margin-top: 16px;">
-                <label style="display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600;">Contrasena</label>
-                <input type="password" name="password" required placeholder="Tu acceso seguro">
+            <div class="field">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required placeholder="Tu acceso seguro">
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 28px; padding: 14px;">Ingresar</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 14px;">Entrar</button>
         </form>
+
+        <p class="signup-link">¿No tenés cuenta? <a href="/registro">Registrate gratis</a></p>
     </div>
-</div>
-{% endblock %}
+</body>
+</html>
