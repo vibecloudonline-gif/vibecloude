@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session, delete, select
 
-from database.models import Client, Product, Sale, Settings, User, Tenant, SaleItem, CashMovement, Supplier, Payment, Purchase, AICredential, TenantDomain
+from database.models import Client, Product, Sale, Settings, User, Tenant, SaleItem, CashMovement, Supplier, Payment, Purchase, AICredential, TenantDomain, SupportTicket
 from database.session import get_session
 from services.auth_service import AuthService
 from services.database_backup_service import create_backup_file, get_local_backup_path, list_local_backups
@@ -1062,3 +1062,47 @@ def export_clients_api(
         headers={"Content-Disposition": 'attachment; filename="clientes_export.xlsx"'},
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+# --- Tickets de soporte (centro de ayuda de los tenants, routers/help.py) ---
+
+@router.get("/tickets", response_class=HTMLResponse)
+def support_tickets_page(
+    request: Request,
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    tickets = session.exec(
+        select(SupportTicket, Tenant.name)
+        .join(Tenant, SupportTicket.tenant_id == Tenant.id)
+        .order_by(SupportTicket.created_at.desc())
+    ).all()
+    settings = SettingsService.get_or_create_settings(session, tenant_id=user.tenant_id)
+    return _templates().TemplateResponse(
+        "support_tickets.html",
+        {
+            "request": request,
+            "user": user,
+            "settings": settings,
+            "tickets": tickets,
+            "active_page": "tickets",
+        },
+    )
+
+
+@router.post("/tickets/{ticket_id}/responder")
+def respond_support_ticket(
+    ticket_id: int,
+    response: str = Form(...),
+    user: User = Depends(require_superadmin),
+    session: Session = Depends(get_session),
+):
+    ticket = session.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(404, "Ticket no encontrado")
+    ticket.response = response.strip()
+    ticket.status = "answered"
+    ticket.responded_at = datetime.utcnow()
+    session.add(ticket)
+    session.commit()
+    return RedirectResponse(url="/tickets", status_code=302)

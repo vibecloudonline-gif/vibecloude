@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayuda - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <style>
+        body {
+            min-height: 100vh;
+            background: var(--main-bg);
+            padding: 32px 16px;
+        }
+        .panel-topbar { max-width: 760px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
+        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: var(--text-main); }
+        .panel-card { max-width: 760px; margin: 0 auto 20px; padding: 36px 40px; }
+        .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
+        .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; }
+        .panel-card h2 { font-size: 1.05rem; margin: 28px 0 12px; }
+        .panel-card h2:first-of-type { margin-top: 0; }
+
+        .faq-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .faq-item summary {
+            padding: 12px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .faq-item summary::-webkit-details-marker { display: none; }
+        .faq-item summary::after { content: "+"; color: var(--text-muted); font-weight: 700; }
+        .faq-item[open] summary::after { content: "−"; }
+        .faq-item .faq-answer { padding: 0 16px 14px; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+
+        .form-msg { padding: 12px; border-radius: var(--radius-md); margin-bottom: 18px; font-size: 0.9rem; border: 1px solid transparent; }
+        .form-msg.error { background: var(--danger-bg); color: var(--danger-color); border-color: var(--danger-border); }
+        .form-msg.success { background: var(--success-bg); color: var(--success-color); border-color: var(--success-border); }
+
+        .field { margin-bottom: 16px; }
+        .field label { display: block; margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+        .field input, .field textarea {
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid var(--border-color); font-size: 0.9rem; font-family: inherit;
+        }
+
+        .ticket-list { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+        .ticket-row { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px 16px; }
+        .ticket-row .ticket-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; }
+        .ticket-row .ticket-subject { font-weight: 600; }
+        .status-badge { font-size: 0.72rem; font-weight: 600; padding: 3px 11px; border-radius: var(--radius-full); }
+        .status-badge.open { background: var(--warning-bg); color: var(--warning-color); border: 1px solid var(--warning-border); }
+        .status-badge.answered { background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); }
+        .status-badge.closed { background: var(--main-bg); color: var(--text-muted); border: 1px solid var(--border-color); }
+        .ticket-row .ticket-message { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 6px; }
+        .ticket-row .ticket-response { font-size: 0.88rem; background: var(--accent-light); padding: 10px 12px; border-radius: var(--radius-md); margin-top: 6px; }
+        .ticket-row .ticket-response b { color: var(--accent-color); }
+    </style>
+</head>
+<body>
+    <div class="panel-topbar">
+        <a href="/">&larr; Volver</a>
+        <a href="/settings">Configuración</a>
+    </div>
+
+    <div class="panel-card glass-card">
+        <h1>Centro de ayuda</h1>
+        <p class="subtitle">Preguntas frecuentes sobre VibeCloud. Si no encontrás lo que buscás, mandanos una consulta más abajo.</p>
+
+        <h2>General</h2>
+        <details class="faq-item">
+            <summary>¿Por qué al entrar veo una pantalla en blanco con opciones, en vez de ir directo al panel?</summary>
+            <div class="faq-answer">Es el hub de entrada. Como podés tener contratado ERP, Ecommerce y/o Landing al mismo tiempo, cada vez que iniciás sesión elegís a cuál querés entrar. Si solo tenés un módulo, vas a ver un solo botón.</div>
+        </details>
+        <details class="faq-item">
+            <summary>¿Cómo sumo a un compañero de equipo?</summary>
+            <div class="faq-answer">Desde Configuración o directo en <a href="/panel/equipo">Equipo</a>, cargás su usuario y contraseña y le asignás un rol (admin, cajero o vendedor). Cada uno entra con su propio usuario, no comparten el tuyo.</div>
+        </details>
+        <details class="faq-item">
+            <summary>¿Cómo cambio mi contraseña?</summary>
+            <div class="faq-answer">Desde <a href="/settings">Configuración</a>.</div>
+        </details>
+
+        {% if tenant and tenant.has_erp %}
+        <h2>ERP</h2>
+        <details class="faq-item">
+            <summary>¿Qué es la "Predicción de viabilidad" al cargar un producto?</summary>
+            <div class="faq-answer">Es un análisis con IA: le consulta a 4 perfiles de comprador distintos (sensible al precio, de calidad, impulsivo, escéptico) qué tan bien creen que le va a ir al producto, usando también tu propio historial de ventas de esa categoría si ya tenés. Te devuelve un score de 0 a 100 y el desglose por perfil.</div>
+        </details>
+        <details class="faq-item">
+            <summary>¿De dónde sale el stock que veo en un producto?</summary>
+            <div class="faq-answer">Del total en tus ubicaciones (WMS). Si movés stock entre ubicaciones, se refleja ahí, no lo cargás a mano en la ficha del producto.</div>
+        </details>
+        {% endif %}
+
+        {% if tenant and (tenant.has_ecommerce or tenant.has_landing) %}
+        <h2>Ecommerce y Landing</h2>
+        <details class="faq-item">
+            <summary>¿Cómo genero mi landing o tienda con IA?</summary>
+            <div class="faq-answer">Desde el onboarding guiado del módulo (accesible desde el hub al entrar). Le describís tu negocio y la IA genera una propuesta que después podés ajustar.</div>
+        </details>
+        <details class="faq-item">
+            <summary>¿Quién es AlexIO?</summary>
+            <div class="faq-answer">Es el asistente de IA que ven tus clientes en tu tienda online: responde dudas de stock y ayuda a encontrar productos. No inventa precios ni stock -- siempre consulta tus datos reales.</div>
+        </details>
+        <details class="faq-item">
+            <summary>¿Cómo consigo un dominio propio?</summary>
+            <div class="faq-answer">Desde <a href="/panel/dominios">Buscar dominios</a> (accesible desde el hub). Buscás disponibilidad y solicitás la compra -- un asesor de VibeCloud la confirma antes de cobrarte.</div>
+        </details>
+        {% endif %}
+
+        <h2>Confirmación de cuenta</h2>
+        <details class="faq-item">
+            <summary>Me registré y no puedo entrar, dice "credenciales inválidas"</summary>
+            <div class="faq-answer">Si activamos confirmación por email para tu cuenta, tenés que confirmar el link que te llegó antes de poder loguearte. Revisá spam si no lo ves.</div>
+        </details>
+    </div>
+
+    <div class="panel-card glass-card">
+        <h1>¿No encontraste la respuesta?</h1>
+        <p class="subtitle">Mandanos tu consulta -- te respondemos acá mismo, en esta página.</p>
+
+        {% if error %}
+        <div class="form-msg error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="form-msg success">{{ success }}</div>
+        {% endif %}
+
+        <form method="post" action="/panel/ayuda/ticket">
+            <div class="field">
+                <label for="subject">Asunto</label>
+                <input type="text" id="subject" name="subject" required placeholder="Ej. No puedo cargar un producto">
+            </div>
+            <div class="field">
+                <label for="message">Mensaje</label>
+                <textarea id="message" name="message" rows="4" required placeholder="Contanos qué pasó, con el mayor detalle posible."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px;">Enviar consulta</button>
+        </form>
+
+        {% if tickets %}
+        <div class="ticket-list">
+            {% for t in tickets %}
+            <div class="ticket-row">
+                <div class="ticket-top">
+                    <span class="ticket-subject">{{ t.subject }}</span>
+                    <span class="status-badge {{ t.status }}">
+                        {% if t.status == "open" %}Pendiente{% elif t.status == "answered" %}Respondido{% else %}Cerrado{% endif %}
+                    </span>
+                </div>
+                <div class="ticket-message">{{ t.message }}</div>
+                {% if t.response %}
+                <div class="ticket-response"><b>Respuesta de VibeCloud:</b> {{ t.response }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

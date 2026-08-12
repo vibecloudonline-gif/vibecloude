@@ -110,6 +110,28 @@ class TenantDomain(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
 
 
+class SupportTicket(SQLModel, table=True):
+    """
+    Ticket de soporte de un tenant hacia VibeCloud (centro de ayuda,
+    /panel/ayuda). Cualquier usuario del tenant puede crearlo, no solo el
+    admin; SuperAdmin los ve todos y responde -- ver routers/superadmin.py.
+    """
+    __table_args__ = (
+        Index("ix_supportticket_tenant_status", "tenant_id", "status"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+    subject: str
+    message: str
+    status: str = Field(default="open")  # open, answered, closed
+    response: Optional[str] = None
+    created_at: datetime = Field(default_factory=_utcnow)
+    responded_at: Optional[datetime] = None
+
+
 # ===========================================================================
 # SETTINGS
 # ===========================================================================

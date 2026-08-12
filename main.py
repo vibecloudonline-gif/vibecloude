@@ -47,6 +47,7 @@ from routers.landing_studio import router as landing_studio_router
 from routers.onboarding_wizard import router as onboarding_wizard_router
 from routers.team import router as team_router
 from routers.panel_domains import router as panel_domains_router
+from routers.help import router as help_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -120,6 +121,7 @@ app.include_router(landing_studio_router)
 app.include_router(onboarding_wizard_router)
 app.include_router(team_router)
 app.include_router(panel_domains_router)
+app.include_router(help_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])
