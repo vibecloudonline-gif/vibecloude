@@ -11,7 +11,7 @@ from database.models import Settings, Tenant, User
 from database.session import get_session
 from services.auth_service import AuthService
 from web.compat_templates import CompatTemplates
-from web.dependencies import get_settings
+from web.dependencies import _resolve_tenant_from_host, get_settings
 
 router = APIRouter(tags=["Auth"])
 
@@ -38,7 +38,19 @@ def login(
     # SUPERADMIN_PASSWORD en cada arranque (ver AuthService.create_default_user_and_settings,
     # llamado desde core/startup.py). No hace falta ni es seguro tener acá un segundo camino
     # de login que compare la password en texto plano contra una env var.
-    user = session.exec(select(User).where(User.username == username)).first()
+    #
+    # username es unico POR TENANT, no global -- si el host resuelve a un
+    # tenant (subdominio o dominio propio) buscamos ahi. Si no resuelve
+    # (dominio base sin subdominio, o dev sin BASE_DOMAIN configurada),
+    # caemos a la busqueda global de siempre -- ambiguo si ya hay dos
+    # tenants con el mismo username, limitacion conocida y aceptada.
+    host_tenant_id = _resolve_tenant_from_host(request.headers.get("host"), session)
+    if host_tenant_id:
+        user = session.exec(
+            select(User).where(User.tenant_id == host_tenant_id, User.username == username)
+        ).first()
+    else:
+        user = session.exec(select(User).where(User.username == username)).first()
 
     if not user or not user.is_active or user.is_deleted or not AuthService.verify_password(password, user.password_hash):
         return _templates().TemplateResponse(
@@ -52,8 +64,10 @@ def login(
         "landing": tenant.has_landing if tenant else True,
     }
     request.session["tenant_flags"] = tenant_flags
-    # Vista inicial: todo lo que tiene contratado, se puede achicar despues con el switcher.
-    request.session["nav_view"] = [k for k, v in tenant_flags.items() if v]
+    # nav_view NO se setea acá a propósito -- sin elegir un módulo todavía,
+    # "/" muestra el hub de entrada (ver main.py::get_dashboard). Entrar a
+    # un módulo específico es lo que lo setea (POST /panel/nav-view).
+    request.session.pop("nav_view", None)
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
     return RedirectResponse("/", status_code=302)

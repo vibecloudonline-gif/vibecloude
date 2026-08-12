@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            padding: 32px 16px;
+        }
+        .hub-wrap { width: 100%; max-width: 720px; }
+        .hub-header { text-align: center; margin-bottom: 28px; color: #fff; }
+        .hub-header h1 { font-size: 1.5rem; margin-bottom: 6px; }
+        .hub-header p { color: rgba(255,255,255,0.65); font-size: 0.92rem; }
+        .hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .hub-tile {
+            display: flex; flex-direction: column; gap: 8px; padding: 24px 20px;
+            border-radius: 16px; text-align: left; text-decoration: none;
+            cursor: pointer; border: none; font: inherit;
+        }
+        .hub-tile .hub-icon { font-size: 1.8rem; }
+        .hub-tile .hub-name { font-weight: 700; font-size: 1.05rem; color: #0f172a; }
+        .hub-tile .hub-desc { font-size: 0.82rem; color: #64748b; line-height: 1.4; }
+        .hub-empty { text-align: center; color: rgba(255,255,255,0.7); padding: 20px; }
+        .hub-footer { text-align: center; margin-top: 24px; }
+        .hub-footer a { color: rgba(255,255,255,0.55); font-size: 0.85rem; text-decoration: none; }
+        .hub-footer a:hover { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="hub-wrap">
+        <div class="hub-header">
+            <h1>Hola, {{ user.full_name or user.username }}</h1>
+            <p>¿A qué módulo querés entrar?</p>
+        </div>
+
+        <div class="hub-grid">
+            {% if tenant.has_erp %}
+            <button type="button" class="hub-tile glass-card" id="tile-erp">
+                <span class="hub-icon">🏭</span>
+                <span class="hub-name">ERP</span>
+                <span class="hub-desc">POS, stock, clientes, caja</span>
+            </button>
+            {% endif %}
+            {% if tenant.has_ecommerce %}
+            <a href="/panel/onboarding" class="hub-tile glass-card no-underline">
+                <span class="hub-icon">🛒</span>
+                <span class="hub-name">Ecommerce</span>
+                <span class="hub-desc">Configurar tu tienda online</span>
+            </a>
+            {% endif %}
+            {% if tenant.has_landing %}
+            <a href="/panel/onboarding" class="hub-tile glass-card no-underline">
+                <span class="hub-icon">🌐</span>
+                <span class="hub-name">Landing con IA</span>
+                <span class="hub-desc">Armar tu página con IA</span>
+            </a>
+            {% endif %}
+            {% if tenant.has_ecommerce or tenant.has_landing %}
+            <a href="/panel/dominios" class="hub-tile glass-card no-underline">
+                <span class="hub-icon">🔎</span>
+                <span class="hub-name">Buscar dominios</span>
+                <span class="hub-desc">Conseguir tu propio dominio</span>
+            </a>
+            {% endif %}
+        </div>
+
+        {% if not tenant.has_erp and not tenant.has_ecommerce and not tenant.has_landing %}
+        <div class="hub-empty">Tu cuenta todavía no tiene ningún módulo contratado.</div>
+        {% endif %}
+
+        <div class="hub-footer">
+            <a href="/logout">Cerrar sesión</a>
+        </div>
+    </div>
+
+    <script>
+        const erpTile = document.getElementById('tile-erp');
+        if (erpTile) {
+            erpTile.addEventListener('click', async () => {
+                erpTile.style.opacity = '0.6';
+                const formData = new FormData();
+                formData.append('modules', 'erp');
+                try {
+                    const res = await fetch('/panel/nav-view', { method: 'POST', body: formData });
+                    if (!res.ok) {
+                        erpTile.style.opacity = '1';
+                        const data = await res.json().catch(() => ({}));
+                        alert(data.detail || 'No se pudo entrar a ERP');
+                        return;
+                    }
+                    window.location.href = '/';
+                } catch (err) {
+                    erpTile.style.opacity = '1';
+                    alert('Error de conexión');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

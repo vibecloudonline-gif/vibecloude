@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dominios - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            padding: 32px 16px;
+        }
+        .panel-topbar { max-width: 640px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
+        .panel-topbar a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: #fff; }
+        .panel-card { max-width: 640px; margin: 0 auto; padding: 36px 40px; }
+        .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
+        .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; }
+        .domain-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+        .domain-search-row input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-color); }
+        .domain-result { padding: 12px 14px; border-radius: 10px; font-size: 0.88rem; margin-bottom: 18px; min-height: 1.2em; }
+        .domain-result.ok { background: rgba(22,163,74,0.1); color: var(--success-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .domain-result.no { background: rgba(239,68,68,0.1); color: var(--danger-color); }
+        .domains-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .domains-table th, .domains-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        .badge-pending { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; }
+        .badge-verified { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #15803d; }
+    </style>
+</head>
+<body>
+    <div class="panel-topbar">
+        <a href="/">&larr; Volver</a>
+        <a href="/settings">Configuración</a>
+    </div>
+    <div class="panel-card glass-card">
+        <h1>Tu dominio propio</h1>
+        <p class="subtitle">Buscá si está disponible. Pedirlo no te cobra nada automáticamente — queda como solicitud y lo confirmamos con vos antes de comprarlo.</p>
+
+        <div class="domain-search-row">
+            <input type="text" id="domain-input" placeholder="miempresa.com">
+            <button type="button" class="btn" id="search-btn">Buscar</button>
+        </div>
+        <div id="domain-result" class="domain-result"></div>
+
+        <table class="domains-table">
+            <thead>
+                <tr><th>Dominio</th><th>Estado</th></tr>
+            </thead>
+            <tbody id="domains-tbody">
+                {% for d in domains %}
+                <tr>
+                    <td>{{ d.domain }}</td>
+                    <td>
+                        {% if d.status == 'verified' %}
+                        <span class="badge-verified">Activo</span>
+                        {% elif d.status == 'purchase_requested' %}
+                        <span class="badge-pending">Solicitud enviada</span>
+                        {% else %}
+                        <span class="badge-pending">Pendiente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align:center; color: var(--text-muted);">Todavía no pediste ningún dominio</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const input = document.getElementById('domain-input');
+        const searchBtn = document.getElementById('search-btn');
+        const resultEl = document.getElementById('domain-result');
+
+        searchBtn.addEventListener('click', async () => {
+            const domain = input.value.trim().toLowerCase();
+            if (!domain || !domain.includes('.')) {
+                resultEl.textContent = 'Escribí un dominio válido (ej: miempresa.com)';
+                resultEl.className = 'domain-result no';
+                return;
+            }
+            searchBtn.disabled = true;
+            resultEl.textContent = 'Buscando...';
+            resultEl.className = 'domain-result';
+            try {
+                const res = await fetch(`/panel/dominios/disponibilidad?dominio=${encodeURIComponent(domain)}`);
+                const data = await res.json();
+                if (data.available) {
+                    resultEl.innerHTML = '';
+                    resultEl.className = 'domain-result ok';
+                    const span = document.createElement('span');
+                    span.textContent = `¡${data.domain} está disponible!`;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn';
+                    btn.textContent = 'Pedirlo';
+                    btn.addEventListener('click', () => solicitarDominio(data.domain));
+                    resultEl.appendChild(span);
+                    resultEl.appendChild(btn);
+                } else {
+                    resultEl.textContent = data.reason || `${domain} no está disponible.`;
+                    resultEl.className = 'domain-result no';
+                }
+            } catch (err) {
+                resultEl.textContent = 'Error al buscar. Probá de nuevo.';
+                resultEl.className = 'domain-result no';
+            } finally {
+                searchBtn.disabled = false;
+            }
+        });
+
+        async function solicitarDominio(domain) {
+            const formData = new FormData();
+            formData.append('domain', domain);
+            const res = await fetch('/panel/dominios/solicitar', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'No se pudo enviar la solicitud');
+                return;
+            }
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>

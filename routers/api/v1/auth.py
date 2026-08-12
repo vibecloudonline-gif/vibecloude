@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 from database.session import get_session
 from database.models import User, RefreshToken
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from web.dependencies import _resolve_tenant_from_host
 
 router = APIRouter()
 
@@ -29,12 +30,20 @@ class LogoutRequest(BaseModel):
     refresh_token: str
 
 @router.post("/auth/login", response_model=TokenResponse)
-def login(req: LoginRequest, session: Session = Depends(get_session)):
+def login(req: LoginRequest, request: Request, session: Session = Depends(get_session)):
     # El usuario admin/superadmin ya se crea y se sincroniza contra ADMIN_PASSWORD /
     # SUPERADMIN_PASSWORD en cada arranque (AuthService.create_default_user_and_settings,
     # llamado desde core/startup.py) -- mismo criterio que routers/auth.py: no hace falta
     # ni es seguro un segundo camino que compare password en texto plano contra env vars.
-    user = session.exec(select(User).where(User.username == req.username)).first()
+    #
+    # username es unico POR TENANT (ver routers/auth.py::login, mismo criterio).
+    host_tenant_id = _resolve_tenant_from_host(request.headers.get("host"), session)
+    if host_tenant_id:
+        user = session.exec(
+            select(User).where(User.tenant_id == host_tenant_id, User.username == req.username)
+        ).first()
+    else:
+        user = session.exec(select(User).where(User.username == req.username)).first()
 
     from services.auth_service import AuthService
 

@@ -188,15 +188,19 @@ class Client(SQLModel, table=True):
 # ===========================================================================
 
 class User(SQLModel, table=True):
+    # Username unico POR TENANT, no a nivel de toda la plataforma -- con
+    # muchos tenants distintos (modelo de negocio: vender a muchos clientes),
+    # dos negocios distintos tienen que poder tener cada uno su propio
+    # usuario "admin" sin chocar entre si.
     __table_args__ = (
-        Index("ix_user_tenant_username", "tenant_id", "username"),
+        UniqueConstraint("tenant_id", "username", name="uq_user_tenant_username"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id", index=True)
     tenant: Optional[Tenant] = Relationship(sa_relationship=relationship("Tenant", back_populates="users"))
 
-    username: str = Field(index=True, unique=True)
+    username: str = Field(index=True)
     password_hash: str
     full_name: Optional[str] = None
     role: str = Field(default="admin")  # admin, cashier, seller, client

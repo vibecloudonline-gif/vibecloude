@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipo - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            padding: 32px 16px;
+        }
+        .panel-topbar { max-width: 760px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
+        .panel-topbar a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: #fff; }
+        .panel-card { max-width: 760px; margin: 0 auto; padding: 36px 40px; }
+        .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
+        .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; }
+        .form-msg { padding: 12px; border-radius: 12px; margin-bottom: 18px; font-size: 0.9rem; }
+        .form-msg.error { background: rgba(239, 68, 68, 0.12); color: #b91c1c; }
+        .form-msg.success { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+        .members-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+        .members-table th, .members-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        .role-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #eff6ff; color: #2563eb; text-transform: uppercase; letter-spacing: 0.03em; }
+        .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .add-form .field { margin-bottom: 0; }
+        .add-form label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; }
+        .add-form input, .add-form select {
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid var(--border-color); font-size: 0.9rem;
+        }
+        .add-form .full-row { grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+    <div class="panel-topbar">
+        <a href="/">&larr; Volver</a>
+        <a href="/settings">Configuración</a>
+    </div>
+    <div class="panel-card glass-card">
+        <h1>Tu equipo</h1>
+        <p class="subtitle">Sumá compañeros a tu negocio. Cada uno entra con su propio usuario y contraseña.</p>
+
+        {% if error %}
+        <div class="form-msg error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="form-msg success">{{ success }}</div>
+        {% endif %}
+
+        <table class="members-table">
+            <thead>
+                <tr><th>Usuario</th><th>Nombre</th><th>Rol</th></tr>
+            </thead>
+            <tbody>
+                {% for m in members %}
+                <tr>
+                    <td>{{ m.username }}</td>
+                    <td>{{ m.full_name or "—" }}</td>
+                    <td><span class="role-badge">{{ m.role }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align:center; color: var(--text-muted);">Todavía no sumaste a nadie</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3 style="margin-bottom: 14px;">Agregar alguien</h3>
+        <form method="post" action="/panel/equipo" class="add-form">
+            <div class="field">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" required placeholder="ej. maria">
+            </div>
+            <div class="field">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" required placeholder="Al menos 12 caracteres, mayúscula, número y símbolo">
+            </div>
+            <div class="field">
+                <label for="full_name">Nombre (opcional)</label>
+                <input type="text" id="full_name" name="full_name" placeholder="Nombre completo">
+            </div>
+            <div class="field">
+                <label for="role">Rol</label>
+                <select id="role" name="role">
+                    {% for r in allowed_roles %}
+                    <option value="{{ r }}">{{ r }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field full-row">
+                <button type="submit" class="btn btn-primary">Crear usuario</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

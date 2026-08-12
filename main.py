@@ -45,6 +45,8 @@ from routers.catalog_import import router as catalog_import_router
 from routers.storefront import router as storefront_router
 from routers.landing_studio import router as landing_studio_router
 from routers.onboarding_wizard import router as onboarding_wizard_router
+from routers.team import router as team_router
+from routers.panel_domains import router as panel_domains_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -116,6 +118,8 @@ app.include_router(catalog_import_router)
 app.include_router(storefront_router)
 app.include_router(landing_studio_router)
 app.include_router(onboarding_wizard_router)
+app.include_router(team_router)
+app.include_router(panel_domains_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])
@@ -163,6 +167,17 @@ async def readiness_check(session: Session = Depends(get_session)):
 def get_dashboard(request: Request, user: User = Depends(require_auth), settings: Settings = Depends(get_settings), tenant_id: int = Depends(get_tenant), session: Session = Depends(get_session)):
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
+
+    # Sin un modulo elegido en esta sesion (recien logueado, o recien
+    # deslogueado y vuelto a entrar) se muestra el hub de entrada en vez
+    # del dashboard de ERP directo -- entrar a un modulo especifico es lo
+    # que setea nav_view (ver /panel/nav-view, o los links del hub).
+    if not request.session.get("nav_view"):
+        tenant = session.get(Tenant, tenant_id)
+        return templates.TemplateResponse(
+            "hub.html", {"request": request, "user": user, "settings": settings, "tenant": tenant}
+        )
+
     total_products = session.exec(select(func.count(Product.id)).where(Product.tenant_id == tenant_id)).one()
     from database.models import BinStock
     from sqlalchemy.sql.functions import coalesce

@@ -241,6 +241,11 @@ def signup_submit(
     request.session["user_id"] = admin_user.id
     tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
     request.session["tenant_flags"] = tenant_flags
-    request.session["nav_view"] = [k for k, v in tenant_flags.items() if v]
+    # nav_view NO se setea acá a propósito -- "/" muestra el hub de entrada
+    # hasta que el tenant elige un módulo (ver main.py::get_dashboard). Se
+    # popea explícitamente por si el navegador traía un nav_view viejo de
+    # otra cuenta logueada antes en el mismo origen (la cookie de sesión
+    # sobrevive entre requests si no se toca esa key).
+    request.session.pop("nav_view", None)
 
     return RedirectResponse("/", status_code=302)
