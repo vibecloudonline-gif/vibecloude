@@ -42,7 +42,7 @@
         <p style="color: var(--text-muted); margin-bottom: 32px;">Ingresa a tu panel para ventas, stock y clientes en un solo lugar.</p>
 
         {% if error %}
-        <div style="background: rgba(239, 68, 68, 0.12); color: #b91c1c; padding: 12px; border-radius: 12px; margin-bottom: 24px; font-size: 0.95rem;">
+        <div style="background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); padding: 12px; border-radius: var(--radius-md); margin-bottom: 24px; font-size: 0.95rem;">
             {{ error }}
         </div>
         {% endif %}
@@ -58,7 +58,7 @@
                 <input type="password" name="password" required placeholder="Tu acceso seguro">
             </div>
 
-            <button type="submit" class="btn" style="width: 100%; margin-top: 28px; padding: 14px;">Ingresar</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 28px; padding: 14px;">Ingresar</button>
         </form>
     </div>
 </div>

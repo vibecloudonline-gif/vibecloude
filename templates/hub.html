@@ -4,33 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
     <style>
         body {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            background: var(--main-bg);
             padding: 32px 16px;
         }
         .hub-wrap { width: 100%; max-width: 720px; }
-        .hub-header { text-align: center; margin-bottom: 28px; color: #fff; }
+        .hub-header { text-align: center; margin-bottom: 28px; }
         .hub-header h1 { font-size: 1.5rem; margin-bottom: 6px; }
-        .hub-header p { color: rgba(255,255,255,0.65); font-size: 0.92rem; }
+        .hub-header p { color: var(--text-muted); font-size: 0.92rem; }
         .hub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .hub-tile {
             display: flex; flex-direction: column; gap: 8px; padding: 24px 20px;
-            border-radius: 16px; text-align: left; text-decoration: none;
-            cursor: pointer; border: none; font: inherit;
+            border-radius: var(--radius-lg); text-align: left; text-decoration: none;
+            cursor: pointer; border: 1px solid var(--border-color); font: inherit;
+            background: var(--surface-color); transition: var(--transition);
         }
+        .hub-tile:hover { border-color: var(--accent-color); }
         .hub-tile .hub-icon { font-size: 1.8rem; }
-        .hub-tile .hub-name { font-weight: 700; font-size: 1.05rem; color: #0f172a; }
-        .hub-tile .hub-desc { font-size: 0.82rem; color: #64748b; line-height: 1.4; }
-        .hub-empty { text-align: center; color: rgba(255,255,255,0.7); padding: 20px; }
+        .hub-tile .hub-name { font-weight: 700; font-size: 1.05rem; color: var(--text-main); }
+        .hub-tile .hub-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.4; }
+        .hub-empty { text-align: center; color: var(--text-muted); padding: 20px; }
         .hub-footer { text-align: center; margin-top: 24px; }
-        .hub-footer a { color: rgba(255,255,255,0.55); font-size: 0.85rem; text-decoration: none; }
-        .hub-footer a:hover { color: #fff; }
+        .hub-footer a { color: var(--text-muted); font-size: 0.85rem; text-decoration: none; }
+        .hub-footer a:hover { color: var(--text-main); }
     </style>
 </head>
 <body>

@@ -8,7 +8,7 @@
 
 <div class="glass-card">
     <h2>Dominios de {{ tenant.name }}</h2>
-    <p style="color: #6b7280; margin-bottom: 20px;">
+    <p style="color: var(--text-muted); margin-bottom: 20px;">
         Además del subdominio gratuito, el tenant puede conectar su propio dominio. Para verificarlo, tiene que
         crear un registro <strong>TXT</strong> en su proveedor de DNS con este nombre y valor.
     </p>
@@ -34,7 +34,7 @@
                     {% if d.status != 'purchase_requested' %}
                     _vibecloud-verify.{{ d.domain }} = {{ d.verification_token }}
                     {% else %}
-                    <span style="color:#6b7280; font-style: italic;">Se genera al confirmar la compra</span>
+                    <span style="color:var(--text-muted); font-style: italic;">Se genera al confirmar la compra</span>
                     {% endif %}
                 </td>
                 <td>
@@ -43,7 +43,7 @@
                     {% elif d.status != 'verified' %}
                     <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="verificarDominio({{ d.id }})">Verificar</button>
                     {% endif %}
-                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:transparent; border:1px solid #ef4444; color:#ef4444;" onclick="eliminarDominio({{ d.id }})">Eliminar</button>
+                    <button class="btn" style="padding:4px 10px; font-size:0.8rem; background:transparent; border:1px solid var(--danger-color); color:var(--danger-color);" onclick="eliminarDominio({{ d.id }})">Eliminar</button>
                 </td>
             </tr>
             {% else %}
@@ -59,7 +59,7 @@
     </form>
 
     <h3 style="margin-bottom: 4px;">Comprar un dominio nuevo (GoDaddy)</h3>
-    <p style="color: #6b7280; font-size: 0.85rem; margin-bottom: 12px;">
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 12px;">
         Busca disponibilidad y lo compra directo por API. Requiere <code>GODADDY_API_KEY</code> y <code>GODADDY_API_SECRET</code> configuradas en el servidor.
     </p>
     <form id="buy-domain-form" onsubmit="buscarDisponibilidad(event)" style="display: flex; gap: 8px; margin-bottom: 12px;">
@@ -136,7 +136,7 @@ async function buscarDisponibilidad(event) {
         const res = await fetch(`/api/domains/disponibilidad?dominio=${encodeURIComponent(domain)}`);
         const data = await res.json();
         if (!res.ok) {
-            resultEl.innerHTML = `<p style="color:#ef4444;">${data.detail || 'Error al buscar disponibilidad'}</p>`;
+            resultEl.innerHTML = `<p style="color:var(--danger-color);">${data.detail || 'Error al buscar disponibilidad'}</p>`;
             return;
         }
         if (data.available) {
@@ -146,10 +146,10 @@ async function buscarDisponibilidad(event) {
                     <button class="btn" onclick="comprarDominio('${data.domain}')">Comprar</button>
                 </div>`;
         } else {
-            resultEl.innerHTML = `<p style="color:#ef4444;">${data.domain} no está disponible.</p>`;
+            resultEl.innerHTML = `<p style="color:var(--danger-color);">${data.domain} no está disponible.</p>`;
         }
     } catch (err) {
-        resultEl.innerHTML = `<p style="color:#ef4444;">Error de conexión.</p>`;
+        resultEl.innerHTML = `<p style="color:var(--danger-color);">Error de conexión.</p>`;
     } finally {
         btn.disabled = false;
     }

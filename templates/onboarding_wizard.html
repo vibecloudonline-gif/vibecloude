@@ -4,19 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onboarding guiado - VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
     <style>
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            background: var(--main-bg);
             padding: 32px 16px;
         }
         .panel-topbar { max-width: 720px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
-        .panel-topbar a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; }
-        .panel-topbar a:hover { color: #fff; }
+        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: var(--text-main); }
         .onboarding-wrap { max-width: 720px; margin: 0 auto; }
-        .onboarding-wrap h1 { color: #fff; font-size: 1.4rem; margin-bottom: 4px; }
-        .onboarding-wrap > p.intro { color: rgba(255,255,255,0.65); margin-bottom: 24px; max-width: 640px; }
+        .onboarding-wrap h1 { color: var(--text-main); font-size: 1.4rem; margin-bottom: 4px; }
+        .onboarding-wrap > p.intro { color: var(--text-muted); margin-bottom: 24px; max-width: 640px; }
     </style>
 </head>
 <body>

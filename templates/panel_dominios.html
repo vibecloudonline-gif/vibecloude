@@ -4,28 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dominios - VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
     <style>
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            background: var(--main-bg);
             padding: 32px 16px;
         }
         .panel-topbar { max-width: 640px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
-        .panel-topbar a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; }
-        .panel-topbar a:hover { color: #fff; }
+        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: var(--text-main); }
         .panel-card { max-width: 640px; margin: 0 auto; padding: 36px 40px; }
         .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
         .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; }
         .domain-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
-        .domain-search-row input { flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-color); }
-        .domain-result { padding: 12px 14px; border-radius: 10px; font-size: 0.88rem; margin-bottom: 18px; min-height: 1.2em; }
-        .domain-result.ok { background: rgba(22,163,74,0.1); color: var(--success-color); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .domain-result.no { background: rgba(239,68,68,0.1); color: var(--danger-color); }
+        .domain-search-row input { flex: 1; padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); }
+        .domain-result { padding: 12px 14px; border-radius: var(--radius-md); font-size: 0.88rem; margin-bottom: 18px; min-height: 1.2em; }
+        .domain-result.ok { background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .domain-result.no { background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); }
         .domains-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         .domains-table th, .domains-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-        .badge-pending { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; }
-        .badge-verified { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #15803d; }
+        .badge-pending { font-size: 0.72rem; font-weight: 600; padding: 3px 11px; border-radius: var(--radius-full); background: var(--warning-bg); color: var(--warning-color); border: 1px solid var(--warning-border); }
+        .badge-verified { font-size: 0.72rem; font-weight: 600; padding: 3px 11px; border-radius: var(--radius-full); background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); }
     </style>
 </head>
 <body>

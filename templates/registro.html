@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creá tu cuenta - VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
     <style>
         body {
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            background: var(--main-bg);
             padding: 32px 16px;
         }
         .signup-card {
@@ -25,7 +25,7 @@
         /* Progreso del wizard */
         .wizard-progress { display: flex; gap: 6px; margin-bottom: 28px; }
         .wizard-progress .dot { flex: 1; height: 4px; border-radius: 4px; background: var(--border-color); transition: background 0.2s; }
-        .wizard-progress .dot.active { background: var(--accent-color, #2563eb); }
+        .wizard-progress .dot.active { background: var(--accent-color); }
         .wizard-progress .dot.done { background: var(--success-color, #16a34a); }
 
         .wizard-step { display: none; }
@@ -57,7 +57,7 @@
         .choice-card .choice-icon { font-size: 1.8rem; margin-bottom: 8px; }
         .choice-card .choice-name { font-weight: 700; font-size: 1.05rem; display: block; }
         .choice-card .choice-desc { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; display: block; }
-        .choice-card.selected { border-color: var(--accent-color, #2563eb); background: rgba(37, 99, 235, 0.06); }
+        .choice-card.selected { border-color: var(--accent-color); background: var(--accent-light); }
 
         .sub-choices { margin-top: 20px; padding-top: 18px; border-top: 1px dashed var(--border-color); }
         .products-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -73,26 +73,26 @@
         .domain-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
         .domain-search-row input { flex: 1; }
         .domain-result { padding: 12px 14px; border-radius: 10px; font-size: 0.88rem; margin-bottom: 14px; min-height: 1.2em; }
-        .domain-result.ok { background: rgba(22,163,74,0.1); color: var(--success-color); }
-        .domain-result.no { background: rgba(239,68,68,0.1); color: var(--danger-color); }
+        .domain-result.ok { background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); }
+        .domain-result.no { background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); }
         .domain-choice-row { display: flex; flex-direction: column; gap: 8px; }
         .domain-choice-row label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
 
         .connector-explain {
-            background: rgba(37, 99, 235, 0.06); border-radius: 12px; padding: 14px 16px;
+            background: var(--accent-light); border-radius: var(--radius-md); padding: 14px 16px;
             font-size: 0.88rem; margin-bottom: 16px; line-height: 1.5;
         }
 
         .form-error {
-            background: rgba(239, 68, 68, 0.12); color: #b91c1c; padding: 12px;
-            border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem;
+            background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); padding: 12px;
+            border-radius: var(--radius-md); margin-bottom: 20px; font-size: 0.9rem;
         }
         .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: var(--text-muted); }
         .login-link a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
 
         .wizard-nav { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
         .wizard-nav button { flex: 1; }
-        .wizard-nav .btn-back { background: transparent; border: 1px solid var(--border-color); color: var(--text-color, #1e293b); }
+        .wizard-nav .btn-back { background: transparent; border: 1px solid var(--border-color); color: var(--text-main); }
     </style>
 </head>
 <body>

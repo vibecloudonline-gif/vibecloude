@@ -4,25 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Equipo - VibeCloud</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
     <style>
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #14324a 100%);
+            background: var(--main-bg);
             padding: 32px 16px;
         }
         .panel-topbar { max-width: 760px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
-        .panel-topbar a { color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.9rem; }
-        .panel-topbar a:hover { color: #fff; }
+        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: var(--text-main); }
         .panel-card { max-width: 760px; margin: 0 auto; padding: 36px 40px; }
         .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
         .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; }
-        .form-msg { padding: 12px; border-radius: 12px; margin-bottom: 18px; font-size: 0.9rem; }
-        .form-msg.error { background: rgba(239, 68, 68, 0.12); color: #b91c1c; }
-        .form-msg.success { background: rgba(22, 163, 74, 0.12); color: #15803d; }
+        .form-msg { padding: 12px; border-radius: var(--radius-md); margin-bottom: 18px; font-size: 0.9rem; border: 1px solid transparent; }
+        .form-msg.error { background: var(--danger-bg); color: var(--danger-color); border-color: var(--danger-border); }
+        .form-msg.success { background: var(--success-bg); color: var(--success-color); border-color: var(--success-border); }
         .members-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
         .members-table th, .members-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-        .role-badge { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #eff6ff; color: #2563eb; text-transform: uppercase; letter-spacing: 0.03em; }
+        .role-badge { font-size: 0.72rem; font-weight: 600; padding: 3px 11px; border-radius: var(--radius-full); background: var(--accent-light); color: var(--accent-color); border: 1px solid var(--border-color); }
         .add-form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .add-form .field { margin-bottom: 0; }
         .add-form label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; }
