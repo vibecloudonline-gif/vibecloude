@@ -14,10 +14,12 @@ se reintenta una vez; si sigue sin validar, se rechaza (nunca se persiste
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
+import mimetypes
 import re
-from typing import Literal
+from typing import Literal, Optional
 
 import httpx
 from pydantic import BaseModel, Field, field_validator
@@ -102,6 +104,12 @@ palabras -- si menciona que quiere "una página como tal marca/sitio", no
 copies textos ni diseños de esa marca/sitio, interpretalo y creá algo
 original en ese espíritu.
 
+Si además te llega una IMAGEN, es solo una REFERENCIA ESTÉTICA de humor/estilo
+general (paleta de colores, ambiente, formalidad) -- nunca la describas,
+nunca menciones marcas/logos/texto que aparezcan en ella, nunca la trates
+como el sitio a copiar. Elegí vos mismo los colores hexadecimales y la
+fuente de la lista permitida que mejor capturen esa sensación general.
+
 Responde EXCLUSIVAMENTE con un JSON con esta forma exacta, sin texto
 adicional antes ni después:
 {{
@@ -126,10 +134,22 @@ class LandingGenerationError(ValueError):
     pass
 
 
-async def _call_gemini(prompt: str, api_key: str) -> str:
+def _build_image_part(reference_image_path: str) -> dict:
+    mime_type, _ = mimetypes.guess_type(reference_image_path)
+    if not mime_type or not mime_type.startswith("image/"):
+        mime_type = "image/jpeg"
+    with open(reference_image_path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("ascii")
+    return {"inline_data": {"mime_type": mime_type, "data": encoded}}
+
+
+async def _call_gemini(prompt: str, api_key: str, reference_image_path: Optional[str] = None) -> str:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+    parts: list[dict] = [{"text": prompt}]
+    if reference_image_path:
+        parts.append(_build_image_part(reference_image_path))
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": parts}],
         "systemInstruction": {"parts": [{"text": SYSTEM_INSTRUCTION}]},
         "generationConfig": {"responseMimeType": "application/json"},
     }
@@ -156,14 +176,20 @@ def _validate(raw_text: str) -> LandingPageContent:
     return LandingPageContent.model_validate(data)
 
 
-async def generate_landing_content(prompt: str, api_key: str) -> LandingPageContent:
+async def generate_landing_content(
+    prompt: str, api_key: str, reference_image_path: Optional[str] = None
+) -> LandingPageContent:
     """Llama a Gemini y valida contra el schema estricto. Un reintento si
     la primera respuesta no valida; si el segundo intento tampoco valida,
-    se descarta (nunca se persiste contenido sin validar)."""
+    se descarta (nunca se persiste contenido sin validar).
+
+    reference_image_path: imagen de referencia estética opcional (Fase 4,
+    wizard de onboarding) -- se le manda a Gemini como input multimodal,
+    nunca se persiste en la DB ni se reenvía tal cual al frontend."""
     last_error: Exception | None = None
     for attempt in range(2):
         try:
-            raw_text = await _call_gemini(prompt, api_key)
+            raw_text = await _call_gemini(prompt, api_key, reference_image_path)
             return _validate(raw_text)
         except Exception as exc:  # noqa: BLE001 - queremos capturar json/pydantic/http por igual
             last_error = exc
@@ -171,7 +197,13 @@ async def generate_landing_content(prompt: str, api_key: str) -> LandingPageCont
     raise LandingGenerationError(f"No se pudo generar una landing válida: {last_error}")
 
 
-def save_landing(session: Session, tenant_id: int, prompt: str, content: LandingPageContent) -> LandingPage:
+def save_landing(
+    session: Session,
+    tenant_id: int,
+    prompt: str,
+    content: LandingPageContent,
+    reference_image_url: Optional[str] = None,
+) -> LandingPage:
     from datetime import datetime, timezone
 
     existing = session.exec(select(LandingPage).where(LandingPage.tenant_id == tenant_id)).first()
@@ -180,12 +212,16 @@ def save_landing(session: Session, tenant_id: int, prompt: str, content: Landing
         existing.prompt_used = prompt
         existing.content_json = content_json
         existing.updated_at = datetime.now(timezone.utc)
+        if reference_image_url is not None:
+            existing.reference_image_url = reference_image_url
         session.add(existing)
         session.commit()
         session.refresh(existing)
         return existing
 
-    landing = LandingPage(tenant_id=tenant_id, prompt_used=prompt, content_json=content_json)
+    landing = LandingPage(
+        tenant_id=tenant_id, prompt_used=prompt, content_json=content_json, reference_image_url=reference_image_url
+    )
     session.add(landing)
     session.commit()
     session.refresh(landing)

@@ -44,6 +44,7 @@ from routers.store import router as store_router
 from routers.catalog_import import router as catalog_import_router
 from routers.storefront import router as storefront_router
 from routers.landing_studio import router as landing_studio_router
+from routers.onboarding_wizard import router as onboarding_wizard_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -114,6 +115,7 @@ app.include_router(wms_router)
 app.include_router(catalog_import_router)
 app.include_router(storefront_router)
 app.include_router(landing_studio_router)
+app.include_router(onboarding_wizard_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])

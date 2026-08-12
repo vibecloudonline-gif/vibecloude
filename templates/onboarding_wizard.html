@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Onboarding guiado - VibeCloud{% endblock %}
+{% block header_title %}Onboarding guiado{% endblock %}
+{% block breadcrumb %}Onboarding{% endblock %}
+
+{% block content %}
+<p style="color: var(--text-muted); margin-bottom: 24px; max-width: 640px;">
+    Un par de preguntas para dejar tu {{ 'landing' if tenant.has_landing else '' }}{{ ' y tu tienda' if tenant.has_landing and tenant.has_ecommerce else ('tienda' if tenant.has_ecommerce else '') }}
+    con una base de diseño lista. Podés ajustar todo después desde sus propios paneles.
+</p>
+
+{% if tenant.has_landing %}
+<div class="glass-card" style="margin-bottom: 24px;">
+    <h2 style="margin-bottom: 4px;">Landing con IA</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">
+        Contanos sobre tu negocio y, si querés, subí una imagen que capture el estilo que te gusta
+        (colores, ambiente) — nunca se copia literal, la IA la usa solo como referencia de humor visual.
+    </p>
+
+    <form id="wizard-landing-form" onsubmit="submitLandingWizard(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <div>
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Nombre del negocio</label>
+                <input type="text" name="business_name" required placeholder="Mi Empresa" class="form-input" style="width:100%;">
+            </div>
+            <div>
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Rubro</label>
+                <input type="text" name="rubro" required placeholder="Indumentaria, gastronomía, tecnología..." class="form-input" style="width:100%;">
+            </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+            <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">¿Qué estilo/tono buscás?</label>
+            <input type="text" name="tono" required placeholder="Moderno y minimalista, cálido y familiar, juvenil y colorido..." class="form-input" style="width:100%;">
+        </div>
+        <div style="margin-bottom: 16px;">
+            <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Colores preferidos (opcional)</label>
+            <input type="text" name="color_hint" placeholder="Ej: celeste y blanco" class="form-input" style="width:100%;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Imagen de referencia de estilo (opcional, PNG/JPEG/WEBP)</label>
+            <input type="file" name="reference_image" accept="image/png,image/jpeg,image/webp" class="form-input" style="padding:8px;">
+        </div>
+        <button type="submit" class="btn" id="wizard-landing-btn">Generar mi landing</button>
+    </form>
+
+    <div id="wizard-landing-error" style="display: none; margin-top: 16px; color: var(--danger-color);"></div>
+    <div id="wizard-landing-result" style="display: none; margin-top: 20px;" class="glass-card"></div>
+</div>
+{% endif %}
+
+{% if tenant.has_ecommerce %}
+<div class="glass-card">
+    <h2 style="margin-bottom: 4px;">Estilo de tu tienda online</h2>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Elegí la plantilla visual de tu tienda. Podés cambiarla cuando quieras desde Configuración.</p>
+
+    <form id="wizard-ecommerce-form" onsubmit="submitEcommerceWizard(event)">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
+                <input type="radio" name="storefront_template" value="elegante" {% if settings.storefront_template == 'elegante' %}checked{% endif %} style="align-self:flex-start;">
+                <span style="font-weight:700;">🩵 Elegante</span>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Celeste, blanco y naranja — default, comercio general</span>
+            </label>
+            <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
+                <input type="radio" name="storefront_template" value="urbano" {% if settings and settings.storefront_template == 'urbano' %}checked{% endif %} style="align-self:flex-start;">
+                <span style="font-weight:700;">🖤 Urbano</span>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Streetwear oscuro y dorado — moda urbana</span>
+            </label>
+            <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
+                <input type="radio" name="storefront_template" value="natural" {% if settings and settings.storefront_template == 'natural' %}checked{% endif %} style="align-self:flex-start;">
+                <span style="font-weight:700;">🌿 Natural</span>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Salvia, beige y orgánico — artesanal, eco</span>
+            </label>
+            <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
+                <input type="radio" name="storefront_template" value="tech" {% if settings and settings.storefront_template == 'tech' %}checked{% endif %} style="align-self:flex-start;">
+                <span style="font-weight:700;">⚡ Tech</span>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Futurista, azul eléctrico — electrónica, gadgets</span>
+            </label>
+        </div>
+        <button type="submit" class="btn" id="wizard-ecommerce-btn">Guardar estilo de tienda</button>
+        <a href="/tienda" target="_blank" class="btn" style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); margin-left: 8px;">Ver mi tienda</a>
+    </form>
+
+    <div id="wizard-ecommerce-error" style="display: none; margin-top: 16px; color: var(--danger-color);"></div>
+</div>
+{% endif %}
+
+{% if not tenant.has_landing and not tenant.has_ecommerce %}
+<div class="glass-card">
+    <p>Tu cuenta no tiene contratado Landing con IA ni Ecommerce, así que no hay nada que configurar acá.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function submitLandingWizard(event) {
+    event.preventDefault();
+    const form = event.target;
+    const btn = document.getElementById('wizard-landing-btn');
+    const errorEl = document.getElementById('wizard-landing-error');
+    const resultEl = document.getElementById('wizard-landing-result');
+
+    btn.disabled = true;
+    btn.textContent = 'Generando...';
+    errorEl.style.display = 'none';
+    resultEl.style.display = 'none';
+
+    try {
+        const formData = new FormData(form);
+        const res = await fetch('/panel/onboarding/landing', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Error al generar la landing');
+
+        const c = data.content;
+        resultEl.innerHTML = '';
+        const title = document.createElement('h3');
+        title.textContent = '¡Landing generada!';
+        resultEl.appendChild(title);
+
+        const heroDiv = document.createElement('div');
+        heroDiv.style.marginTop = '8px';
+        const heroStrong = document.createElement('strong');
+        heroStrong.textContent = 'Título: ';
+        heroDiv.appendChild(heroStrong);
+        heroDiv.appendChild(document.createTextNode(c.hero_title));
+        resultEl.appendChild(heroDiv);
+
+        const subDiv = document.createElement('div');
+        subDiv.style.marginTop = '6px';
+        const subStrong = document.createElement('strong');
+        subStrong.textContent = 'Subtítulo: ';
+        subDiv.appendChild(subStrong);
+        subDiv.appendChild(document.createTextNode(c.hero_subtitle));
+        resultEl.appendChild(subDiv);
+
+        const linksDiv = document.createElement('div');
+        linksDiv.style.marginTop = '16px';
+        linksDiv.innerHTML = `<a href="${data.public_url}" target="_blank" class="btn">Ver mi landing</a> <a href="${data.editor_url}" class="btn" style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color);">Ajustar en el editor</a>`;
+        resultEl.appendChild(linksDiv);
+
+        resultEl.style.display = 'block';
+        Swal.fire('¡Listo!', 'Tu landing ya está generada.', 'success');
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generar mi landing';
+    }
+}
+
+async function submitEcommerceWizard(event) {
+    event.preventDefault();
+    const form = event.target;
+    const btn = document.getElementById('wizard-ecommerce-btn');
+    const errorEl = document.getElementById('wizard-ecommerce-error');
+
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    errorEl.style.display = 'none';
+
+    try {
+        const formData = new FormData(form);
+        const res = await fetch('/panel/onboarding/ecommerce', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Error al guardar el estilo');
+        Swal.fire('¡Listo!', 'Estilo de tienda guardado.', 'success');
+    } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar estilo de tienda';
+    }
+}
+</script>
+{% endblock %}

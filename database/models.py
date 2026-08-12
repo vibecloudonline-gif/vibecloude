@@ -239,6 +239,12 @@ class LandingPage(SQLModel, table=True):
 
     prompt_used: str
     content_json: str  # LandingPageContent serializado, ya validado
+    # Imagen de referencia de estilo subida por el tenant en el wizard de
+    # onboarding (Fase 4) -- solo se guarda la ruta del archivo, nunca se
+    # persiste como texto/base64 en la DB. Se le manda a Gemini como
+    # referencia estetica (colores/ambiente), nunca se copia literal --
+    # ver services/landing_service.py SYSTEM_INSTRUCTION.
+    reference_image_url: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 
