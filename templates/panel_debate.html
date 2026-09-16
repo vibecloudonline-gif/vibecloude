@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Debate - VibeCloud{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+    .page-intro p { color: var(--text-muted); font-size: 0.88rem; margin: 0; }
+    .top-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+
+    .verdict-banner { padding: 22px 28px; border-radius: var(--radius-lg); margin-bottom: 24px; position: relative; overflow: hidden; }
+    .verdict-banner::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+    .verdict-banner.approved { background: var(--success-bg); border: 1px solid var(--success-border); }
+    .verdict-banner.approved::before { background: var(--success-color); }
+    .verdict-banner.needs_revision { background: var(--warning-bg); border: 1px solid var(--warning-border); }
+    .verdict-banner.needs_revision::before { background: var(--warning-color); }
+    .verdict-banner h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+    .verdict-banner h2 .v-icon { font-size: 1.3rem; }
+    .verdict-banner p { font-size: 0.9rem; line-height: 1.6; margin: 0; color: var(--text-secondary); }
+
+    .objections-header { font-size: 1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .objections-header .count { font-size: 0.78rem; font-weight: 600; background: var(--surface-alt); border: 1px solid var(--border-color); padding: 2px 10px; border-radius: var(--radius-full); }
+
+    .obj-card { padding: 20px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 12px; box-shadow: var(--shadow-sm); transition: border-color 0.2s; }
+    .obj-card:hover { border-color: var(--border-strong); }
+    .obj-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .obj-source { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
+    .obj-source .persona-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .persona-devil_advocate .persona-dot { background: var(--danger-color); }
+    .persona-price_skeptic .persona-dot { background: var(--warning-color); }
+    .persona-market_analyst .persona-dot { background: var(--info-color); }
+    .persona-customer_sim .persona-dot { background: var(--success-color); }
+
+    .sev-pill { font-size: 0.68rem; font-weight: 700; padding: 2px 10px; border-radius: var(--radius-full); }
+    .sev-high { background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); }
+    .sev-medium { background: var(--warning-bg); color: var(--warning-color); border: 1px solid var(--warning-border); }
+    .sev-low { background: var(--info-bg); color: var(--info-color); border: 1px solid var(--info-border); }
+
+    .obj-text { font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px; color: var(--text-main); }
+
+    .resolution-box { padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.88rem; line-height: 1.6; }
+    .resolution-box.resolved { background: var(--success-bg); border-left: 3px solid var(--success-color); }
+    .resolution-box.dismissed { background: var(--info-bg); border-left: 3px solid var(--info-color); }
+    .resolution-box.pending { background: var(--warning-bg); border-left: 3px solid var(--warning-color); }
+    .res-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .resolution-box.resolved .res-label { color: var(--success-color); }
+    .resolution-box.dismissed .res-label { color: var(--info-color); }
+    .resolution-box.pending .res-label { color: var(--warning-color); }
+
+    .actions-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 24px 0 8px; }
+    .actions-bar .btn-primary { padding: 11px 28px; font-weight: 600; }
+
+    .empty-hero { text-align: center; padding: 64px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); box-shadow: var(--shadow-sm); }
+    .empty-hero p { font-size: 1rem; color: var(--text-muted); margin-bottom: 20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div class="page-intro">
+        <h1>{{ offer.title[:50] }}{% if offer.title|length > 50 %}...{% endif %}</h1>
+        <p>Validacion adversarial con 4 agentes de IA</p>
+    </div>
+    <a href="/panel/oferta/{{ offer.project_id }}" class="btn btn-outline">Volver a oferta</a>
+</div>
+
+{% if debate %}
+
+{% if debate.final_verdict %}
+<div class="verdict-banner {{ debate.final_verdict }}">
+    <h2>
+        <span class="v-icon">{% if debate.final_verdict == 'approved' %}&#10003;{% else %}&#9888;{% endif %}</span>
+        {% if debate.final_verdict == 'approved' %}Oferta aprobada{% else %}Requiere revision{% endif %}
+    </h2>
+    {% if debate.arbiter_summary %}
+    <p>{{ debate.arbiter_summary }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if objections %}
+<div class="objections-header">Objeciones <span class="count">{{ objections|length }}</span></div>
+{% for obj in objections %}
+<div class="obj-card">
+    <div class="obj-top">
+        <span class="obj-source persona-{{ obj.objection_source }}">
+            <span class="persona-dot"></span>
+            {{ obj.objection_source|replace('_', ' ')|title }}
+        </span>
+        <span class="sev-pill sev-{{ obj.severity }}">{{ obj.severity }}</span>
+    </div>
+    <div class="obj-text">{{ obj.objection_text }}</div>
+    {% if obj.resolved_text %}
+    <div class="resolution-box {{ obj.resolution_status }}">
+        <div class="res-label">{% if obj.resolution_status == 'resolved' %}Solucion{% elif obj.resolution_status == 'dismissed' %}Descartada{% else %}Pendiente{% endif %}</div>
+        {{ obj.resolved_text }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="actions-bar">
+    {% if offer.status == 'validated' %}
+    <a href="/panel/landing" class="btn btn-primary">Crear sitio desde esta oferta</a>
+    {% elif offer.status == 'rejected' %}
+    <a href="/panel/oferta/{{ offer.project_id }}/generar" class="btn btn-primary" onclick="event.preventDefault(); fetch(this.href, {method:'POST'}).then(r=>r.json()).then(d=>{if(d.status==='success')location.href='/panel/oferta/'+{{ offer.project_id }};else alert(d.detail||'Error')})">Regenerar oferta</a>
+    {% endif %}
+    <a href="/panel/research/{{ offer.project_id }}" class="btn">Volver a investigacion</a>
+</div>
+
+{% else %}
+<div class="empty-hero">
+    <p>Esta oferta todavia no fue validada.</p>
+    <a href="/panel/oferta/{{ offer.project_id }}" class="btn btn-outline">Volver a la oferta</a>
+</div>
+{% endif %}
+{% endblock %}

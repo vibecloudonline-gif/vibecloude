@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Investigacion - VibeCloud{% endblock %}
+{% block extra_css %}
+<style>
+    .page-intro { margin-bottom: 32px; }
+    .page-intro h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
+    .page-intro p { color: var(--text-muted); font-size: 0.88rem; margin: 0; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+
+    .project-card { padding: 18px 22px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 16px; text-decoration: none; color: inherit; transition: border-color 0.2s, box-shadow 0.2s; }
+    .project-card:hover { border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(249,115,22,0.08); }
+    .pc-icon { width: 40px; height: 40px; border-radius: var(--radius-md); background: var(--accent-light); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .pc-body { flex: 1; min-width: 0; }
+    .pc-query { font-weight: 600; font-size: 0.95rem; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pc-meta { font-size: 0.8rem; color: var(--text-muted); }
+
+    .pill { font-size: 0.7rem; font-weight: 600; padding: 3px 12px; border-radius: var(--radius-full); display: inline-block; }
+    .pill-draft { background: var(--info-bg); color: var(--info-color); border: 1px solid var(--info-border); }
+    .pill-completed { background: var(--success-bg); color: var(--success-color); border: 1px solid var(--success-border); }
+    .pill-researching { background: var(--warning-bg); color: var(--warning-color); border: 1px solid var(--warning-border); }
+    .pill-error { background: var(--danger-bg); color: var(--danger-color); border: 1px solid var(--danger-border); }
+
+    .new-form { padding: 28px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 28px; box-shadow: var(--shadow-sm); }
+    .new-form h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+    .form-row { margin-bottom: 16px; }
+    .form-row label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; color: var(--text-secondary); }
+    .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--surface-color); color: var(--text-main); font: inherit; font-size: 0.9rem; transition: border-color 0.15s, box-shadow 0.15s; }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: var(--accent-color); box-shadow: 0 0 0 3px rgba(249,115,22,0.1); }
+    .form-row textarea { min-height: 80px; resize: vertical; }
+    .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    .section-card { padding: 24px 28px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 16px; box-shadow: var(--shadow-sm); }
+    .section-card h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .section-card h2 .sec-icon { font-size: 1rem; }
+
+    .listings-table { width: 100%; border-collapse: collapse; }
+    .listings-table th { text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border-color); font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .listings-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border-color); font-size: 0.88rem; }
+    .listings-table tbody tr:hover { background: var(--surface-alt); }
+
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .kpi-card { padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--surface-color); text-align: center; box-shadow: var(--shadow-sm); }
+    .kpi-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .kpi-value { font-size: 1.3rem; font-weight: 800; color: var(--text-main); }
+
+    .demo-notice { font-size: 0.82rem; color: var(--warning-color); background: var(--warning-bg); border: 1px solid var(--warning-border); padding: 10px 14px; border-radius: var(--radius-md); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+    .empty-state p:first-child { font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+    .cta-center { text-align: center; padding: 24px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if project %}
+{# ---- DETAIL VIEW ---- #}
+<div class="top-bar">
+    <div class="page-intro">
+        <h1>{{ project.query_description[:60] }}{% if project.query_description|length > 60 %}...{% endif %}</h1>
+        <p><span class="pill pill-{{ project.status }}">{{ project.status }}</span></p>
+    </div>
+    <a href="/panel/research" class="btn btn-outline">Volver</a>
+</div>
+
+{% if project.status == 'draft' or project.status == 'error' %}
+<div class="section-card">
+    <h2><span class="sec-icon">&#128269;</span> Iniciar investigacion</h2>
+    <p style="font-size: 0.9rem; margin-bottom: 14px;">Analiza el mercado para este producto o servicio.</p>
+    <button type="button" class="btn btn-primary" id="btn-search" data-project="{{ project.id }}">Iniciar busqueda</button>
+    <span id="search-status" style="margin-left: 12px; font-size: 0.85rem;"></span>
+</div>
+{% endif %}
+
+{% if project.listings %}
+{% set any_demo = project.listings|selectattr('is_demo')|list|length > 0 %}
+{% if any_demo %}
+<div class="demo-notice">&#9888; Los resultados son datos demo. Para datos reales de mercado, configure KEEPA_API_KEY.</div>
+{% endif %}
+
+{% if price_range %}
+<div class="kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-label">Precio minimo</div>
+        <div class="kpi-value">${{ "%.2f"|format(price_range.min) }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Precio maximo</div>
+        <div class="kpi-value">${{ "%.2f"|format(price_range.max) }}</div>
+    </div>
+    {% if margin_pct is not none %}
+    <div class="kpi-card">
+        <div class="kpi-label">Margen estimado</div>
+        <div class="kpi-value" style="color: var(--success-color);">{{ margin_pct }}%</div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="section-card">
+    <h2><span class="sec-icon">&#128202;</span> Listados comparables ({{ project.listings|length }})</h2>
+    <div style="overflow-x: auto;">
+    <table class="listings-table">
+        <thead><tr><th>Fuente</th><th>Titulo</th><th>Precio</th><th>Rating</th><th>Reviews</th></tr></thead>
+        <tbody>
+        {% for l in project.listings %}
+        <tr>
+            <td>{{ l.source }}</td>
+            <td>{{ l.title[:50] }}{% if l.title|length > 50 %}...{% endif %}</td>
+            <td>{% if l.price %}<strong>${{ "%.2f"|format(l.price) }}</strong>{% else %}-{% endif %}</td>
+            <td>{% if l.rating %}{{ l.rating }}{% else %}-{% endif %}</td>
+            <td>{% if l.review_count %}{{ l.review_count }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% if project.demand %}
+<div class="section-card">
+    <h2><span class="sec-icon">&#128200;</span> Estimacion de demanda</h2>
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">Nivel de confianza</div>
+            <div class="kpi-value">{{ project.demand.confidence_level }}</div>
+        </div>
+        {% if project.demand.estimated_monthly_volume %}
+        <div class="kpi-card">
+            <div class="kpi-label">Volumen mensual est.</div>
+            <div class="kpi-value">{{ project.demand.estimated_monthly_volume }}</div>
+        </div>
+        {% endif %}
+    </div>
+    {% if project.demand.notes %}
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">{{ project.demand.notes }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if project.status == 'completed' %}
+<div class="cta-center">
+    <a href="/panel/oferta/{{ project.id }}/generar" class="btn btn-primary" id="btn-offer" style="padding: 12px 32px; font-size: 0.95rem;">Generar Oferta</a>
+</div>
+{% endif %}
+
+{% else %}
+{# ---- LIST VIEW ---- #}
+<div class="top-bar">
+    <div class="page-intro">
+        <h1>Investigacion de mercado</h1>
+        <p>Analiza tu mercado antes de lanzar con tecnologia de IA.</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="btn-new">Nuevo proyecto</button>
+</div>
+
+<div id="new-form-wrap" style="display:none;">
+    <div class="new-form">
+        <h2>Nuevo proyecto de investigacion</h2>
+        <form id="create-form">
+            <div class="form-row">
+                <label for="project_type">Tipo de proyecto</label>
+                <select id="project_type" name="project_type">
+                    <option value="physical_product">Producto fisico</option>
+                    <option value="digital_service">Servicio digital</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <label for="query_description">Descripcion del producto o servicio</label>
+                <textarea id="query_description" name="query_description" placeholder="Ej: auriculares bluetooth deportivos impermeables" required></textarea>
+            </div>
+            <div class="form-row">
+                <label for="reference_url">URL de referencia (opcional)</label>
+                <input type="url" id="reference_url" name="reference_url" placeholder="https://...">
+            </div>
+            <div class="form-row">
+                <label for="factory_price">Precio de fabrica / costo (opcional)</label>
+                <input type="number" id="factory_price" name="factory_price" step="0.01" min="0" placeholder="15.00">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Crear proyecto</button>
+                <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if projects %}
+{% for p in projects %}
+<a href="/panel/research/{{ p.id }}" class="project-card">
+    <div class="pc-icon">&#128270;</div>
+    <div class="pc-body">
+        <div class="pc-query">{{ p.query_description[:60] }}{% if p.query_description|length > 60 %}...{% endif %}</div>
+        <div class="pc-meta">{{ p.project_type|replace('_', ' ')|title }} &middot; {{ p.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+    </div>
+    <span class="pill pill-{{ p.status }}">{{ p.status }}</span>
+</a>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <p>Todavia no tenes proyectos</p>
+    <p>Crea uno para analizar el mercado antes de lanzar tu producto o servicio.</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const btnNew = document.getElementById('btn-new');
+    const formWrap = document.getElementById('new-form-wrap');
+    const btnCancel = document.getElementById('btn-cancel');
+    const createForm = document.getElementById('create-form');
+
+    if (btnNew) {
+        btnNew.addEventListener('click', () => { formWrap.style.display = 'block'; btnNew.style.display = 'none'; });
+    }
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => { formWrap.style.display = 'none'; btnNew.style.display = ''; });
+    }
+    if (createForm) {
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(createForm);
+            const res = await fetch('/panel/research/nuevo', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok) { alert(data.detail || 'Error al crear el proyecto'); return; }
+            window.location.href = '/panel/research/' + data.project_id;
+        });
+    }
+
+    const btnSearch = document.getElementById('btn-search');
+    if (btnSearch) {
+        btnSearch.addEventListener('click', async () => {
+            const projectId = btnSearch.dataset.project;
+            const statusEl = document.getElementById('search-status');
+            btnSearch.disabled = true;
+            statusEl.textContent = 'Buscando...';
+            try {
+                const res = await fetch('/panel/research/' + projectId + '/buscar', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) { statusEl.textContent = data.detail || 'Error'; btnSearch.disabled = false; return; }
+                window.location.reload();
+            } catch (err) {
+                statusEl.textContent = 'Error de conexion';
+                btnSearch.disabled = false;
+            }
+        });
+    }
+})();
+</script>
+{% endblock %}

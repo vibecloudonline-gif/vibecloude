@@ -83,7 +83,7 @@ def require_auth(
     if user.tenant_id:
         tenant = session.get(Tenant, user.tenant_id)
         if tenant:
-            fresh_flags = {"erp": tenant.has_erp, "ecommerce": tenant.has_ecommerce, "landing": tenant.has_landing}
+            fresh_flags = {"erp": tenant.has_erp, "ecommerce": tenant.has_ecommerce, "landing": tenant.has_landing, "alexio": tenant.has_alexio}
             request.session["tenant_flags"] = fresh_flags
             current_view = request.session.get("nav_view")
             if current_view:

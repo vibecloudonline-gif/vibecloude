@@ -48,6 +48,10 @@ from routers.onboarding_wizard import router as onboarding_wizard_router
 from routers.team import router as team_router
 from routers.panel_domains import router as panel_domains_router
 from routers.help import router as help_router
+from routers.payments import router as payments_router
+from routers.research import router as research_router
+from routers.offer import router as offer_router
+from routers.alex_agent_config import router as alex_agent_config_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -122,6 +126,10 @@ app.include_router(onboarding_wizard_router)
 app.include_router(team_router)
 app.include_router(panel_domains_router)
 app.include_router(help_router)
+app.include_router(payments_router)
+app.include_router(research_router)
+app.include_router(offer_router)
+app.include_router(alex_agent_config_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])

@@ -3,6 +3,10 @@
 Server-rendered (Jinja) sobre el mismo backend, sin frontend separado, tal
 como se decidió. Todo el tenant se resuelve por dominio (get_public_tenant) —
 ningún endpoint de esta tienda acepta tenant_id como parámetro de request.
+
+Arquitectura data-driven: el renderer carga SiteConfig (tema + secciones +
+navegación + commerce) y pasa un contexto estructurado a Jinja. Los templates
+nunca reciben variables sueltas — todo viene del SiteConfig.
 """
 from __future__ import annotations
 
@@ -17,14 +21,12 @@ from database.session import get_session
 from services.ai_brain_service import ai_brain_service
 from services.ai_gateway_service import ai_gateway_service
 from services.storefront_order_service import StorefrontOrderError, create_order
+from services.storefront_renderer import get_storefront_context
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_public_tenant
 
 router = APIRouter(tags=["Storefront"])
 
-# AlexIO Live en el storefront público solo puede consultar catálogo/stock --
-# nunca metricas de ventas (dato de negocio, no debe verlo un visitante
-# anónimo). Ver services/ai_brain_service.py::chat_response(allowed_tools=).
 ALEXIO_LIVE_ALLOWED_TOOLS = ["consultar_stock", "recomendar_productos"]
 ALEXIO_LIVE_SYSTEM_PROMPT = (
     "Sos AlexIO, el asistente virtual de la tienda. Ayudás a los visitantes a encontrar "
@@ -77,6 +79,16 @@ def _cart_products(session: Session, tenant_id: int, cart: dict) -> list[dict]:
     return lines
 
 
+def _get_products(session: Session, tenant_id: int) -> list:
+    curated_ids = session.exec(
+        select(TenantCatalog.product_id).where(TenantCatalog.tenant_id == tenant_id)
+    ).all()
+    query = select(Product).where(Product.tenant_id == tenant_id, Product.is_deleted == False)
+    if curated_ids:
+        query = query.where(Product.id.in_(curated_ids))
+    return session.exec(query).all()
+
+
 @router.get("/tienda", response_class=HTMLResponse)
 def storefront_catalog(
     request: Request,
@@ -84,22 +96,19 @@ def storefront_catalog(
     tenant_id: int = Depends(get_public_tenant),
 ):
     settings = _get_store_settings(session, tenant_id)
-
-    curated_ids = session.exec(
-        select(TenantCatalog.product_id).where(TenantCatalog.tenant_id == tenant_id)
-    ).all()
-    query = select(Product).where(Product.tenant_id == tenant_id, Product.is_deleted == False)
-    if curated_ids:
-        query = query.where(Product.id.in_(curated_ids))
-    products = session.exec(query).all()
-
+    products = _get_products(session, tenant_id)
     cart = _get_cart(request)
     cart_count = sum(cart.values()) if cart else 0
 
-    return _templates().TemplateResponse(
-        "storefront_catalog.html",
-        {"request": request, "settings": settings, "products": products, "cart_count": cart_count},
+    ctx = get_storefront_context(
+        session=session,
+        tenant_id=tenant_id,
+        settings=settings,
+        products=products,
+        cart_count=cart_count,
+        request=request,
     )
+    return _templates().TemplateResponse("storefront_home.html", ctx)
 
 
 @router.get("/tienda/producto/{product_id}", response_class=HTMLResponse)
@@ -116,19 +125,22 @@ def storefront_product_detail(
         )
     ).first()
     if not product:
-        return _templates().TemplateResponse(
-            "storefront_catalog.html",
-            {"request": request, "settings": settings, "products": [], "cart_count": 0, "error": "Producto no encontrado"},
-            status_code=404,
+        ctx = get_storefront_context(
+            session=session, tenant_id=tenant_id, settings=settings,
+            products=[], cart_count=0, request=request,
+            error="Producto no encontrado",
         )
+        return _templates().TemplateResponse("storefront_home.html", ctx, status_code=404)
 
     cart = _get_cart(request)
     cart_count = sum(cart.values()) if cart else 0
 
-    return _templates().TemplateResponse(
-        "storefront_product.html",
-        {"request": request, "settings": settings, "product": product, "cart_count": cart_count},
+    ctx = get_storefront_context(
+        session=session, tenant_id=tenant_id, settings=settings,
+        products=[], cart_count=cart_count, request=request,
+        product=product,
     )
+    return _templates().TemplateResponse("storefront_product.html", ctx)
 
 
 def _serialize_recommendation(product: Product) -> dict:
@@ -147,7 +159,6 @@ async def storefront_product_recommendations(
     session: Session = Depends(get_session),
     tenant_id: int = Depends(get_public_tenant),
 ):
-    """Recomendación predictiva (Qwen, actualización 2026-08-11) para un producto puntual."""
     recommended = await ai_gateway_service.recommend_products(
         session, tenant_id, seed_product_ids=[product_id]
     )
@@ -160,7 +171,6 @@ async def storefront_cart_recommendations(
     session: Session = Depends(get_session),
     tenant_id: int = Depends(get_public_tenant),
 ):
-    """Recomendación predictiva (Qwen, actualización 2026-08-11) en base al carrito actual."""
     cart = _get_cart(request)
     seed_ids = [int(pid) for pid in cart.keys()]
     recommended = await ai_gateway_service.recommend_products(session, tenant_id, seed_product_ids=seed_ids)
@@ -211,10 +221,12 @@ def storefront_cart_view(
     total = sum(l["line_total"] for l in lines) if lines else 0
     cart_count = sum(cart.values()) if cart else 0
 
-    return _templates().TemplateResponse(
-        "storefront_cart.html",
-        {"request": request, "settings": settings, "lines": lines, "total": total, "cart_count": cart_count},
+    ctx = get_storefront_context(
+        session=session, tenant_id=tenant_id, settings=settings,
+        products=[], cart_count=cart_count, request=request,
+        lines=lines, total=total,
     )
+    return _templates().TemplateResponse("storefront_cart.html", ctx)
 
 
 @router.post("/tienda/checkout", response_class=HTMLResponse)
@@ -233,11 +245,12 @@ def storefront_checkout(
     lines = _cart_products(session, tenant_id, cart)
 
     if not lines:
-        return _templates().TemplateResponse(
-            "storefront_cart.html",
-            {"request": request, "settings": settings, "lines": [], "total": 0, "cart_count": 0,
-             "error": "El carrito está vacío"},
+        ctx = get_storefront_context(
+            session=session, tenant_id=tenant_id, settings=settings,
+            products=[], cart_count=0, request=request,
+            lines=[], total=0, error="El carrito está vacío",
         )
+        return _templates().TemplateResponse("storefront_cart.html", ctx)
 
     cart_items = [{"product_id": pid, "quantity": qty} for pid, qty in cart.items()]
 
@@ -254,11 +267,12 @@ def storefront_checkout(
         )
     except StorefrontOrderError as exc:
         total = sum(l["line_total"] for l in lines)
-        return _templates().TemplateResponse(
-            "storefront_cart.html",
-            {"request": request, "settings": settings, "lines": lines, "total": total,
-             "cart_count": sum(cart.values()), "error": str(exc)},
+        ctx = get_storefront_context(
+            session=session, tenant_id=tenant_id, settings=settings,
+            products=[], cart_count=sum(cart.values()), request=request,
+            lines=lines, total=total, error=str(exc),
         )
+        return _templates().TemplateResponse("storefront_cart.html", ctx)
 
     _save_cart(request, {})
     return RedirectResponse(url=f"/tienda/pedido/{sale.id}", status_code=303)
@@ -276,16 +290,19 @@ def storefront_order_confirmation(
         select(Sale).where(Sale.id == sale_id, Sale.tenant_id == tenant_id)
     ).first()
     if not sale:
-        return _templates().TemplateResponse(
-            "storefront_catalog.html",
-            {"request": request, "settings": settings, "products": [], "cart_count": 0, "error": "Pedido no encontrado"},
-            status_code=404,
+        ctx = get_storefront_context(
+            session=session, tenant_id=tenant_id, settings=settings,
+            products=[], cart_count=0, request=request,
+            error="Pedido no encontrado",
         )
+        return _templates().TemplateResponse("storefront_home.html", ctx, status_code=404)
 
-    return _templates().TemplateResponse(
-        "storefront_order_confirmation.html",
-        {"request": request, "settings": settings, "sale": sale, "cart_count": 0},
+    ctx = get_storefront_context(
+        session=session, tenant_id=tenant_id, settings=settings,
+        products=[], cart_count=0, request=request,
+        sale=sale,
     )
+    return _templates().TemplateResponse("storefront_order_confirmation.html", ctx)
 
 
 @router.post("/tienda/alexio/chat")
@@ -302,7 +319,6 @@ async def storefront_alexio_chat(
         return {"error": "Mensaje demasiado largo"}
 
     history = request.session.get("alexio_history", [])
-    # Tope de turnos guardados en sesión, para no acumular indefinidamente.
     history = history[-10:]
 
     try:
@@ -311,7 +327,7 @@ async def storefront_alexio_chat(
             tenant_id=tenant_id,
             history=history,
             new_message=message,
-            system_instruction=ALEXIO_LIVE_SYSTEM_PROMPT,
+            system_instruction=ai_brain_service.build_dynamic_prompt(session, tenant_id) or ALEXIO_LIVE_SYSTEM_PROMPT,
             allowed_tools=ALEXIO_LIVE_ALLOWED_TOOLS,
         )
     except ValueError as exc:

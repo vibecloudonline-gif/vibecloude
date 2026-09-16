@@ -159,6 +159,8 @@ class Settings(SQLModel, table=True):
     # mismo stock que el POS/ERP. Lo decide el tenant, no es automatico.
     ecommerce_connected_to_erp: bool = Field(default=False)
 
+    site_config_json: Optional[str] = Field(default=None)
+
 
 # ===========================================================================
 # TAX
@@ -755,6 +757,27 @@ class RefreshToken(SQLModel, table=True):
 # UI CONFIG (FASE 2: GESTOR DE UI)
 # ===========================================================================
 
+class PlatformPayment(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_platformpayment_tenant", "tenant_id"),
+        Index("ix_platformpayment_external", "provider", "external_id"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    provider: str = Field(index=True)
+    external_id: str = Field(default="")
+    payment_type: str
+    amount: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(12, 2)))
+    currency: str = Field(default="USD")
+    status: str = Field(default="pending")
+    description: str = Field(default="")
+    metadata_json: str = Field(default="{}")
+    created_at: datetime = Field(default_factory=_utcnow)
+    completed_at: Optional[datetime] = Field(default=None)
+    sale_id: Optional[int] = Field(default=None, foreign_key="sale.id")
+
+
 class UIConfig(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("tenant_id", "page_name", name="uq_uiconfig_tenant_page"),
@@ -765,5 +788,159 @@ class UIConfig(SQLModel, table=True):
     page_name: str = Field(index=True)  # "pos", "dashboard", "storefront_home"
     layout_json: str
     theme_json: str
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+# ===========================================================================
+# ALEX IO — VALIDATION PIPELINE
+# ===========================================================================
+
+class ResearchProject(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_researchproject_tenant_status", "tenant_id", "status"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+
+    project_type: str = Field(default="physical_product")  # physical_product, digital_service
+    query_description: str
+    reference_url: Optional[str] = None
+    factory_price: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
+    status: str = Field(default="draft")  # draft, researching, completed, error
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+    listings: List["ResearchListing"] = Relationship(sa_relationship=relationship("ResearchListing", back_populates="project"))
+    demand: Optional["ResearchDemand"] = Relationship(sa_relationship=relationship("ResearchDemand", back_populates="project", uselist=False))
+    competitors: List["CompetitorAnalysis"] = Relationship(sa_relationship=relationship("CompetitorAnalysis", back_populates="project"))
+    offers: List["Offer"] = Relationship(sa_relationship=relationship("Offer", back_populates="project"))
+
+
+class ResearchListing(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    source: str  # Amazon, MercadoLibre, Keepa, demo
+    title: str
+    price: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
+    currency: str = Field(default="USD")
+    url: Optional[str] = None
+    rating: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(3, 2), nullable=True))
+    review_count: Optional[int] = None
+    is_demo: bool = Field(default=False)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    project: Optional[ResearchProject] = Relationship(sa_relationship=relationship("ResearchProject", back_populates="listings"))
+
+
+class ResearchDemand(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_researchdemand_project"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    confidence_level: str = Field(default="no_disponible")  # alto, medio, bajo, no_disponible
+    estimated_monthly_volume: Optional[int] = None
+    source_description: Optional[str] = None
+    notes: Optional[str] = None
+
+    project: Optional[ResearchProject] = Relationship(sa_relationship=relationship("ResearchProject", back_populates="demand"))
+
+
+class CompetitorAnalysis(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    url: str
+    value_proposition: Optional[str] = None
+    price_info: Optional[str] = None
+    guarantees: Optional[str] = None
+    objections_addressed: Optional[str] = None
+    analysis_json: Optional[str] = None
+    user_confirmed: bool = Field(default=False)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    project: Optional[ResearchProject] = Relationship(sa_relationship=relationship("ResearchProject", back_populates="competitors"))
+
+
+class Offer(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_offer_tenant_project", "tenant_id", "project_id"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    title: str
+    value_proposition: str
+    price_structure: str
+    cta_text: str = Field(default="Comprar ahora")
+    differentiators_json: Optional[str] = None
+    status: str = Field(default="draft")  # draft, pending_validation, validated, rejected
+    version: int = Field(default=1)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+    project: Optional[ResearchProject] = Relationship(sa_relationship=relationship("ResearchProject", back_populates="offers"))
+    debate: Optional["ValidationDebate"] = Relationship(sa_relationship=relationship("ValidationDebate", back_populates="offer", uselist=False))
+
+
+class ValidationDebate(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("offer_id", name="uq_validationdebate_offer"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    offer_id: int = Field(foreign_key="offer.id", index=True)
+
+    status: str = Field(default="in_progress")  # in_progress, completed
+    started_at: datetime = Field(default_factory=_utcnow)
+    completed_at: Optional[datetime] = None
+    final_verdict: Optional[str] = None  # approved, needs_revision
+    arbiter_summary: Optional[str] = None
+
+    offer: Optional[Offer] = Relationship(sa_relationship=relationship("Offer", back_populates="debate"))
+    objections: List["DebateObjection"] = Relationship(sa_relationship=relationship("DebateObjection", back_populates="debate"))
+
+
+class DebateObjection(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    debate_id: int = Field(foreign_key="validationdebate.id", index=True)
+
+    objection_text: str
+    objection_source: str  # devil_advocate, price_skeptic, market_analyst, customer_sim
+    severity: str = Field(default="medium")  # high, medium, low
+    proposed_solution: Optional[str] = None
+    resolution_status: str = Field(default="pending")  # pending, resolved, dismissed
+    resolved_text: Optional[str] = None
+    order_index: int = Field(default=0)
+
+    debate: Optional[ValidationDebate] = Relationship(sa_relationship=relationship("ValidationDebate", back_populates="objections"))
+
+
+class AlexAgentContext(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_alexagentcontext_tenant"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+
+    personality_tone: str = Field(default="profesional_cercano")
+    business_description: Optional[str] = None
+    validated_offer_id: Optional[int] = Field(default=None, foreign_key="offer.id")
+    custom_instructions: Optional[str] = None
+    faq_entries_json: Optional[str] = None
+
+    created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 

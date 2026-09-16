@@ -64,6 +64,13 @@
                 <span class="hub-desc">Armar tu página con IA</span>
             </a>
             {% endif %}
+            {% if tenant.has_alexio or tenant.has_landing or tenant.has_ecommerce %}
+            <a href="/panel/research" class="hub-tile glass-card no-underline">
+                <span class="hub-icon">🔬</span>
+                <span class="hub-name">Investigar y Lanzar</span>
+                <span class="hub-desc">Validar tu idea de negocio con IA</span>
+            </a>
+            {% endif %}
             {% if tenant.has_ecommerce or tenant.has_landing %}
             <a href="/panel/dominios" class="hub-tile glass-card no-underline">
                 <span class="hub-icon">🔎</span>

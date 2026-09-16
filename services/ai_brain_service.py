@@ -1,5 +1,3 @@
-import httpx
-import json
 import logging
 import os
 from datetime import datetime
@@ -21,9 +19,64 @@ class GeminiUnavailableError(ValueError):
 
 class AIBrainService:
     @staticmethod
+    def build_dynamic_prompt(session: Session, tenant_id: int) -> str | None:
+        from database.models import AlexAgentContext, DebateObjection, Offer, ValidationDebate
+        ctx = session.exec(
+            select(AlexAgentContext).where(AlexAgentContext.tenant_id == tenant_id)
+        ).first()
+        if not ctx:
+            return None
+
+        parts = []
+        tone_map = {
+            "profesional_cercano": "profesional pero cercano y amigable",
+            "formal": "formal y corporativo",
+            "casual": "casual y relajado",
+            "tecnico": "tecnico y preciso",
+        }
+        parts.append(f"Tu tono de comunicacion es {tone_map.get(ctx.personality_tone, ctx.personality_tone)}.")
+
+        if ctx.business_description:
+            parts.append(f"El negocio se dedica a: {ctx.business_description}")
+
+        if ctx.validated_offer_id:
+            offer = session.exec(
+                select(Offer).where(Offer.id == ctx.validated_offer_id, Offer.tenant_id == tenant_id)
+            ).first()
+            if offer and offer.status == "validated":
+                parts.append(
+                    f"La oferta validada del negocio es: {offer.title}. "
+                    f"Propuesta de valor: {offer.value_proposition}. "
+                    f"Precio: {offer.price_structure}."
+                )
+                if offer.debate and offer.debate.objections:
+                    resolved = [
+                        o for o in offer.debate.objections
+                        if o.resolution_status == "resolved" and o.resolved_text
+                    ]
+                    if resolved:
+                        parts.append("Objeciones resueltas que debes saber responder:")
+                        for o in resolved:
+                            parts.append(f"- {o.objection_text} -> {o.resolved_text}")
+
+        if ctx.custom_instructions:
+            parts.append(f"Instrucciones adicionales del duenio: {ctx.custom_instructions}")
+
+        if ctx.faq_entries_json:
+            import json
+            try:
+                faqs = json.loads(ctx.faq_entries_json)
+                if faqs:
+                    parts.append("Preguntas frecuentes configuradas:")
+                    for faq in faqs:
+                        parts.append(f"P: {faq.get('q', '')} R: {faq.get('a', '')}")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return "\n".join(parts)
+
+    @staticmethod
     def _get_api_key(session: Session, tenant_id: int) -> str:
-        """Resolves the Gemini API key for this tenant or falls back to the env variable."""
-        # For Fase 2, we fallback to env variable or try decoding AICredential
         env_key = os.getenv("GEMINI_API_KEY", "")
         if env_key:
             return env_key
@@ -35,20 +88,19 @@ class AIBrainService:
         Executes the requested tool, strictly injecting tenant_id from the backend session context.
         Regla 1.1: tenant_id never comes from the LLM parameters.
         """
-        logger.info(f"🛠&ufe0f Executing tool '{name}' for tenant {tenant_id} with args: {args}")
+        logger.info(f"Executing tool '{name}' for tenant {tenant_id} with args: {args}")
         try:
             if name == "consultar_stock":
                 product_id = args.get("product_id")
                 if not product_id:
                     return {"error": "Missing product_id"}
-                
-                # Verify product belongs to tenant
+
                 product = session.exec(
                     select(Product).where(Product.id == product_id, Product.tenant_id == tenant_id)
                 ).first()
                 if not product:
                     return {"error": "Product not found or access denied"}
-                
+
                 from database.models import BinStock
                 total_stock = session.exec(
                     select(func.sum(BinStock.quantity)).where(
@@ -65,7 +117,7 @@ class AIBrainService:
                 categoria = args.get("categoria")
                 if not categoria:
                     return {"error": "Missing category (categoria)"}
-                
+
                 products = session.exec(
                     select(Product).where(
                         Product.tenant_id == tenant_id,
@@ -82,23 +134,22 @@ class AIBrainService:
                 fecha_str = args.get("fecha")
                 if not fecha_str:
                     return {"error": "Missing date (fecha) in YYYY-MM-DD format"}
-                
+
                 try:
                     target_date = datetime.strptime(fecha_str, "%Y-%m-%d").date()
                 except ValueError:
                     return {"error": "Invalid date format. Use YYYY-MM-DD"}
-                
-                # Sum total sales on target_date for tenant_id
+
                 sales = session.exec(
                     select(Sale).where(
                         Sale.tenant_id == tenant_id
                     )
                 ).all()
-                
+
                 day_sales = [s for s in sales if s.timestamp.date() == target_date]
                 total_amount = sum(s.total_amount for s in day_sales)
                 count = len(day_sales)
-                
+
                 return {
                     "date": fecha_str,
                     "total_sales_amount": total_amount,
@@ -124,12 +175,8 @@ class AIBrainService:
     ) -> str:
         """
         Punto de entrada público. Intenta Gemini primero; si Gemini no está
-        disponible (sin key, error de API, respuesta vacía/inválida --
-        GeminiUnavailableError), cae a Qwen como fallback de texto plano
-        (Fase 5, sección 7 del roadmap). Errores de negocio (tenant
-        inexistente, créditos insuficientes) NUNCA disparan el fallback --
-        se propagan tal cual, saltear una regla de créditos con un
-        proveedor distinto sería un bypass, no alta disponibilidad.
+        disponible (GeminiUnavailableError), cae a Qwen como fallback de texto
+        plano. Errores de negocio NUNCA disparan el fallback.
         """
         try:
             return await cls._chat_response_gemini(
@@ -157,27 +204,19 @@ class AIBrainService:
     ) -> str:
         """
         Processes a chat conversation turn with Gemini using cascading model.
-        Supports multi-turn tool calling with secure backend-injected tenant_id.
-        Deducts credits based on model used.
-
-        allowed_tools: si se pasa, restringe qué herramientas se declaran ante
-        Gemini y cuáles puede ejecutar _execute_tool (doble chequeo). Usado por
-        AlexIO Live en el storefront público para no exponer
-        obtener_metricas_ventas (datos de negocio) a un visitante anónimo --
-        default None conserva el comportamiento actual (panel admin, todas
-        las herramientas).
+        Now routes through AI Gateway instead of calling httpx directly.
         """
-        # Validate model cascade
+        from services.ai.contracts import AIError, AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
         allowed_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.1-pro"]
         if model_name not in allowed_models:
             model_name = "gemini-3.5-flash"
 
-        # Check tenant credits
         tenant = session.get(Tenant, tenant_id)
         if not tenant:
             raise ValueError("Tenant no encontrado.")
 
-        # Cost config: Pro is 10 credits, others are 1
         cost = 10 if model_name == "gemini-3.1-pro" else 1
 
         if tenant.ai_credits < cost:
@@ -187,9 +226,6 @@ class AIBrainService:
         if not api_key:
             raise GeminiUnavailableError("GEMINI_API_KEY no configurada.")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-
-        # Define tools schema (Regla 1.1: tenant_id is excluded from declarations)
         tools = [
             {
                 "functionDeclarations": [
@@ -244,89 +280,63 @@ class AIBrainService:
                 decl for decl in tools[0]["functionDeclarations"] if decl["name"] in allowed_tools
             ]
 
-        # Prepare messages format for Gemini
-        formatted_contents = []
+        formatted_contents: list[AIMessage] = []
         for turn in history:
             role = "user" if turn.get("role") == "user" else "model"
-            formatted_contents.append({
-                "role": role,
-                "parts": [{"text": turn.get("parts", [{}])[0].get("text", "")}]
-            })
+            formatted_contents.append(AIMessage(
+                role=role,
+                content=turn.get("parts", [{}])[0].get("text", ""),
+            ))
 
-        formatted_contents.append({
-            "role": "user",
-            "parts": [{"text": new_message}]
-        })
+        formatted_contents.append(AIMessage(role="user", content=new_message))
 
-        async with httpx.AsyncClient() as client:
-            # Multi-turn tool execution loop (max 5 turns)
-            for _ in range(5):
-                payload = {
-                    "contents": formatted_contents,
-                    "systemInstruction": {"parts": [{"text": system_instruction}]},
-                    "tools": tools
-                }
+        for _ in range(5):
+            request = AIRequest(
+                tenant_id=tenant_id,
+                task="alex_chat",
+                messages=formatted_contents,
+                system_prompt=system_instruction,
+                model=model_name,
+                provider="gemini",
+                tools=tools,
+                metadata={"api_key": api_key},
+                timeout=30.0,
+            )
 
-                logger.info(f"🤖 Sending request to Gemini ({model_name})...")
-                response = await client.post(url, json=payload, timeout=30.0)
-                if response.status_code != 200:
-                    logger.error(f"Gemini error response: {response.text}")
-                    raise GeminiUnavailableError(f"Error de Gemini API: {response.status_code}")
+            try:
+                response = await ai_gateway.generate(request)
+            except AIError as exc:
+                raise GeminiUnavailableError(str(exc)) from exc
 
-                res_data = response.json()
-                candidates = res_data.get("candidates", [])
-                if not candidates:
-                    raise GeminiUnavailableError("No candidates returned from Gemini API")
+            if response.tool_calls:
+                tc = response.tool_calls[0]
+                fn_name = tc["name"]
+                fn_args = tc.get("args", {})
+                raw_part = tc.get("raw_part", {})
 
-                content = candidates[0].get("content", {})
-                parts = content.get("parts", [])
-                if not parts:
-                    raise GeminiUnavailableError("Empty response parts from Gemini")
-
-                part = parts[0]
-                
-                # Check if model requested a function call
-                if "functionCall" in part:
-                    fn_call = part["functionCall"]
-                    fn_name = fn_call["name"]
-                    fn_args = fn_call.get("args", {})
-
-                    # Segunda barrera: aunque el schema ya no se lo haya
-                    # ofrecido, nunca ejecutar una tool fuera de allowed_tools.
-                    if allowed_tools is not None and fn_name not in allowed_tools:
-                        tool_result = {"error": f"Tool '{fn_name}' no permitida en este contexto"}
-                    else:
-                        # Execute the tool with backend-injected tenant_id
-                        tool_result = await cls._execute_tool(session, tenant_id, fn_name, fn_args)
-
-                    # Add model's functionCall part to history
-                    formatted_contents.append({
-                        "role": "model",
-                        "parts": [part]
-                    })
-
-                    # Add functionResponse part to history (Gemini format)
-                    formatted_contents.append({
-                        "role": "tool",
-                        "parts": [
-                            {
-                                "functionResponse": {
-                                    "name": fn_name,
-                                    "response": {"output": tool_result}
-                                }
-                            }
-                        ]
-                    })
-                    # Continue loop to send tool results back to Gemini
-                    continue
+                if allowed_tools is not None and fn_name not in allowed_tools:
+                    tool_result = {"error": f"Tool '{fn_name}' no permitida en este contexto"}
                 else:
-                    # Model returned a standard text response
-                    tenant.ai_credits -= cost
-                    session.add(tenant)
-                    session.commit()
-                    return part.get("text", "")
+                    tool_result = await cls._execute_tool(session, tenant_id, fn_name, fn_args)
+
+                formatted_contents.append(AIMessage(role="model", parts=[raw_part]))
+                formatted_contents.append(AIMessage(
+                    role="tool",
+                    parts=[{
+                        "functionResponse": {
+                            "name": fn_name,
+                            "response": {"output": tool_result}
+                        }
+                    }],
+                ))
+                continue
+            else:
+                tenant.ai_credits -= cost
+                session.add(tenant)
+                session.commit()
+                return response.content
 
         raise ValueError("Excedido el límite máximo de llamadas a herramientas en un solo turno.")
 
-# Singleton instance
+
 ai_brain_service = AIBrainService()
