@@ -1,0 +1,8 @@
+{# Block: banner — Promotional or informational banner strip #}
+{% set banner_style = section.data.get('style', 'accent') %}
+<section class="sf-banner sf-banner--{{ banner_style }}">
+    <p class="sf-banner-text">{{ section.data.get('text', '') }}</p>
+    {% if section.data.get('cta_text') %}
+    <a href="{{ section.data.get('cta_url', '#') }}" class="sf-banner-cta">{{ section.data.cta_text }}</a>
+    {% endif %}
+</section>

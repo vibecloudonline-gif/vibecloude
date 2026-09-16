@@ -4,15 +4,13 @@ from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import os
 import json
-# In a real scenario, you'd use google-genai or google.generativeai here
-# For the MVP, we simulate the structure or call the REST API directly
-import httpx
+import re
+import logging
+from datetime import datetime
+
 from database.session import get_session
 from database.models import User, Tenant
 from web.dependencies import get_current_user, get_current_tenant, require_auth
-from services.gemini_service import GeminiService
-import re, logging
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -41,20 +39,23 @@ class PredictProductRequest(BaseModel):
 async def generate_copy(req: CopyRequest, db: Session = Depends(get_session), current_user: User = Depends(require_auth)):
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="Gemini API Key no configurada en el backend.")
-    
+
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
     prompt = f"Genera 3 opciones de copy de ventas persuasivo para el producto '{req.product_name}'. Categoría: {req.category}. Contexto extra: {req.context}. Devuelve solo los textos numerados."
-    
+
+    request = AIRequest(
+        task="copy_generation",
+        tenant_id=current_user.tenant_id,
+        messages=[AIMessage(role="user", content=prompt)],
+        provider="gemini",
+        model="gemini-2.5-flash",
+    )
+
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
-                json={"contents": [{"parts": [{"text": prompt}]}]}
-            )
-            data = resp.json()
-            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            return {"success": True, "copies": text.split("\n")}
+        response = await ai_gateway.generate(request)
+        return {"success": True, "copies": response.content.split("\n")}
     except Exception as e:
         logger.error(f"Error generando copy: {e}")
         raise HTTPException(status_code=500, detail="Error interno al generar copy de ventas.")
@@ -63,9 +64,10 @@ async def generate_copy(req: CopyRequest, db: Session = Depends(get_session), cu
 async def generate_theme(req: ThemeRequest, db: Session = Depends(get_session), current_user: User = Depends(require_auth)):
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="Gemini API Key no configurada.")
-    
+
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
     prompt = f"""Crea una paleta de colores para una tienda online descrita como: '{req.description}'.
     Devuelve ÚNICAMENTE un JSON válido con esta estructura exacta (reemplazando los hex por los sugeridos):
     {{
@@ -78,18 +80,21 @@ async def generate_theme(req: ThemeRequest, db: Session = Depends(get_session), 
       "shadow": "0 4px 6px rgba(0,0,0,0.1)"
     }}
     No agregues markdown, ni backticks, ni comentarios."""
-    
+
+    request = AIRequest(
+        task="theme_generation",
+        tenant_id=current_user.tenant_id,
+        messages=[AIMessage(role="user", content=prompt)],
+        provider="gemini",
+        model="gemini-2.5-flash",
+        structured_output=True,
+    )
+
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}",
-                json={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"response_mime_type": "application/json"}}
-            )
-            data = resp.json()
-            text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            text = text.replace('```json', '').replace('```', '').strip()
-            theme_json = json.loads(text)
-            return {"success": True, "theme": theme_json}
+        response = await ai_gateway.generate(request)
+        text = response.content.replace('```json', '').replace('```', '').strip()
+        theme_json = json.loads(text)
+        return {"success": True, "theme": theme_json}
     except Exception as e:
         logger.error(f"Error generando tema: {e}")
         raise HTTPException(status_code=500, detail="Error interno al generar paleta de colores.")
@@ -101,14 +106,10 @@ async def predict_product(
     db: Session = Depends(get_session),
     current_user: User = Depends(require_auth),
 ):
-    """Predicción de viabilidad comercial de un producto (Qwen), disponible
-    para cualquier tenant -- con historial de ventas propio si existe, o
-    solo con la metadata del producto si el tenant recién arranca."""
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
 
     from decimal import Decimal
-
     from services.ai_gateway_service import AIGatewayService
 
     return await AIGatewayService.predict_product_success(
@@ -121,9 +122,6 @@ async def predict_product(
     )
 
 
-import logging
-logger = logging.getLogger(__name__)
-
 # Basic in-memory rate limiting for AI calls per tenant
 _AI_CALL_LOGS: Dict[int, list] = {}
 
@@ -132,17 +130,16 @@ def _check_ai_rate_limit(tenant_id: int):
     limit = int(os.getenv("AI_RATE_LIMIT_PER_HOUR", "20"))
     now = time.time()
     cutoff = now - 3600
-    
+
     tenant_calls = _AI_CALL_LOGS.get(tenant_id, [])
-    # Filter calls in last hour
     recent_calls = [t for t in tenant_calls if t > cutoff]
-    
+
     if len(recent_calls) >= limit:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Límite de cuota de IA alcanzado ({limit} peticiones/hora)."
         )
-    
+
     recent_calls.append(now)
     _AI_CALL_LOGS[tenant_id] = recent_calls
 
@@ -158,6 +155,7 @@ async def get_onboarding_texts(
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
 
+    from services.gemini_service import GeminiService
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="Servicio de IA no configurado.")
     try:
@@ -190,10 +188,29 @@ async def generate_product_description(
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
 
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="Servicio de IA no configurado.")
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
+    system_instruction = "Eres un experto en copywriting para e-commerce."
+    prompt = f"""Genera una descripción persuasiva, atractiva y optimizada para SEO para el siguiente producto:
+    Producto: {req.product_name}
+    Características clave: {req.features}
+
+    Devuelve la descripción en formato HTML limpio (solo etiquetas <p>, <ul>, <li>, <strong>) para insertarlo directo en la web.
+    NO devuelvas bloques de código (```html), devuelve directamente el string HTML."""
+
+    request = AIRequest(
+        task="product_description",
+        tenant_id=current_user.tenant_id,
+        messages=[AIMessage(role="user", content=prompt)],
+        system_prompt=system_instruction,
+        provider="gemini",
+        model="gemini-2.5-flash",
+    )
+
     try:
-        desc = await GeminiService.generate_product_description(req.product_name, req.features, GEMINI_API_KEY)
+        response = await ai_gateway.generate(request)
+        desc = response.content.replace('```html', '').replace('```', '').strip()
         return {"success": True, "description": desc}
     except Exception as e:
         logger.error(f"Error en AI product-description: {e}")
@@ -215,10 +232,37 @@ async def generate_landing_copy(
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
 
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="Servicio de IA no configurado.")
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
+    system_instruction = "Eres un experto creador de Landing Pages y copywriter para marketing digital."
+    prompt = f"""Crea el texto para una Landing Page de un negocio de: {req.niche}.
+    El público objetivo es: {req.audience}.
+    El tono de la marca debe ser: {req.tone}.
+
+    Debes retornar EXCLUSIVAMENTE un objeto JSON válido con esta estructura exacta:
+    {{
+        "h1": "Título principal que llame la atención",
+        "h2": "Subtítulo que explique el beneficio principal",
+        "bullets": ["Dolor que soluciona 1", "Dolor que soluciona 2", "Dolor que soluciona 3"],
+        "cta": "Llamado a la acción potente"
+    }}
+    No agregues markdown ni texto fuera del JSON."""
+
+    request = AIRequest(
+        task="landing_copy",
+        tenant_id=current_user.tenant_id,
+        messages=[AIMessage(role="user", content=prompt)],
+        system_prompt=system_instruction,
+        provider="gemini",
+        model="gemini-2.5-flash",
+        structured_output=True,
+    )
+
     try:
-        copy = await GeminiService.generate_landing_copy(req.niche, req.audience, req.tone, GEMINI_API_KEY)
+        response = await ai_gateway.generate(request)
+        text = response.content.replace('```json', '').replace('```', '').strip()
+        copy = json.loads(text)
         return {"success": True, "copy": copy}
     except Exception as e:
         logger.error(f"Error en AI landing-copy: {e}")
@@ -240,11 +284,28 @@ async def chat_bot_response(
     if current_user.tenant_id:
         _check_ai_rate_limit(current_user.tenant_id)
 
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="Servicio de IA no configurado.")
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
+    messages = []
+    for turn in req.history:
+        role = turn.get("role", "user")
+        text = turn.get("parts", [{}])[0].get("text", "")
+        messages.append(AIMessage(role=role, content=text))
+    messages.append(AIMessage(role="user", content=req.new_message))
+
+    request = AIRequest(
+        task="chat",
+        tenant_id=current_user.tenant_id,
+        messages=messages,
+        system_prompt=req.system_instruction,
+        provider="gemini",
+        model="gemini-2.5-flash",
+    )
+
     try:
-        response_text = await GeminiService.chat_bot_response(req.history, req.new_message, req.system_instruction, GEMINI_API_KEY)
-        return {"success": True, "response": response_text}
+        response = await ai_gateway.generate(request)
+        return {"success": True, "response": response.content}
     except Exception as e:
         logger.error(f"Error en AI chat: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servicio de IA")
@@ -282,10 +343,6 @@ class TemplateStudioRequest(BaseModel):
     page_name: str = "storefront_home"
 
 def sanitize_css_property(value: str) -> str:
-    """
-    Sanitizes CSS properties to block stored XSS and malformed styles.
-    Blocks url(), expression(), javascript:, script tags, etc.
-    """
     if not value:
         return ""
     lower_val = value.lower()
@@ -312,15 +369,15 @@ async def ai_template_studio(
 ):
     from services.ai_brain_service import ai_brain_service
     from database.models import UIConfig
-    
+
     current_config = db.exec(
         select(UIConfig).where(UIConfig.tenant_id == tenant_id, UIConfig.page_name == req.page_name)
     ).first()
-    
+
     current_context = ""
     if current_config:
         current_context = f"Configuración actual: {current_config.theme_json}"
-        
+
     system_instruction = (
         "Eres un diseñador web experto. Tu tarea es generar una paleta de colores y estilos en formato JSON. "
         "Debes responder ÚNICAMENTE con un objeto JSON válido que cumpla este esquema:\n"
@@ -334,9 +391,9 @@ async def ai_template_studio(
         "}\n"
         "No agregues markdown ni explicaciones adicionales, solo el JSON estructurado."
     )
-    
+
     prompt = f"Instrucción del usuario: {req.prompt}\n{current_context}"
-    
+
     try:
         response_text = await ai_brain_service.chat_response(
             session=db,
@@ -346,11 +403,11 @@ async def ai_template_studio(
             system_instruction=system_instruction,
             model_name="gemini-3.1-pro"
         )
-        
+
         clean_json_str = response_text.replace("```json", "").replace("```", "").strip()
         theme_dict = json.loads(clean_json_str)
         validated_theme = UIConfigTheme(**theme_dict)
-        
+
         sanitized_theme = {
             "primary_color": sanitize_css_property(validated_theme.primary_color),
             "secondary_color": sanitize_css_property(validated_theme.secondary_color),
@@ -359,7 +416,7 @@ async def ai_template_studio(
             "border_radius": sanitize_css_property(validated_theme.border_radius or "8px"),
             "font_family": validated_theme.font_family if validated_theme.font_family in ["Outfit", "Inter", "Roboto", "Space Grotesk", "DM Sans"] else "Outfit"
         }
-        
+
         if not current_config:
             current_config = UIConfig(
                 tenant_id=tenant_id,
@@ -370,15 +427,15 @@ async def ai_template_studio(
         else:
             current_config.theme_json = json.dumps(sanitized_theme)
             current_config.updated_at = datetime.utcnow()
-            
+
         db.add(current_config)
         db.commit()
-        
+
         return {
             "success": True,
             "theme": sanitized_theme
         }
-        
+
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=f"Validación o límites fallidos: {val_err}")
     except Exception as e:
@@ -407,11 +464,11 @@ async def buy_tenant_credits(
     tenant = db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado.")
-    
+
     tenant.ai_credits += amount
     db.add(tenant)
     db.commit()
-    
+
     return {
         "success": True,
         "message": f"Se agregaron {amount} créditos con éxito.",

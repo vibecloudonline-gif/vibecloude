@@ -1,0 +1,20 @@
+{# Block: category_grid — Category navigation cards #}
+{% set categories = section.data.get('categories', []) %}
+
+{% if categories %}
+<section class="sf-section">
+    {% if section.data.get('title') %}
+    <h2 class="sf-section-title">{{ section.data.title }}</h2>
+    {% endif %}
+    <div class="sf-category-grid">
+        {% for cat in categories %}
+        <a href="{{ cat.get('url', '/tienda?cat=' + cat.get('slug', '')) }}" class="sf-category-card">
+            {% if cat.get('image') %}
+            <img src="{{ cat.image }}" alt="{{ cat.name }}" loading="lazy">
+            {% endif %}
+            <span class="sf-category-name">{{ cat.name }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

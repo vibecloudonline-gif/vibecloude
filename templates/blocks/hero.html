@@ -1,0 +1,14 @@
+{# Block: hero — Full-width hero section with title, subtitle, and CTA #}
+<section class="sf-hero" {% if section.style.background_image %}style="background-image: url('{{ section.style.background_image }}');"{% endif %}>
+    <div class="sf-hero-content">
+        <h1 class="sf-hero-title">{{ section.data.get('title', settings.company_name) }}</h1>
+        {% if section.data.get('subtitle') %}
+        <p class="sf-hero-subtitle">{{ section.data.subtitle }}</p>
+        {% endif %}
+        {% if section.data.get('cta_text') %}
+        <a href="{{ section.data.get('cta_url', '#catalogo') }}" class="sf-btn sf-btn-accent">
+            {{ section.data.cta_text }}
+        </a>
+        {% endif %}
+    </div>
+</section>

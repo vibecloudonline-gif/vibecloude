@@ -1,0 +1,24 @@
+{# Block: product_grid — Full product catalog grid #}
+<section class="sf-section" id="catalogo">
+    {% if section.data.get('title') %}
+    <h2 class="sf-section-title">{{ section.data.title }}</h2>
+    {% endif %}
+
+    {% if not products %}
+    <p class="sf-empty">Todavía no hay productos publicados en esta tienda.</p>
+    {% else %}
+    <div class="sf-product-grid">
+        {% for product in products %}
+        <a href="/tienda/producto/{{ product.id }}" class="sf-product-card">
+            <div class="sf-product-img-wrap">
+                <img src="{{ product.image_url or '/static/images/logo.png' }}" alt="{{ product.name }}" loading="lazy">
+            </div>
+            <div class="sf-product-info">
+                <span class="sf-product-name">{{ product.name }}</span>
+                <span class="sf-product-price">{{ commerce.currency_symbol }}{{ "%.2f"|format(product.price_retail or product.price) }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>

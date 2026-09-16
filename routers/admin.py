@@ -456,7 +456,7 @@ def reports_summary(
 
 
 @router.post("/api/ai/chat")
-def ai_chat(
+async def ai_chat(
     payload: dict,
     session: Session = Depends(get_session),
     user: User = Depends(require_auth),
@@ -473,7 +473,6 @@ def ai_chat(
         raise HTTPException(400, "Configura tu API key de Gemini en Configuración > IA")
     plain_api_key = decrypt_api_key(cred.api_key_enc)
 
-    # Contexto breve: ventas últimas 7 días, top 3 productos, caja hoy
     today = date.today()
     start_dt = today - timedelta(days=6)
     summary = reports_summary(
@@ -485,9 +484,6 @@ def ai_chat(
         tenant_id=tenant_id,
     )
 
-    system_prompt = (
-        SUPPORT_CONSTITUTION
-    )
     context = {
         "empresa": session.exec(select(Settings).where(Settings.tenant_id == tenant_id)).first().company_name,
         "usuario": user.username,
@@ -495,24 +491,26 @@ def ai_chat(
         "kpis": summary,
     }
 
+    from services.ai.contracts import AIMessage, AIRequest
+    from services.ai.gateway import ai_gateway
+
+    request = AIRequest(
+        task="support_chat",
+        tenant_id=tenant_id,
+        messages=[
+            AIMessage(role="user", content=SUPPORT_CONSTITUTION),
+            AIMessage(role="user", content=f"Contexto: {json.dumps(context)}"),
+            AIMessage(role="user", content=question),
+        ],
+        provider="gemini",
+        model="gemini-3.5-flash",
+        metadata={"api_key": plain_api_key},
+        timeout=10.0,
+    )
+
     try:
-        res = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={plain_api_key}",
-            json={
-                "contents": [
-                    {"role": "user", "parts": [{"text": system_prompt}]},
-                    {"role": "user", "parts": [{"text": f"Contexto: {json.dumps(context)}"}]},
-                    {"role": "user", "parts": [{"text": question}]},
-                ]
-            },
-            timeout=10,
-        )
-        if res.status_code == 404:
-            raise HTTPException(400, "Revisa el modelo o la API key de Gemini (404).")
-        res.raise_for_status()
-        data = res.json()
-        text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-        return {"answer": text.strip() or "No obtuve respuesta del modelo."}
+        response = await ai_gateway.generate(request)
+        return {"answer": response.content.strip() or "No obtuve respuesta del modelo."}
     except HTTPException:
         raise
     except Exception as exc:

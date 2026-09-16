@@ -16,11 +16,11 @@ try:
         CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
         RATE_LIMIT_LOGIN: str = "5/minute"
         RATE_LIMIT_PUBLIC: str = "30/minute"
-        MEDUSA_URL: str = os.getenv("MEDUSA_URL", "http://localhost:9000")
-        MEDUSA_ADMIN_API_KEY: str = os.getenv("VIBECLOUD_API_KEY", os.getenv("MEDUSA_ADMIN_API_KEY", ""))
-        MEDUSA_B2B_DISCOUNT_PERCENT: float = float(os.getenv("MEDUSA_B2B_DISCOUNT_PERCENT", "0.30"))
-        MEDUSA_SYNC_BATCH_SIZE: int = int(os.getenv("MEDUSA_SYNC_BATCH_SIZE", "50"))
-        STOREFRONT_URL: str = os.getenv("STOREFRONT_URL", "http://localhost:3000")
+        PAYPAL_CLIENT_ID: str = os.getenv("PAYPAL_CLIENT_ID", "")
+        PAYPAL_CLIENT_SECRET: str = os.getenv("PAYPAL_CLIENT_SECRET", "")
+        PAYPAL_MODE: str = os.getenv("PAYPAL_MODE", "sandbox")
+        STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+        STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 except ImportError:
     class Settings:
         ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -34,11 +34,11 @@ except ImportError:
         CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
         RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "5/minute")
         RATE_LIMIT_PUBLIC = os.getenv("RATE_LIMIT_PUBLIC", "30/minute")
-        MEDUSA_URL = os.getenv("MEDUSA_URL", "http://localhost:9000")
-        MEDUSA_ADMIN_API_KEY = os.getenv("VIBECLOUD_API_KEY", os.getenv("MEDUSA_ADMIN_API_KEY", ""))
-        MEDUSA_B2B_DISCOUNT_PERCENT = float(os.getenv("MEDUSA_B2B_DISCOUNT_PERCENT", "0.30"))
-        MEDUSA_SYNC_BATCH_SIZE = int(os.getenv("MEDUSA_SYNC_BATCH_SIZE", "50"))
-        STOREFRONT_URL = os.getenv("STOREFRONT_URL", "http://localhost:3000")
+        PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+        PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+        PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")
+        STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+        STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 settings = Settings()
 

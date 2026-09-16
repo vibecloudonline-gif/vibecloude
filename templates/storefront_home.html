@@ -1,0 +1,31 @@
+{% extends "storefront_base.html" %}
+
+{% block content %}
+{% for section in sections %}
+    {% set block_template = block_templates.get(section.type) %}
+    {% if block_template %}
+        {% include block_template %}
+    {% endif %}
+{% endfor %}
+
+{# Fallback: if no product_grid section exists but we have products, show them #}
+{% set has_product_section = sections | selectattr('type', 'in', ['product_grid', 'featured_products']) | list | length > 0 %}
+{% if not has_product_section and products %}
+<section class="sf-section" id="catalogo">
+    <h2 class="sf-section-title">Catálogo</h2>
+    <div class="sf-product-grid">
+        {% for product in products %}
+        <a href="/tienda/producto/{{ product.id }}" class="sf-product-card">
+            <div class="sf-product-img-wrap">
+                <img src="{{ product.image_url or '/static/images/logo.png' }}" alt="{{ product.name }}" loading="lazy">
+            </div>
+            <div class="sf-product-info">
+                <span class="sf-product-name">{{ product.name }}</span>
+                <span class="sf-product-price">{{ commerce.currency_symbol }}{{ "%.2f"|format(product.price_retail or product.price) }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

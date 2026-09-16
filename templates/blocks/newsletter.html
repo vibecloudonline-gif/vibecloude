@@ -1,0 +1,11 @@
+{# Block: newsletter — Email signup form #}
+<section class="sf-section sf-newsletter">
+    <h2 class="sf-section-title">{{ section.data.get('title', 'Suscribite a novedades') }}</h2>
+    {% if section.data.get('subtitle') %}
+    <p class="sf-newsletter-subtitle">{{ section.data.subtitle }}</p>
+    {% endif %}
+    <form class="sf-newsletter-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='¡Listo!'; this.querySelector('input').disabled=true;">
+        <input type="email" placeholder="{{ section.data.get('placeholder', 'Tu email') }}" required class="sf-newsletter-input">
+        <button type="submit" class="sf-btn sf-btn-accent">{{ section.data.get('cta_text', 'Suscribirme') }}</button>
+    </form>
+</section>

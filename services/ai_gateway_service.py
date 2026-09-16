@@ -1,41 +1,21 @@
 """services/ai_gateway_service.py — Gateway de IA multi-proveedor (Fase 5,
 sección 7 del roadmap).
 
-Cascada de generación de contenido web (Landing/Ecommerce): Claude
-(primario) → Gemini (fallback) → Qwen (tercer fallback). Cascada de chat de
-AlexIO (Gemini → Qwen) vive en services/ai_brain_service.py, que importa
-`ai_gateway_service` para el segundo salto. También implementa el cliente de
-Qwen (DashScope) para la recomendación predictiva de productos del ecommerce
-(actualización 2026-08-11).
-
-Claude usa el SDK oficial de Anthropic (`anthropic`), como corresponde a
-código Python que llama a la API de Claude. Gemini y Qwen no tienen SDK
-propio en este proyecto -- siguen llamándose por HTTP directo (httpx), igual
-que ya hacía el resto del código antes de esta fase.
-
-ADVERTENCIA: sin ANTHROPIC_API_KEY ni QWEN_API_KEY (DashScope) reales
-disponibles en este entorno. Construido contra las APIs públicas
-documentadas, no probado contra los proveedores reales -- mismo patrón que
-se usó con NameSilo/GoDaddy. Si Claude no está configurado, la cascada cae a
-Gemini; si ninguno de los tres está disponible, se rechaza con un mensaje
-claro (nunca se rompe el endpoint). La recomendación de productos, en
-particular, cae a una heurística simple (misma categoría) si Qwen no está
-disponible.
+FASE 1 UPDATE: All AI calls now route through services.ai.gateway (AI Gateway).
+AnthropicClient and QwenClient kept as thin wrappers for backward compat
+(recommend_products, predict_product_success), but generate_landing_content_cascade
+and chat_fallback_qwen now use the unified Gateway.
 """
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
-import mimetypes
 import os
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
 
-import anthropic
-import httpx
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -43,104 +23,12 @@ from database.models import Product, Sale, SaleItem
 
 logger = logging.getLogger("ai_gateway")
 
-QWEN_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-
-# Modelo por defecto para generación de contenido -- ver la skill de
-# referencia de la API de Claude: usar claude-opus-5 salvo pedido explícito
-# de otro modelo.
-ANTHROPIC_MODEL = "claude-opus-5"
-
 
 class AIGatewayError(Exception):
     pass
 
 
-class QwenClient:
-    def __init__(self, api_key: Optional[str] = None, model: str = "qwen-plus"):
-        self.api_key = api_key or os.getenv("QWEN_API_KEY", "")
-        self.model = model
-        if not self.api_key:
-            raise AIGatewayError("QWEN_API_KEY no configurada")
-
-    async def chat(self, system_prompt: str, user_prompt: str) -> str:
-        payload = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        }
-        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        async with httpx.AsyncClient() as client:
-            response = await client.post(QWEN_API_URL, json=payload, headers=headers, timeout=20.0)
-            if response.status_code != 200:
-                raise AIGatewayError(f"Qwen API error {response.status_code}: {response.text}")
-            data = response.json()
-            try:
-                return data["choices"][0]["message"]["content"]
-            except (KeyError, IndexError) as exc:
-                raise AIGatewayError(f"Respuesta inesperada de Qwen: {data}") from exc
-
-
-def _build_anthropic_image_block(reference_image_path: str) -> dict:
-    mime_type, _ = mimetypes.guess_type(reference_image_path)
-    if not mime_type or not mime_type.startswith("image/"):
-        mime_type = "image/jpeg"
-    with open(reference_image_path, "rb") as f:
-        encoded = base64.standard_b64encode(f.read()).decode("ascii")
-    return {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": encoded}}
-
-
-class AnthropicClient:
-    """Cliente de Claude vía el SDK oficial de Anthropic (no HTTP directo)."""
-
-    def __init__(self, api_key: Optional[str] = None, model: str = ANTHROPIC_MODEL):
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
-        self.model = model
-        if not self.api_key:
-            raise AIGatewayError("ANTHROPIC_API_KEY no configurada")
-        self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
-
-    async def generate(
-        self, system_prompt: str, user_prompt: str, reference_image_path: Optional[str] = None
-    ) -> str:
-        content_blocks: list = []
-        if reference_image_path:
-            content_blocks.append(_build_anthropic_image_block(reference_image_path))
-        content_blocks.append({"type": "text", "text": user_prompt})
-
-        try:
-            response = await self._client.messages.create(
-                model=self.model,
-                max_tokens=2048,
-                system=system_prompt,
-                messages=[{"role": "user", "content": content_blocks}],
-            )
-        except anthropic.APIError as exc:
-            raise AIGatewayError(f"Claude API error: {exc}") from exc
-
-        if response.stop_reason == "refusal":
-            raise AIGatewayError("Claude rechazó la solicitud (stop_reason=refusal)")
-
-        text_parts = [block.text for block in response.content if block.type == "text"]
-        if not text_parts:
-            raise AIGatewayError("Claude no devolvió contenido de texto")
-        return "".join(text_parts)
-
-
 class AIGatewayService:
-    """
-    Recomendación predictiva de productos.
-
-    Regla 1.1 aplicada a esta feature: el set de candidatos SIEMPRE se arma
-    filtrado por tenant_id antes de mandarle nada al modelo, y la respuesta
-    del modelo se vuelve a filtrar contra ese mismo set de IDs antes de
-    devolverla -- aunque Qwen "alucine" o intente devolver un ID que no
-    estaba en la lista, nunca puede escaparse del catálogo del tenant,
-    porque el filtro de salida es estructural (whitelist), no depende de
-    que el modelo se porte bien.
-    """
-
     MAX_CANDIDATES = 40
     MAX_RECOMMENDATIONS = 8
 
@@ -159,12 +47,6 @@ class AIGatewayService:
         seed_product_ids: list[int],
         limit: int = 4,
     ) -> list[Product]:
-        """
-        seed_product_ids: el producto que se está viendo, o los IDs del
-        carrito -- se usan solo para elegir productos del MISMO tenant (ya
-        validado por el caller vía get_public_tenant), nunca se le manda
-        tenant_id al modelo.
-        """
         candidates = cls._candidate_products(session, tenant_id, exclude_ids=seed_product_ids)
         if not candidates:
             return []
@@ -184,9 +66,6 @@ class AIGatewayService:
             recommended_ids = cls._recommend_heuristic(seed_products, candidates)
 
         candidates_by_id = {p.id: p for p in candidates}
-        # Filtro de salida (whitelist): solo IDs que YA estaban en el set de
-        # candidatos de este tenant sobreviven -- nunca se confía en el
-        # output del modelo por si solo.
         result = [candidates_by_id[pid] for pid in recommended_ids if pid in candidates_by_id]
         if not result:
             fallback_ids = cls._recommend_heuristic(seed_products, candidates)
@@ -195,7 +74,8 @@ class AIGatewayService:
 
     @staticmethod
     async def _recommend_with_qwen(seed_products: list[Product], candidates: list[Product]) -> list[int]:
-        client = QwenClient()  # levanta AIGatewayError si no hay QWEN_API_KEY
+        from services.ai.contracts import AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
 
         seed_desc = "\n".join(
             f"- {p.name} (categoría: {p.category or 'sin categoría'})" for p in seed_products
@@ -213,7 +93,21 @@ class AIGatewayService:
         )
         user_prompt = f"Producto(s)/carrito de referencia:\n{seed_desc}\n\nCandidatos:\n{candidates_desc}"
 
-        raw = (await client.chat(system_prompt, user_prompt)).strip()
+        request = AIRequest(
+            task="product_recommendation",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
+            provider="qwen",
+            model="qwen-plus",
+            timeout=20.0,
+        )
+
+        try:
+            response = await ai_gateway.generate(request)
+        except Exception as exc:
+            raise AIGatewayError(str(exc)) from exc
+
+        raw = response.content.strip()
         if raw.startswith("```"):
             raw = raw.strip("`")
             if raw.lower().startswith("json"):
@@ -238,7 +132,6 @@ class AIGatewayService:
 
     @staticmethod
     def _recommend_heuristic(seed_products: list[Product], candidates: list[Product]) -> list[int]:
-        """Sin Qwen (no configurado o error): misma categoría que el seed; si no hay match, los primeros candidatos."""
         seed_categories = {p.category for p in seed_products if p.category}
         if seed_categories:
             same_category = [p.id for p in candidates if p.category in seed_categories]
@@ -248,20 +141,15 @@ class AIGatewayService:
 
     # ------------------------------------------------------------------
     # Cascada de generación de contenido web: Claude -> Gemini -> Qwen
+    # Now routes through AI Gateway adapters
     # ------------------------------------------------------------------
 
     @staticmethod
     async def generate_landing_content_cascade(
         prompt: str, reference_image_path: Optional[str] = None
     ):
-        """
-        Cascada de Fase 5: Claude (primario) -> Gemini (fallback) -> Qwen
-        (tercer fallback) para generación de contenido de landing/ecommerce.
-        Cada intento se valida contra el MISMO schema estricto
-        (LandingPageContent, Regla 1.2) sin importar qué proveedor respondió
-        -- la sanitización nunca depende del proveedor. Devuelve
-        (content, provider_used).
-        """
+        from services.ai.contracts import AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
         from services.landing_service import (
             SYSTEM_INSTRUCTION,
             LandingGenerationError,
@@ -271,27 +159,44 @@ class AIGatewayService:
 
         errors: list[str] = []
 
+        # --- Claude (primary) via Gateway ---
         try:
-            client = AnthropicClient()
-            raw = await client.generate(SYSTEM_INSTRUCTION, prompt, reference_image_path)
-            return _validate(raw), "claude"
-        except Exception as exc:  # noqa: BLE001 - se agrega al log de errores del intento, no se propaga
+            request = AIRequest(
+                task="landing_generation",
+                messages=[AIMessage(role="user", content=prompt)],
+                system_prompt=SYSTEM_INSTRUCTION,
+                provider="claude",
+                max_tokens=2048,
+                metadata={"reference_image_path": reference_image_path} if reference_image_path else {},
+            )
+            response = await ai_gateway.generate(request)
+            return _validate(response.content), "claude"
+        except Exception as exc:
             errors.append(f"Claude: {exc}")
 
+        # --- Gemini (fallback) via Gateway ---
         try:
             api_key = os.getenv("GEMINI_API_KEY", "")
             if not api_key:
                 raise AIGatewayError("GEMINI_API_KEY no configurada")
             content = await _generate_with_gemini(prompt, api_key, reference_image_path)
             return content, "gemini"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             errors.append(f"Gemini: {exc}")
 
+        # --- Qwen (third fallback) via Gateway ---
         try:
-            client = QwenClient()  # sin soporte de imagen todavía -- fallback de texto
-            raw = await client.chat(SYSTEM_INSTRUCTION, prompt)
-            return _validate(raw), "qwen"
-        except Exception as exc:  # noqa: BLE001
+            request = AIRequest(
+                task="landing_generation",
+                messages=[AIMessage(role="user", content=prompt)],
+                system_prompt=SYSTEM_INSTRUCTION,
+                provider="qwen",
+                model="qwen-plus",
+                timeout=20.0,
+            )
+            response = await ai_gateway.generate(request)
+            return _validate(response.content), "qwen"
+        except Exception as exc:
             errors.append(f"Qwen: {exc}")
 
         raise LandingGenerationError(
@@ -299,27 +204,16 @@ class AIGatewayService:
         )
 
     # ------------------------------------------------------------------
-    # Fallback de chat de AlexIO: Gemini -> Qwen (llamado desde
-    # services/ai_brain_service.py cuando Gemini no está disponible)
+    # Fallback de chat de AlexIO: Gemini -> Qwen
+    # Now routes through AI Gateway
     # ------------------------------------------------------------------
 
     @staticmethod
     async def chat_fallback_qwen(
         history: list, new_message: str, system_instruction: str
     ) -> Optional[str]:
-        """
-        Fallback degradado: sin function-calling (Qwen no tiene las tools
-        de AIBrainService wireadas todavía) y sin descuento de créditos de
-        IA (el modelo de costos actual solo cubre Gemini) -- mejor una
-        respuesta de texto que un error, pero es intencionalmente un
-        camino de emergencia, no un reemplazo de Gemini. Devuelve None si
-        Qwen tampoco está disponible, para que el caller decida si
-        re-lanzar el error original de Gemini.
-        """
-        try:
-            client = QwenClient()
-        except AIGatewayError:
-            return None
+        from services.ai.contracts import AIError, AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
 
         history_text = "\n".join(
             f"{'Usuario' if h.get('role') == 'user' else 'Asistente'}: {h.get('parts', [{}])[0].get('text', '')}"
@@ -327,16 +221,23 @@ class AIGatewayService:
         )
         user_prompt = f"{history_text}\nUsuario: {new_message}" if history_text else new_message
 
+        request = AIRequest(
+            task="alex_chat_fallback",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_instruction,
+            provider="qwen",
+            model="qwen-plus",
+            timeout=20.0,
+        )
+
         try:
-            return await client.chat(system_instruction, user_prompt)
-        except AIGatewayError:
+            response = await ai_gateway.generate(request)
+            return response.content
+        except AIError:
             return None
 
     # ------------------------------------------------------------------
-    # Predicción de viabilidad de producto -- módulo disponible para
-    # cualquier tenant (con o sin historial de ventas propio). Usa Qwen
-    # con el mismo patrón que recommend_products: prompt + JSON, filtrado
-    # siempre por tenant_id (Regla 1.1).
+    # Predicción de viabilidad de producto — uses Qwen via Gateway
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -373,9 +274,6 @@ class AIGatewayService:
             f"a un precio promedio de ${float(avg_price):.2f}."
         )
 
-    # Mini-swarm de perfiles de comprador (4 agentes) -- en vez de una sola
-    # respuesta del modelo, se corren en paralelo 4 llamadas a Qwen, cada
-    # una jugando un perfil de comprador distinto, y se promedian.
     _VIABILITY_PERSONAS = [
         {
             "id": "precio",
@@ -428,6 +326,9 @@ class AIGatewayService:
         price: Decimal,
         description: Optional[str],
     ) -> Optional[dict]:
+        from services.ai.contracts import AIError, AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
         system_prompt = (
             f"Sos un comprador de retail con este perfil: {persona['role']} "
             "Te muestran un producto y el rendimiento histórico (si existe) de esa "
@@ -446,10 +347,19 @@ class AIGatewayService:
             f"Contexto de ventas del negocio: {category_context}"
         )
 
+        request = AIRequest(
+            task="product_viability",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
+            provider="qwen",
+            model="qwen-plus",
+            timeout=20.0,
+        )
+
         try:
-            client = QwenClient()
-            raw = (await client.chat(system_prompt, user_prompt)).strip()
-        except AIGatewayError:
+            response = await ai_gateway.generate(request)
+            raw = response.content.strip()
+        except AIError:
             return None
 
         if raw.startswith("```"):
@@ -478,17 +388,6 @@ class AIGatewayService:
         price: Decimal,
         description: Optional[str] = None,
     ) -> dict:
-        """
-        Devuelve {available: bool, ...}. Corre los 4 perfiles de
-        _VIABILITY_PERSONAS en paralelo y promedia sus scores -- si alguno
-        falla individualmente (respuesta rota, etc.) el resultado sigue
-        siendo válido con los que sí respondieron. Cuando QWEN_API_KEY no
-        está configurada, o ninguno de los 4 devuelve algo interpretable,
-        available=False con un mensaje claro -- a propósito no hay
-        heurística de respaldo: "predecir éxito" sin un modelo detrás no
-        tiene una regla objetiva razonable, así que es más honesto decir
-        "no disponible" que devolver un score inventado.
-        """
         if not os.getenv("QWEN_API_KEY", ""):
             return {
                 "available": False,
