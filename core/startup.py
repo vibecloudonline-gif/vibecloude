@@ -3,16 +3,50 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlmodel import Session
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from database.session import engine, create_db_and_tables
 from services.auth_service import AuthService
 from core.seed import run_seed_if_configured
 
 logger = logging.getLogger(__name__)
 
+
+def _repair_schema(eng):
+    """Fix columns/tables that stamp-head skipped.
+
+    When a previous deploy ran stamp('head') without actually executing the
+    migrations, existing tables are missing new columns. create_db_and_tables
+    only creates missing tables (CREATE TABLE IF NOT EXISTS), it never ALTERs
+    existing ones.  This function adds known missing columns idempotently.
+    """
+    inspector = inspect(eng)
+    existing_tables = set(inspector.get_table_names())
+
+    with eng.begin() as conn:
+        if "settings" in existing_tables:
+            cols = {c["name"] for c in inspector.get_columns("settings")}
+            if "site_config_json" not in cols:
+                conn.execute(text("ALTER TABLE settings ADD COLUMN site_config_json TEXT"))
+                logger.warning("schema_repair: added settings.site_config_json")
+
+        if "platformpayment" not in existing_tables:
+            create_db_and_tables()
+            logger.warning("schema_repair: ran create_db_and_tables for missing tables")
+            existing_tables = set(inspect(eng).get_table_names())
+
+        for tbl in [
+            "researchproject", "researchlisting", "researchdemand",
+            "competitoranalysis", "offer", "validationdebate",
+            "debateobjection", "alexagentcontext",
+        ]:
+            if tbl not in existing_tables:
+                create_db_and_tables()
+                logger.warning("schema_repair: ran create_db_and_tables for missing table %s", tbl)
+                break
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run Alembic migrations on startup
     alembic_cfg = None
     try:
         from alembic import command
@@ -20,23 +54,11 @@ async def lifespan(app: FastAPI):
         alembic_cfg = Config("alembic.ini")
         db_url = os.getenv("DATABASE_URL")
         if db_url:
-            # alembic.config.Config usa configparser por debajo, que interpreta
-            # '%' como caracter de interpolacion (ej. '%(algo)s'). Si la password
-            # tiene un caracter especial url-encodeado (ej. '$' -> '%24'), rompe
-            # con "invalid interpolation syntax" y la migracion nunca corre.
-            # Hay que escapar '%' como '%%' antes de setear la opcion.
             alembic_cfg.set_main_option("sqlalchemy.url", db_url.replace("%", "%%"))
         command.upgrade(alembic_cfg, "head")
         logger.info("Alembic migrations completed successfully.")
     except Exception as e:
         logger.error(f"Alembic migration failed: {e}")
-        # El historial de migraciones de este repo no esta pensado para
-        # arrancar de una base vacia (la primera migracion asume que tablas
-        # como 'cashmovement' ya existen de antes de que Alembic empezara a
-        # trackear el esquema). En una base nueva, upgrade('head') falla
-        # siempre. Fallback: crear el esquema actual directo desde los
-        # modelos (idempotente, create_all con checkfirst) y marcar la base
-        # como al dia con Alembic, para no repetir este fallo en cada deploy.
         try:
             create_db_and_tables()
             if alembic_cfg is not None:
@@ -47,6 +69,11 @@ async def lifespan(app: FastAPI):
             )
         except Exception as e2:
             logger.error(f"Fallback create_db_and_tables tambien fallo: {e2}")
+
+    try:
+        _repair_schema(engine)
+    except Exception as e:
+        logger.error(f"Schema repair failed (non-fatal): {e}")
 
     try:
         with Session(engine) as session:
