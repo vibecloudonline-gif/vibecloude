@@ -1,10 +1,10 @@
 {
-    "name": "Berel K System",
-    "short_name": "Berel K",
+    "name": "VibeCloud",
+    "short_name": "VibeCloud",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#0f172a",
+    "background_color": "#F4EDE4",
+    "theme_color": "#080808",
     "icons": [
         {
             "src": "/static/images/icon-192.png",

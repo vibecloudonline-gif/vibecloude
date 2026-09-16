@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}VibeCloud Cloud{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <link rel="stylesheet" href="/static/css/style.css?v=10">
     <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#14324a">
+    <meta name="theme-color" content="#080808">
     <link rel="apple-touch-icon" href="/static/images/icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     {% block head %}{% endblock %}
@@ -22,7 +22,7 @@
                     <div class="logo-box">VC</div>
                     <div class="logo-text">
                         <span>VibeCloud</span>
-                        <small>Cloud Retail</small>
+                        <small>by Alex IO</small>
                     </div>
                 </a>
             </div>
@@ -30,22 +30,22 @@
             {% set tenant_flags = request.session.get('tenant_flags', {'erp': True, 'ecommerce': True, 'landing': True}) %}
             {% set view = request.session.get('nav_view') or ['erp', 'ecommerce', 'landing'] %}
             {% if user %}
-            <div class="nav-switcher" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-                <label style="display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:rgba(255,255,255,0.5); margin-bottom:6px;">Módulos activos</label>
+            <div class="nav-switcher" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <label style="display:block; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--sidebar-text); margin-bottom:6px;">Módulos</label>
                 <div style="display:flex; flex-direction:column; gap:6px;">
                     {% if tenant_flags.erp %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#fff; cursor:pointer;">
-                        <input type="checkbox" class="nav-module-check" value="erp" {% if 'erp' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> ERP completo
+                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
+                        <input type="checkbox" class="nav-module-check" value="erp" {% if 'erp' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> ERP
                     </label>
                     {% endif %}
                     {% if tenant_flags.ecommerce %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#fff; cursor:pointer;">
+                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
                         <input type="checkbox" class="nav-module-check" value="ecommerce" {% if 'ecommerce' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> Ecommerce
                     </label>
                     {% endif %}
                     {% if tenant_flags.landing %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:#fff; cursor:pointer;">
-                        <input type="checkbox" class="nav-module-check" value="landing" {% if 'landing' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> Landing con IA
+                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
+                        <input type="checkbox" class="nav-module-check" value="landing" {% if 'landing' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> Landing IA
                     </label>
                     {% endif %}
                 </div>

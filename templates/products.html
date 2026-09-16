@@ -43,7 +43,7 @@
                 Excel</a>
             <a href="#" onclick="openPrintModal()" class="btn" style="background-color: #6366f1; margin-right: 8px;">🏷️
                 Etiquetas</a>
-            <button onclick="printInventory()" class="btn" style="background-color: #2c3e50; margin-right: 8px;">🖨️
+            <button onclick="printInventory()" class="btn" style="background-color: #080808; margin-right: 8px;">🖨️
                 Imprimir Listado</button>
 
             <button onclick="bulkUpdateModal()" class="btn" style="background-color: #7c3aed; margin-right: 8px;">💲
@@ -469,7 +469,7 @@
                 list.innerHTML = data.map(loc => `
                     <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 6px 10px; border-radius: 8px; border: 1px solid #fef08a;">
                         <div>
-                            <div style="font-weight: 600; color: #111827; font-size: 0.85rem;">${loc.bin_name}</div>
+                            <div style="font-weight: 600; color: #080808; font-size: 0.85rem;">${loc.bin_name}</div>
                             <div style="font-size: 0.7rem; color: #6b7280;">${loc.location_name}</div>
                         </div>
                         <div style="font-weight: 800; color: #a16207;">${loc.quantity}</div>

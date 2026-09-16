@@ -45,7 +45,7 @@
         {% set pct = ((row.quantity / row.max_capacity * 100) | int) if row.max_capacity else none %}
         <tr style="border-bottom:1px solid #f3f4f6; transition:background .1s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
           <td style="padding:10px 14px; color:#6b7280; font-size:12px;">{{ row.location_name }}</td>
-          <td style="padding:10px 14px; font-weight:700; color:#111827;">{{ row.bin_name }}</td>
+          <td style="padding:10px 14px; font-weight:700; color:#080808;">{{ row.bin_name }}</td>
           <td style="padding:10px 14px; color:#374151;">{{ row.product_name }}</td>
           <td style="padding:10px 14px; color:#9ca3af; font-size:12px;">{{ row.item_number or '—' }}</td>
           <td style="padding:10px 14px; text-align:center; font-weight:800; font-size:16px; color:#059669;">{{ row.quantity }}</td>

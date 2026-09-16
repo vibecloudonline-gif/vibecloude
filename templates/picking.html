@@ -40,11 +40,11 @@
             style="margin-bottom: 16px; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px;">
             <span style="font-weight: bold; color: #666;">Cantidad:</span>
             <button onclick="adjustQty(-1)" class="btn"
-                style="width: 40px; height: 40px; padding: 0; background: #e2e8f0; color: black;">-</button>
+                style="width: 40px; height: 40px; padding: 0; background: #e8e0d6; color: black;">-</button>
             <input type="number" id="picking-qty" value="1" min="1"
                 style="width: 60px; text-align: center; font-size: 1.2rem; padding: 8px; border: 1px solid #ccc; border-radius: 8px;">
             <button onclick="document.getElementById('picking-qty').stepUp()" class="btn"
-                style="width: 40px; height: 40px; padding: 0; background: #e2e8f0; color: black;">+</button>
+                style="width: 40px; height: 40px; padding: 0; background: #e8e0d6; color: black;">+</button>
 
             <!-- Manual Enter Button -->
             <button onclick="manualEnter()" class="btn"
@@ -55,7 +55,7 @@
 
         <!-- Last Action Log / Cart -->
         <div id="action-log" class="glass-card" style="min-height: 100px;">
-            <p style="color: #64748b; text-align: center; margin-top: 32px;">Escanea un código de barras...</p>
+            <p style="color: #6F6A65; text-align: center; margin-top: 32px;">Escanea un código de barras...</p>
         </div>
 
         <!-- Checkout Button (Only for Exit) -->
@@ -111,12 +111,12 @@
         if (mode === 'entry') {
             title.innerText = "ENTRADA DE PRODUCTOS";
             title.style.color = "#10b981";
-            log.innerHTML = '<p style="color: #64748b; text-align: center; margin-top: 32px;">Escanea para sumar stock (+1)...</p>';
+            log.innerHTML = '<p style="color: #6F6A65; text-align: center; margin-top: 32px;">Escanea para sumar stock (+1)...</p>';
             document.getElementById('checkout-container').style.display = 'none';
         } else {
             title.innerText = "SALIDA (FACTURACIÓN)";
             title.style.color = "#ef4444";
-            log.innerHTML = '<p style="color: #64748b; text-align: center; margin-top: 32px;">Escanea para agregar al pedido...</p>';
+            log.innerHTML = '<p style="color: #6F6A65; text-align: center; margin-top: 32px;">Escanea para agregar al pedido...</p>';
             // Show checkout button only if we have items? Or always? Let's hide until scan
             document.getElementById('checkout-container').style.display = 'block';
             scannedItems = [];
@@ -390,7 +390,7 @@
                 alert("Factura Generada #" + data.sale_id);
                 // Reset
                 scannedItems = [];
-                document.getElementById('action-log').innerHTML = '<p style="color: #64748b; text-align: center; margin-top: 32px;">Pedido finalizado. Escanea para nuevo...</p>';
+                document.getElementById('action-log').innerHTML = '<p style="color: #6F6A65; text-align: center; margin-top: 32px;">Pedido finalizado. Escanea para nuevo...</p>';
                 // Trigger Print (New Tab / Window)
                 if (data.print_url) {
                     window.open(data.print_url, '_blank');

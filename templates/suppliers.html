@@ -7,7 +7,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
         <h2>Gestion de Proveedores</h2>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button onclick="window.print()" class="btn" style="background-color: #2c3e50;">Imprimir Listado</button>
+            <button onclick="window.print()" class="btn" style="background-color: #080808;">Imprimir Listado</button>
             {% if user.role == "admin" %}
             <button onclick="openPurchaseModal()" class="btn" style="background-color: #0f766e;">+ Nueva Compra</button>
             <button onclick="openSupplierModal()" class="btn">+ Nuevo Proveedor</button>

@@ -33,7 +33,7 @@
       <tbody>
         {% for item in bins_data %}
         <tr style="border-bottom:1px solid #f3f4f6; {% if not item.bin.is_active %}opacity:.5;{% endif %}">
-          <td style="padding:12px 16px; font-weight:800; color:#111827;">
+          <td style="padding:12px 16px; font-weight:800; color:#080808;">
             {{ item.bin.name }}
             {% if not item.bin.is_active %}<span style="font-size:11px; color:#ef4444; font-weight:600;"> (inactivo)</span>{% endif %}
           </td>
