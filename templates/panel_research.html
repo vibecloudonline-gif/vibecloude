@@ -73,13 +73,18 @@
         <h1>{{ project.query_description[:60] }}{% if project.query_description|length > 60 %}...{% endif %}</h1>
         <p><span class="pill pill-{{ project.status }}">{{ project.status }}</span></p>
     </div>
-    <a href="/panel/research" class="btn btn-outline">Volver</a>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        {% if project.status == 'completed' %}
+        <button type="button" class="btn btn-outline btn-re-search-trigger" data-project="{{ project.id }}">&#128260; Re-analizar con IA</button>
+        {% endif %}
+        <a href="/panel/research" class="btn btn-outline">Volver</a>
+    </div>
 </div>
 
 {% if project.status == 'draft' or project.status == 'error' %}
 <div class="section-card">
     <h2><span class="sec-icon">&#128269;</span> Iniciar investigacion</h2>
-    <p style="font-size: 0.9rem; margin-bottom: 14px;">Analiza el mercado para este producto o servicio.</p>
+    <p style="font-size: 0.9rem; margin-bottom: 14px;">Analiza el mercado para este producto o servicio con IA en tiempo real.</p>
     <button type="button" class="btn btn-primary" id="btn-search" data-project="{{ project.id }}">Iniciar busqueda</button>
     <span id="search-status" style="margin-left: 12px; font-size: 0.85rem;"></span>
 </div>
@@ -88,7 +93,12 @@
 {% if project.listings %}
 {% set any_demo = project.listings|selectattr('is_demo')|list|length > 0 %}
 {% if any_demo %}
-<div class="demo-notice">&#9888; Modo de demostración activo. Configure GEMINI_API_KEY o KEEPA_API_KEY para inteligencia de mercado en tiempo real.</div>
+<div class="demo-notice" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(59, 130, 246, 0.08); border-left-color: var(--accent-color); color: var(--text-color);">
+    <div>
+        <strong>&#128269; Datos de referencia:</strong> Este proyecto se generó con datos iniciales de referencia. Haz clic en "Actualizar con IA" para consultar benchmarks de mercado en tiempo real.
+    </div>
+    <button type="button" class="btn btn-primary btn-re-search-trigger" data-project="{{ project.id }}" style="font-size: 0.8rem; padding: 6px 14px;">Actualizar con IA</button>
+</div>
 {% endif %}
 
 {% if price_range %}
@@ -147,7 +157,7 @@
         {% endif %}
     </div>
     {% if project.demand.notes %}
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">{{ project.demand.notes }}</p>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">{{ project.demand.notes|replace('Para datos reales, configure KEEPA_API_KEY.', '')|replace('Para datos reales de mercado, configure KEEPA_API_KEY.', '')|replace('Datos generados por el proveedor demo.', 'Datos de referencia generados por el sistema.') }}</p>
     {% endif %}
 </div>
 {% endif %}
@@ -326,24 +336,51 @@
         });
     }
 
+    async function triggerSearch(projectId, triggerBtn) {
+        if (!projectId) return;
+        const origText = triggerBtn ? triggerBtn.textContent : '';
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            triggerBtn.textContent = 'Analizando con IA...';
+        }
+        const statusEl = document.getElementById('search-status');
+        if (statusEl) statusEl.textContent = 'Consultando inteligencia de mercado...';
+
+        try {
+            const res = await fetch('/panel/research/' + projectId + '/buscar', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Error en la búsqueda');
+                if (statusEl) statusEl.textContent = data.detail || 'Error';
+                if (triggerBtn) {
+                    triggerBtn.disabled = false;
+                    triggerBtn.textContent = origText;
+                }
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            alert('Error de conexión al ejecutar el análisis.');
+            if (statusEl) statusEl.textContent = 'Error de conexión';
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.textContent = origText;
+            }
+        }
+    }
+
     const btnSearch = document.getElementById('btn-search');
     if (btnSearch) {
-        btnSearch.addEventListener('click', async () => {
-            const projectId = btnSearch.dataset.project;
-            const statusEl = document.getElementById('search-status');
-            btnSearch.disabled = true;
-            statusEl.textContent = 'Buscando...';
-            try {
-                const res = await fetch('/panel/research/' + projectId + '/buscar', { method: 'POST' });
-                const data = await res.json();
-                if (!res.ok) { statusEl.textContent = data.detail || 'Error'; btnSearch.disabled = false; return; }
-                window.location.reload();
-            } catch (err) {
-                statusEl.textContent = 'Error de conexion';
-                btnSearch.disabled = false;
-            }
+        btnSearch.addEventListener('click', () => {
+            triggerSearch(btnSearch.dataset.project, btnSearch);
         });
     }
+
+    document.querySelectorAll('.btn-re-search-trigger').forEach(btn => {
+        btn.addEventListener('click', () => {
+            triggerSearch(btn.dataset.project, btn);
+        });
+    });
 
     // --- MANEJO DE COMPETENCIA DECLARADA (Etapa 5 PRD) ---
     const competitorForm = document.getElementById('competitor-form');

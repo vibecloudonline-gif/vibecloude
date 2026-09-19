@@ -102,6 +102,28 @@ def test_create_project_empty_description_rejected(client, session):
     assert resp.status_code == 400
 
 
+def test_re_run_search_on_completed_project(client, session):
+    tenant, user = _make_tenant_with_admin(session)
+    client.post("/login", data={"username": "admin", "password": "TestPass123!"}, follow_redirects=False)
+    create_resp = client.post("/panel/research/nuevo", data={
+        "project_type": "physical_product",
+        "query_description": "auriculares deportivos",
+        "reference_url": "",
+        "factory_price": "12.50",
+    })
+    pid = create_resp.json()["project_id"]
+
+    # First search
+    resp1 = client.post(f"/panel/research/{pid}/buscar")
+    assert resp1.status_code == 200
+    assert resp1.json()["status"] == "success"
+
+    # Second search (re-analysis) should succeed and not raise 400
+    resp2 = client.post(f"/panel/research/{pid}/buscar")
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "success"
+
+
 def test_mock_provider_deterministic():
     provider = MockProvider()
     result1 = asyncio.run(provider.search_products("test query"))

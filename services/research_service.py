@@ -74,6 +74,19 @@ async def run_product_search(session: Session, project: ResearchProject) -> list
         session.commit()
         raise RuntimeError(f"Error en búsqueda: {exc}") from exc
 
+    # Limpiar resultados y demanda previos en caso de re-análisis
+    existing_listings = session.exec(
+        select(ResearchListing).where(ResearchListing.project_id == project.id)
+    ).all()
+    for el in existing_listings:
+        session.delete(el)
+    existing_demand = session.exec(
+        select(ResearchDemand).where(ResearchDemand.project_id == project.id)
+    ).first()
+    if existing_demand:
+        session.delete(existing_demand)
+    session.flush()
+
     db_listings: list[ResearchListing] = []
     for rl in raw_listings:
         listing = ResearchListing(

@@ -121,8 +121,8 @@ async def research_run_search(
     if not project:
         raise HTTPException(404, "Proyecto no encontrado")
 
-    if project.status not in ("draft", "error"):
-        raise HTTPException(400, "Este proyecto ya fue investigado")
+    if project.status == "researching":
+        raise HTTPException(400, "Ya hay una búsqueda en progreso para este proyecto")
 
     try:
         listings = await run_product_search(session, project)
