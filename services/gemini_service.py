@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 import httpx
 import json
 import logging
@@ -5,13 +7,77 @@ import logging
 logger = logging.getLogger(__name__)
 
 class GeminiService:
+    @classmethod
+    def get_default_seasonal_theme(cls, date_str: str | None = None) -> dict:
+        """
+        Returns a rich default aesthetic theme adapted to season or month.
+        Used as fallback when external Gemini API is unreachable or returns 404/errors.
+        """
+        month = datetime.now().month
+        if month in [12, 1, 2]:
+            return {
+                "theme": {
+                    "primary_color": "#6366f1",
+                    "secondary_color": "#a855f7",
+                    "mode": "dark",
+                    "background_gradient": "linear-gradient(135deg, #0f172a, #1e1b4b)",
+                    "border_radius": "0.75rem",
+                    "font_family": "Inter"
+                }
+            }
+        elif month in [3, 4, 5]:
+            return {
+                "theme": {
+                    "primary_color": "#f97316",
+                    "secondary_color": "#eab308",
+                    "mode": "dark",
+                    "background_gradient": "linear-gradient(135deg, #1c1917, #292524)",
+                    "border_radius": "0.75rem",
+                    "font_family": "Outfit"
+                }
+            }
+        elif month in [6, 7, 8]:
+            return {
+                "theme": {
+                    "primary_color": "#0ea5e9",
+                    "secondary_color": "#06b6d4",
+                    "mode": "dark",
+                    "background_gradient": "linear-gradient(135deg, #0b1329, #172554)",
+                    "border_radius": "0.75rem",
+                    "font_family": "Inter"
+                }
+            }
+        else:
+            return {
+                "theme": {
+                    "primary_color": "#10b981",
+                    "secondary_color": "#14b8a6",
+                    "mode": "dark",
+                    "background_gradient": "linear-gradient(135deg, #064e3b, #022c22)",
+                    "border_radius": "0.75rem",
+                    "font_family": "Inter"
+                }
+            }
+
     @staticmethod
-    async def _call_gemini_api(prompt: str, system_instruction: str, api_key: str) -> str:
+    async def _call_gemini_api(
+        prompt: str,
+        system_instruction: str,
+        api_key: str,
+        model: str | None = None,
+        force_json: bool = True
+    ) -> str:
         """
-        Calls Google Gemini 2.0 Flash API via native HTTP request using httpx.
-        Forces JSON response format.
+        Calls Google Gemini API via native HTTP request using httpx.
+        Tries preferred model first, with fallback to standard candidate models if 404 occurs.
         """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        preferred = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        candidates = [preferred, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        models_to_try = []
+        for m in candidates:
+            if m and m not in models_to_try:
+                models_to_try.append(m)
+
         payload = {
             "contents": [
                 {
@@ -20,34 +86,44 @@ class GeminiService:
             ],
             "systemInstruction": {
                 "parts": [{"text": system_instruction}]
-            },
-            "generationConfig": {
-                "responseMimeType": "application/json"
             }
         }
+        if force_json:
+            payload["generationConfig"] = {
+                "responseMimeType": "application/json"
+            }
 
+        last_error = None
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, json=payload, timeout=30.0)
-                if response.status_code != 200:
-                    logger.error(f"Gemini API Error: Status {response.status_code}, Body: {response.text}")
-                    raise ValueError(f"Error de Gemini API: {response.status_code}")
-                
-                res_data = response.json()
-                # Parse content from response structure
-                candidates = res_data.get("candidates", [])
-                if not candidates:
-                    raise ValueError("No candidates returned from Gemini API")
-                
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if not parts:
-                    raise ValueError("No content parts returned from Gemini API")
-                
-                text_content = parts[0].get("text", "")
-                return text_content
-            except httpx.RequestError as e:
-                logger.error(f"HTTP Request to Gemini failed: {e}")
-                raise ValueError(f"Error de conexión con la API de Gemini: {e}")
+            for current_model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={api_key}"
+                try:
+                    response = await client.post(url, json=payload, timeout=30.0)
+                    if response.status_code == 404:
+                        logger.warning(f"Gemini model '{current_model}' returned 404. Attempting candidate fallback...")
+                        last_error = ValueError(f"Error de Gemini API: 404 (Model {current_model} not found)")
+                        continue
+                    if response.status_code != 200:
+                        logger.error(f"Gemini API Error ({current_model}): Status {response.status_code}, Body: {response.text[:200]}")
+                        raise ValueError(f"Error de Gemini API: {response.status_code}")
+
+                    res_data = response.json()
+                    candidates_res = res_data.get("candidates", [])
+                    if not candidates_res:
+                        raise ValueError("No candidates returned from Gemini API")
+
+                    parts = candidates_res[0].get("content", {}).get("parts", [])
+                    if not parts:
+                        raise ValueError("No content parts returned from Gemini API")
+
+                    return parts[0].get("text", "")
+                except httpx.RequestError as e:
+                    logger.error(f"HTTP Request to Gemini failed ({current_model}): {e}")
+                    raise ValueError(f"Error de conexión con la API de Gemini: {e}")
+
+        if last_error:
+            raise last_error
+        raise ValueError("Error de Gemini API: No candidate model succeeded.")
 
     @classmethod
     async def generate_ui_design(cls, prompt: str, current_layout: dict, current_theme: dict, api_key: str) -> dict:
@@ -208,6 +284,7 @@ class GeminiService:
     async def generate_daily_theme(cls, date_str: str, api_key: str) -> dict:
         """
         Generates a theme configuration adapted to the date (seasons, events, holidays).
+        If external API is unavailable or returns 404, gracefully returns default seasonal theme.
         """
         system_instruction = """
         Eres un diseñador de interfaces creativo y experto en branding y psicología del color.
@@ -235,12 +312,15 @@ class GeminiService:
         Retorna solo el JSON estructurado.
         """
 
-        result_text = await cls._call_gemini_api(prompt, system_instruction, api_key)
         try:
-            return json.loads(result_text)
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse Gemini daily theme output as JSON: {result_text}")
-            raise ValueError("La respuesta de Gemini para el tema diario no es un JSON válido.")
+            result_text = await cls._call_gemini_api(prompt, system_instruction, api_key)
+            parsed = json.loads(result_text)
+            if "theme" in parsed:
+                return parsed
+        except Exception as e:
+            logger.warning(f"Gemini daily theme generation unavailable ({e}). Applying default seasonal theme fallback.")
+
+        return cls.get_default_seasonal_theme(date_str)
 
     @classmethod
     async def generate_product_description(cls, product_name: str, features: str, api_key: str) -> str:
@@ -256,22 +336,13 @@ class GeminiService:
         Devuelve la descripción en formato HTML limpio (solo etiquetas <p>, <ul>, <li>, <strong>) para insertarlo directo en la web.
         NO devuelvas bloques de código (```html), devuelve directamente el string HTML.
         """
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "systemInstruction": {"parts": [{"text": system_instruction}]}
-        }
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, json=payload, timeout=30.0)
-                res_data = response.json()
-                text_content = res_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                return text_content.replace('```html', '').replace('```', '').strip()
-            except Exception as e:
-                logger.error(f"Error calling Gemini for product description: {e}")
-                raise ValueError(f"Error de conexión con la API de Gemini: {e}")
+
+        try:
+            text_content = await cls._call_gemini_api(prompt, system_instruction, api_key, force_json=False)
+            return text_content.replace('```html', '').replace('```', '').strip()
+        except Exception as e:
+            logger.error(f"Error calling Gemini for product description: {e}")
+            raise ValueError(f"Error de conexión con la API de Gemini: {e}")
 
     @classmethod
     async def generate_landing_copy(cls, niche: str, audience: str, tone: str, api_key: str) -> dict:
@@ -305,21 +376,40 @@ class GeminiService:
         """
         Handles chatbot multi-turn conversation.
         """
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        
+        preferred = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        candidates = [preferred, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        models_to_try = []
+        for m in candidates:
+            if m and m not in models_to_try:
+                models_to_try.append(m)
+
         contents = history + [{"role": "user", "parts": [{"text": new_message}]}]
-        
         payload = {
             "contents": contents,
             "systemInstruction": {"parts": [{"text": system_instruction}]}
         }
-        
+
+        last_error = None
         async with httpx.AsyncClient() as client:
-            try:
-                response = await client.post(url, json=payload, timeout=30.0)
-                res_data = response.json()
-                text_content = res_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                return text_content
-            except Exception as e:
-                logger.error(f"Error calling Gemini for chatbot: {e}")
-                raise ValueError(f"Error de conexión con la API de Gemini chatbot: {e}")
+            for current_model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={api_key}"
+                try:
+                    response = await client.post(url, json=payload, timeout=30.0)
+                    if response.status_code == 404:
+                        logger.warning(f"Gemini model '{current_model}' returned 404 in chatbot. Retrying next model...")
+                        last_error = ValueError(f"Error de Gemini API: 404 (Model {current_model} not found)")
+                        continue
+                    if response.status_code != 200:
+                        raise ValueError(f"Error de Gemini API: {response.status_code}")
+                    res_data = response.json()
+                    candidates_res = res_data.get("candidates", [])
+                    if candidates_res:
+                        return candidates_res[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                    raise ValueError("No candidates returned from Gemini chatbot API")
+                except httpx.RequestError as e:
+                    logger.error(f"Error calling Gemini for chatbot ({current_model}): {e}")
+                    last_error = ValueError(f"Error de conexión con la API de Gemini chatbot: {e}")
+
+        if last_error:
+            raise last_error
+        raise ValueError("Error de conexión con la API de Gemini chatbot.")

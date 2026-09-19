@@ -239,3 +239,47 @@ async def test_scheduler_daily_theme_task(session, monkeypatch):
     config = session.exec(select(UIConfig).where(UIConfig.tenant_id == tenant.id, UIConfig.page_name == "pos")).first()
     assert config is not None
     assert "#FFA500" in config.theme_json
+
+
+@pytest.mark.anyio
+async def test_scheduler_daily_theme_fallback_on_404(session, monkeypatch):
+    """
+    Verifies that when Gemini API returns 404 (or is down), the scheduler does NOT crash,
+    does not emit unhandled exceptions, and gracefully applies the default seasonal theme.
+    """
+    tenant = Tenant(name="Fallback Tenant", subdomain="fallback-sub")
+    session.add(tenant)
+    session.commit()
+
+    cred = AICredential(
+        tenant_id=tenant.id,
+        provider="gemini",
+        api_key_enc=encrypt_api_key("fake-gemini-key")
+    )
+    session.add(cred)
+    session.commit()
+
+    # Mock Gemini HTTP Call returning 404 Not Found
+    async def mock_post_404(*args, **kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.text = '{"error": {"code": 404, "message": "models/... is not found", "status": "NOT_FOUND"}}'
+        mock_resp.json = lambda: {"error": {"code": 404}}
+        return mock_resp
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post_404)
+
+    from web import scheduler
+    monkeypatch.setattr(scheduler, "engine", session.bind)
+
+    # Execute scheduler task - should not raise
+    await run_daily_theme_generation()
+
+    # Verify db record was created with a seasonal fallback theme
+    config = session.exec(select(UIConfig).where(UIConfig.tenant_id == tenant.id, UIConfig.page_name == "pos")).first()
+    assert config is not None
+    theme_dict = json.loads(config.theme_json)
+    assert "primary_color" in theme_dict
+    assert "mode" in theme_dict
+    assert "font_family" in theme_dict
+

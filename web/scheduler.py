@@ -26,6 +26,9 @@ async def run_daily_theme_generation():
             logger.error(f"Scheduler: Failed to query tenants: {e}")
             return
             
+        global_fallback_theme = None
+        global_gemini_failed = False
+
         for tenant in tenants:
             logger.info(f"Scheduler: Processing tenant '{tenant.name}' (ID: {tenant.id})")
             
@@ -38,33 +41,41 @@ async def run_daily_theme_generation():
                 )
             ).first()
             
+            is_tenant_custom_key = False
             if cred:
                 try:
                     api_key = decrypt_api_key(cred.api_key_enc)
+                    is_tenant_custom_key = True
                 except Exception as e:
-                    logger.error(f"Scheduler: Failed to decrypt API key for tenant {tenant.id}: {e}")
+                    logger.warning(f"Scheduler: Failed to decrypt API key for tenant {tenant.id}: {e}")
             
             if not api_key:
                 api_key = os.getenv("GEMINI_API_KEY")
                 
             if not api_key:
-                logger.warning(f"Scheduler: Skipping tenant {tenant.id} - No Gemini API Key found.")
-                continue
-                
-            # 2. Call Gemini to generate theme
-            try:
-                result = await GeminiService.generate_daily_theme(
-                    date_str=today_str,
-                    api_key=api_key
-                )
-                theme_data = result.get("theme")
-                if not theme_data:
-                    logger.warning(f"Scheduler: No 'theme' field in Gemini response for tenant {tenant.id}")
-                    continue
-            except Exception as e:
-                logger.error(f"Scheduler: Gemini API failed for tenant {tenant.id}: {e}")
-                continue
-                
+                logger.info(f"Scheduler: Tenant {tenant.id} has no Gemini API key. Applying default seasonal theme.")
+                theme_data = GeminiService.get_default_seasonal_theme(today_str).get("theme")
+            elif not is_tenant_custom_key and global_gemini_failed:
+                theme_data = global_fallback_theme or GeminiService.get_default_seasonal_theme(today_str).get("theme")
+            else:
+                # 2. Call Gemini to generate theme (with fallback internally)
+                try:
+                    result = await GeminiService.generate_daily_theme(
+                        date_str=today_str,
+                        api_key=api_key
+                    )
+                    theme_data = result.get("theme")
+                except Exception as e:
+                    logger.warning(f"Scheduler: Gemini theme generation issue for tenant {tenant.id}: {e}. Applying default seasonal theme.")
+                    if not is_tenant_custom_key:
+                        global_gemini_failed = True
+                    theme_data = GeminiService.get_default_seasonal_theme(today_str).get("theme")
+                    if not global_fallback_theme:
+                        global_fallback_theme = theme_data
+
+            if not theme_data:
+                theme_data = GeminiService.get_default_seasonal_theme(today_str).get("theme")
+
             # 3. Update or create UIConfig for "pos" page
             try:
                 import json
@@ -96,7 +107,7 @@ async def run_daily_theme_generation():
                     
                 session.add(config)
                 session.commit()
-                logger.info(f"Scheduler: Updated theme for tenant {tenant.id} with theme: {theme_data}")
+                logger.info(f"Scheduler: Configured theme for tenant {tenant.id}")
             except Exception as e:
                 session.rollback()
                 logger.error(f"Scheduler: Database save failed for tenant {tenant.id}: {e}")

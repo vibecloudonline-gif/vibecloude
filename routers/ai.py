@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai", tags=["AI Services"])
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 class CopyRequest(BaseModel):
     product_name: str
@@ -50,7 +51,7 @@ async def generate_copy(req: CopyRequest, db: Session = Depends(get_session), cu
         tenant_id=current_user.tenant_id,
         messages=[AIMessage(role="user", content=prompt)],
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
@@ -86,7 +87,7 @@ async def generate_theme(req: ThemeRequest, db: Session = Depends(get_session), 
         tenant_id=current_user.tenant_id,
         messages=[AIMessage(role="user", content=prompt)],
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
         structured_output=True,
     )
 
@@ -205,7 +206,7 @@ async def generate_product_description(
         messages=[AIMessage(role="user", content=prompt)],
         system_prompt=system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
@@ -255,7 +256,7 @@ async def generate_landing_copy(
         messages=[AIMessage(role="user", content=prompt)],
         system_prompt=system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
         structured_output=True,
     )
 
@@ -300,7 +301,7 @@ async def chat_bot_response(
         messages=messages,
         system_prompt=req.system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
