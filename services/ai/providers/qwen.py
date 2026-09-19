@@ -22,16 +22,19 @@ class QwenAdapter(AIProviderAdapter):
 
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.getenv("QWEN_API_KEY", "")
+        self._credit_exhausted_until = 0.0
 
     def validate_config(self) -> bool:
+        if time.monotonic() < self._credit_exhausted_until:
+            return False
         return bool(self._api_key)
 
     async def generate(self, request: AIRequest) -> AIResponse:
-        if not self._api_key:
+        if not self._api_key or time.monotonic() < self._credit_exhausted_until:
             raise AIError(
                 AIErrorCode.authentication_error,
                 self.provider_name,
-                "QWEN_API_KEY no configurada",
+                "QWEN_API_KEY no configurada o sin crédito disponible",
             )
 
         model = request.model or DEFAULT_MODEL
@@ -64,10 +67,21 @@ class QwenAdapter(AIProviderAdapter):
         if resp.status_code == 429:
             raise AIError(AIErrorCode.rate_limit, self.provider_name, "Qwen rate limit", retryable=True, status_code=429)
         if resp.status_code != 200:
+            resp_text = resp.text.lower()
+            code = AIErrorCode.provider_error
+            retryable = resp.status_code >= 500
+            if resp.status_code in (400, 402, 403) and any(
+                term in resp_text for term in ["credit", "balance", "quota", "arrears", "insufficient"]
+            ):
+                code = AIErrorCode.authentication_error
+                retryable = False
+                self._credit_exhausted_until = time.monotonic() + 300.0
+                logger.warning("Qwen reportó saldo o crédito insuficiente en cuenta Alibaba. Pausando Qwen 5m para fallback inmediato.")
+
             raise AIError(
-                AIErrorCode.provider_error, self.provider_name,
+                code, self.provider_name,
                 f"Qwen API error {resp.status_code}: {resp.text[:300]}",
-                retryable=resp.status_code >= 500, status_code=resp.status_code,
+                retryable=retryable, status_code=resp.status_code,
             )
 
         data = resp.json()
