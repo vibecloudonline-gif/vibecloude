@@ -277,7 +277,7 @@ def signup_submit(
         )
 
     request.session["user_id"] = admin_user.id
-    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
+    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing, "alexio": tenant.has_alexio}
     request.session["tenant_flags"] = tenant_flags
     # nav_view NO se setea acá a propósito -- "/" muestra el hub de entrada
     # hasta que el tenant elige un módulo (ver main.py::get_dashboard). Se
@@ -314,6 +314,7 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
         "erp": tenant.has_erp if tenant else True,
         "ecommerce": tenant.has_ecommerce if tenant else True,
         "landing": tenant.has_landing if tenant else True,
+        "alexio": tenant.has_alexio if tenant else False,
     }
     request.session["tenant_flags"] = tenant_flags
     request.session.pop("nav_view", None)

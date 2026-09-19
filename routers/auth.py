@@ -62,6 +62,7 @@ def login(
         "erp": tenant.has_erp if tenant else True,
         "ecommerce": tenant.has_ecommerce if tenant else True,
         "landing": tenant.has_landing if tenant else True,
+        "alexio": tenant.has_alexio if tenant else False,
     }
     request.session["tenant_flags"] = tenant_flags
     # nav_view NO se setea acá a propósito -- sin elegir un módulo todavía,

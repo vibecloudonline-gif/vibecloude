@@ -46,7 +46,7 @@ def _templates():
     return CompatTemplates(directory="templates")
 
 
-_NAV_MODULES = ("erp", "ecommerce", "landing")
+_NAV_MODULES = ("erp", "ecommerce", "landing", "alexio")
 
 
 @router.post("/panel/nav-view")

@@ -35,4 +35,5 @@ full_system_export.txt
 crash.log
 e2e_production_readiness.py
 backup_pre_migracion.py
+*.bundle
 
