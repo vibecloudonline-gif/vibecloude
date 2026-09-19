@@ -1,26 +1,205 @@
 {% extends "base.html" %}
-{% block title %}Debate - Alex IO{% endblock %}
+{% block title %}Panel de Validación de Agentes - Alex IO Studio{% endblock %}
+{% block header_title %}Validación Adversarial de Agentes{% endblock %}
+{% block breadcrumb %}
+    <a href="/panel/research">Alex IO Studio</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Debate de Agentes</span>
+{% endblock %}
 {% block extra_css %}
 <style>
     .page-intro h1 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; }
     .page-intro p { color: var(--text-muted); font-size: 0.88rem; margin: 0; }
-    .top-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+    .top-bar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
 
-    .verdict-banner { padding: 22px 28px; border-radius: var(--radius-lg); margin-bottom: 24px; position: relative; overflow: hidden; }
-    .verdict-banner::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
-    .verdict-banner.approved { background: var(--success-bg); border: 1px solid var(--success-border); }
-    .verdict-banner.approved::before { background: var(--success-color); }
-    .verdict-banner.needs_revision { background: var(--warning-bg); border: 1px solid var(--warning-border); }
-    .verdict-banner.needs_revision::before { background: var(--warning-color); }
-    .verdict-banner h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-    .verdict-banner h2 .v-icon { font-size: 1.3rem; }
-    .verdict-banner p { font-size: 0.9rem; line-height: 1.6; margin: 0; color: var(--text-secondary); }
+    /* ==========================================================================
+       EXCEPCIÓN AUTORIZADA DE SISTEMA DE DISEÑO (Bloque 4):
+       Efectos glassmorphism, gradientes y transiciones acotados EXCLUSIVAMENTE
+       a esta pantalla de debate de agentes.
+       ========================================================================== */
+    .debate-stage {
+        position: relative;
+        border-radius: var(--radius-lg);
+        margin-bottom: 24px;
+    }
 
-    .objections-header { font-size: 1rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-    .objections-header .count { font-size: 0.78rem; font-weight: 600; background: var(--surface-alt); border: 1px solid var(--border-color); padding: 2px 10px; border-radius: var(--radius-full); }
+    /* 4.1 Roster de personas siempre visible */
+    .roster-section {
+        margin-bottom: 28px;
+    }
+    .roster-header {
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .roster-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 14px;
+    }
+    .roster-card {
+        padding: 16px 18px;
+        border-radius: var(--radius-lg);
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
+        transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .roster-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 26px rgba(0, 0, 0, 0.12);
+    }
+    .roster-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+    .roster-card.persona-devil_advocate::before { background: var(--danger-color); }
+    .roster-card.persona-price_skeptic::before { background: var(--warning-color); }
+    .roster-card.persona-market_analyst::before { background: var(--info-color); }
+    .roster-card.persona-customer_sim::before { background: var(--success-color); }
 
-    .obj-card { padding: 20px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 12px; box-shadow: var(--shadow-sm); transition: border-color 0.2s; }
-    .obj-card:hover { border-color: var(--border-strong); }
+    .roster-card-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    .roster-icon-wrap {
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .roster-card.persona-devil_advocate .roster-icon-wrap {
+        background: rgba(239, 68, 68, 0.12);
+        color: var(--danger-color);
+        filter: drop-shadow(0 2px 6px rgba(239, 68, 68, 0.25));
+    }
+    .roster-card.persona-price_skeptic .roster-icon-wrap {
+        background: rgba(245, 158, 11, 0.12);
+        color: var(--warning-color);
+        filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.25));
+    }
+    .roster-card.persona-market_analyst .roster-icon-wrap {
+        background: rgba(59, 130, 246, 0.12);
+        color: var(--info-color);
+        filter: drop-shadow(0 2px 6px rgba(59, 130, 246, 0.25));
+    }
+    .roster-card.persona-customer_sim .roster-icon-wrap {
+        background: rgba(16, 185, 129, 0.12);
+        color: var(--success-color);
+        filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.25));
+    }
+
+    .roster-name {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: var(--text-main);
+        line-height: 1.2;
+    }
+    .roster-role {
+        font-size: 0.76rem;
+        line-height: 1.4;
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+    }
+    .roster-status {
+        font-size: 0.72rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: var(--radius-full);
+        align-self: flex-start;
+    }
+    .roster-status.waiting {
+        background: rgba(245, 158, 11, 0.15);
+        color: var(--warning-color);
+    }
+    .roster-status.done {
+        background: rgba(16, 185, 129, 0.15);
+        color: var(--success-color);
+    }
+
+    /* Puntos animados de espera */
+    .dots-pulse {
+        display: inline-flex;
+        gap: 2px;
+    }
+    .dots-pulse span {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: dotPulse 1.2s infinite ease-in-out both;
+    }
+    .dots-pulse span:nth-child(1) { animation-delay: -0.32s; }
+    .dots-pulse span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes dotPulse {
+        0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* 4.2 Reveal secuencial de objeciones */
+    .objections-header {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .objections-header .count {
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: var(--surface-alt);
+        border: 1px solid var(--border-color);
+        padding: 2px 10px;
+        border-radius: var(--radius-full);
+    }
+
+    .obj-card {
+        padding: 20px 24px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        margin-bottom: 14px;
+        box-shadow: var(--shadow-sm);
+        border-left: 4px solid var(--border-color);
+        opacity: 0;
+        transform: translateY(12px);
+        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+    }
+    .obj-card.revealed {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .obj-card.persona-devil_advocate { border-left-color: var(--danger-color); }
+    .obj-card.persona-price_skeptic { border-left-color: var(--warning-color); }
+    .obj-card.persona-market_analyst { border-left-color: var(--info-color); }
+    .obj-card.persona-customer_sim { border-left-color: var(--success-color); }
+
     .obj-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .obj-source { font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 6px; }
     .obj-source .persona-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
@@ -34,9 +213,22 @@
     .sev-medium { background: var(--warning-bg); color: var(--warning-color); border: 1px solid var(--warning-border); }
     .sev-low { background: var(--info-bg); color: var(--info-color); border: 1px solid var(--info-border); }
 
-    .obj-text { font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px; color: var(--text-main); }
+    .obj-text { font-size: 0.92rem; line-height: 1.6; margin-bottom: 14px; color: var(--text-main); }
 
-    .resolution-box { padding: 12px 16px; border-radius: var(--radius-md); font-size: 0.88rem; line-height: 1.6; }
+    /* 4.4 Resolución del árbitro diferida (no oculta) */
+    .resolution-box {
+        padding: 14px 18px;
+        border-radius: var(--radius-md);
+        font-size: 0.88rem;
+        line-height: 1.6;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.35s ease 0.35s, transform 0.35s ease 0.35s;
+    }
+    .obj-card.revealed .resolution-box {
+        opacity: 1;
+        transform: translateY(0);
+    }
     .resolution-box.resolved { background: var(--success-bg); border-left: 3px solid var(--success-color); }
     .resolution-box.dismissed { background: var(--info-bg); border-left: 3px solid var(--info-color); }
     .resolution-box.pending { background: var(--warning-bg); border-left: 3px solid var(--warning-color); }
@@ -45,7 +237,76 @@
     .resolution-box.dismissed .res-label { color: var(--info-color); }
     .resolution-box.pending .res-label { color: var(--warning-color); }
 
-    .actions-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 24px 0 8px; }
+    /* 4.3 Veredicto al final de la secuencia */
+    .verdict-banner {
+        padding: 26px 32px;
+        border-radius: var(--radius-lg);
+        margin-top: 28px;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        opacity: 0;
+        transform: scale(0.92);
+        transition: opacity 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .verdict-banner.revealed {
+        opacity: 1;
+        transform: scale(1);
+    }
+    .verdict-banner::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+    }
+    .verdict-banner.approved {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(5, 150, 105, 0.08) 100%), var(--surface-color);
+        border-color: rgba(16, 185, 129, 0.35);
+    }
+    .verdict-banner.approved::before { background: var(--success-color); }
+
+    .verdict-banner.needs_revision {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.08) 100%), var(--surface-color);
+        border-color: rgba(245, 158, 11, 0.35);
+    }
+    .verdict-banner.needs_revision::before { background: var(--warning-color); }
+
+    /* 4.6 Falla del árbitro en los proveedores */
+    .verdict-banner.system-error {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(185, 28, 28, 0.08) 100%), var(--surface-color);
+        border-color: rgba(239, 68, 68, 0.35);
+    }
+    .verdict-banner.system-error::before { background: var(--danger-color); }
+
+    .verdict-banner h2 { font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+    .verdict-banner h2 .v-icon { font-size: 1.4rem; }
+    .verdict-banner p { font-size: 0.92rem; line-height: 1.6; margin: 0 0 14px; color: var(--text-secondary); }
+
+    /* Mensaje explícito de expectativa (PRD v5 P0 #6) */
+    .expectation-notice {
+        font-size: 0.8rem;
+        line-height: 1.5;
+        color: var(--text-muted);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding-top: 12px;
+        margin-top: 12px;
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .expectation-notice .notice-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        opacity: 0.75;
+    }
+
+    .actions-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0 8px; }
     .actions-bar .btn-primary { padding: 11px 28px; font-weight: 600; }
 
     .empty-hero { text-align: center; padding: 64px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); box-shadow: var(--shadow-sm); }
@@ -57,46 +318,169 @@
 <div class="top-bar">
     <div class="page-intro">
         <h1>{{ offer.title[:50] }}{% if offer.title|length > 50 %}...{% endif %}</h1>
-        <p>Validacion adversarial con 4 agentes de IA</p>
+        <p>Validación adversarial con 4 agentes especializados de IA</p>
     </div>
     <a href="/panel/oferta/{{ offer.project_id }}" class="btn btn-outline">Volver a oferta</a>
 </div>
 
 {% if debate %}
+<div class="debate-stage">
 
-{% if debate.final_verdict %}
-<div class="verdict-banner {{ debate.final_verdict }}">
-    <h2>
-        <span class="v-icon">{% if debate.final_verdict == 'approved' %}&#10003;{% else %}&#9888;{% endif %}</span>
-        {% if debate.final_verdict == 'approved' %}Oferta aprobada{% else %}Requiere revision{% endif %}
-    </h2>
-    {% if debate.arbiter_summary %}
-    <p>{{ debate.arbiter_summary }}</p>
-    {% endif %}
-</div>
-{% endif %}
+    <!-- 4.1 Roster de 4 personas siempre visible -->
+    <div class="roster-section">
+        <div class="roster-header">
+            <span>&#9881; Agentes participantes del panel</span>
+        </div>
+        <div class="roster-grid">
+            <!-- 1. Abogado del diablo -->
+            <div class="roster-card persona-devil_advocate" id="roster-card-devil_advocate">
+                <div>
+                    <div class="roster-card-top">
+                        <div class="roster-icon-wrap">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <div class="roster-name">Abogado del diablo</div>
+                    </div>
+                    <div class="roster-role">Detecta la debilidad fatal y puntos críticos del modelo de negocio.</div>
+                </div>
+                <div class="roster-status waiting" id="roster-status-devil_advocate">
+                    <span class="dots-pulse"><span></span><span></span><span></span></span>
+                    <span class="status-label">Analizando...</span>
+                </div>
+            </div>
 
-{% if objections %}
-<div class="objections-header">Objeciones <span class="count">{{ objections|length }}</span></div>
-{% for obj in objections %}
-<div class="obj-card">
-    <div class="obj-top">
-        <span class="obj-source persona-{{ obj.objection_source }}">
-            <span class="persona-dot"></span>
-            {{ obj.objection_source|replace('_', ' ')|title }}
-        </span>
-        <span class="sev-pill sev-{{ obj.severity }}">{{ obj.severity }}</span>
+            <!-- 2. Escéptico de precio -->
+            <div class="roster-card persona-price_skeptic" id="roster-card-price_skeptic">
+                <div>
+                    <div class="roster-card-top">
+                        <div class="roster-icon-wrap">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                                <line x1="7" y1="7" x2="7.01" y2="7"/>
+                            </svg>
+                        </div>
+                        <div class="roster-name">Escéptico de precio</div>
+                    </div>
+                    <div class="roster-role">Cuestiona márgenes, elasticidad y valor percibido frente a rivales.</div>
+                </div>
+                <div class="roster-status waiting" id="roster-status-price_skeptic">
+                    <span class="dots-pulse"><span></span><span></span><span></span></span>
+                    <span class="status-label">Analizando...</span>
+                </div>
+            </div>
+
+            <!-- 3. Analista de mercado -->
+            <div class="roster-card persona-market_analyst" id="roster-card-market_analyst">
+                <div>
+                    <div class="roster-card-top">
+                        <div class="roster-icon-wrap">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                            </svg>
+                        </div>
+                        <div class="roster-name">Analista de mercado</div>
+                    </div>
+                    <div class="roster-role">Mide volumen de demanda, saturación y timing de entrada.</div>
+                </div>
+                <div class="roster-status waiting" id="roster-status-market_analyst">
+                    <span class="dots-pulse"><span></span><span></span><span></span></span>
+                    <span class="status-label">Analizando...</span>
+                </div>
+            </div>
+
+            <!-- 4. Cliente simulado -->
+            <div class="roster-card persona-customer_sim" id="roster-card-customer_sim">
+                <div>
+                    <div class="roster-card-top">
+                        <div class="roster-icon-wrap">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="roster-name">Cliente simulado</div>
+                    </div>
+                    <div class="roster-role">Expone objeciones reales, dudas de confianza y fricción de compra.</div>
+                </div>
+                <div class="roster-status waiting" id="roster-status-customer_sim">
+                    <span class="dots-pulse"><span></span><span></span><span></span></span>
+                    <span class="status-label">Analizando...</span>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="obj-text">{{ obj.objection_text }}</div>
-    {% if obj.resolved_text %}
-    <div class="resolution-box {{ obj.resolution_status }}">
-        <div class="res-label">{% if obj.resolution_status == 'resolved' %}Solucion{% elif obj.resolution_status == 'dismissed' %}Descartada{% else %}Pendiente{% endif %}</div>
-        {{ obj.resolved_text }}
+
+    <!-- 4.2 Lista de objeciones con reveal escalonado -->
+    {% if objections %}
+    <div class="objections-header">
+        Objeciones levantadas por el panel <span class="count">{{ objections|length }}</span>
+    </div>
+    <div id="objections-container">
+        {% for obj in objections %}
+        <div class="obj-card persona-{{ obj.objection_source }}" data-index="{{ obj.order_index }}" data-source="{{ obj.objection_source }}">
+            <div class="obj-top">
+                <span class="obj-source persona-{{ obj.objection_source }}">
+                    <span class="persona-dot"></span>
+                    {{ obj.objection_source|replace('_', ' ')|title }}
+                </span>
+                <span class="sev-pill sev-{{ obj.severity }}">{{ obj.severity }}</span>
+            </div>
+            <div class="obj-text">{{ obj.objection_text }}</div>
+            {% if obj.resolved_text %}
+            <div class="resolution-box {{ obj.resolution_status }}">
+                <div class="res-label">
+                    {% if obj.resolution_status == 'resolved' %}
+                    &#10003; Solución del árbitro
+                    {% elif obj.resolution_status == 'dismissed' %}
+                    Descartada por el árbitro
+                    {% else %}
+                    Revisión pendiente
+                    {% endif %}
+                </div>
+                {{ obj.resolved_text }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="font-size: 0.9rem; color: var(--text-muted); font-style: italic;">No se levantaron objeciones críticas.</p>
+    {% endif %}
+
+    <!-- 4.3 y 4.6 Veredicto al final de la secuencia -->
+    {% if debate.final_verdict %}
+    {% set is_system_error = debate.arbiter_summary and ('arbitro no pudo' in debate.arbiter_summary|lower or 'no pudo procesar' in debate.arbiter_summary|lower) %}
+    <div class="verdict-banner {% if is_system_error %}system-error{% else %}{{ debate.final_verdict }}{% endif %}" id="verdict-banner">
+        <h2>
+            {% if is_system_error %}
+            <span class="v-icon">&#9888;</span> Análisis de árbitro incompleto (proveedores de IA no disponibles)
+            {% elif debate.final_verdict == 'approved' %}
+            <span class="v-icon">&#10003;</span> Oferta aprobada por el panel
+            {% else %}
+            <span class="v-icon">&#9888;</span> Oferta requiere ajustes estratégicos
+            {% endif %}
+        </h2>
+
+        {% if is_system_error %}
+        <p>El árbitro no pudo procesar las resoluciones finales debido a una indisponibilidad temporal en los servicios de IA. Esto <strong>no significa que tu oferta sea inviable</strong>; puedes intentar validar nuevamente en unos minutos.</p>
+        {% elif debate.arbiter_summary %}
+        <p>{{ debate.arbiter_summary }}</p>
+        {% endif %}
+
+        <!-- P0 #6 Mensaje explícito de expectativa -->
+        <div class="expectation-notice">
+            <span class="notice-icon">&#9432;</span>
+            <span>Este veredicto es una guía analítica para fortalecer tu propuesta comercial, no una garantía de ventas — el éxito dependerá de tu ejecución y validación con clientes reales.</span>
+        </div>
     </div>
     {% endif %}
+
 </div>
-{% endfor %}
-{% endif %}
 
 <div class="actions-bar">
     {% if offer.status == 'validated' %}
@@ -104,13 +488,74 @@
     {% elif offer.status == 'rejected' %}
     <a href="/panel/oferta/{{ offer.project_id }}/generar" class="btn btn-primary" onclick="event.preventDefault(); fetch(this.href, {method:'POST'}).then(r=>r.json()).then(d=>{if(d.status==='success')location.href='/panel/oferta/'+{{ offer.project_id }};else alert(d.detail||'Error')})">Regenerar oferta</a>
     {% endif %}
-    <a href="/panel/research/{{ offer.project_id }}" class="btn">Volver a investigacion</a>
+    <a href="/panel/research/{{ offer.project_id }}" class="btn btn-outline">Volver a investigación</a>
 </div>
 
 {% else %}
 <div class="empty-hero">
-    <p>Esta oferta todavia no fue validada.</p>
+    <p>Esta oferta todavía no fue validada con el panel de agentes.</p>
     <a href="/panel/oferta/{{ offer.project_id }}" class="btn btn-outline">Volver a la oferta</a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    // 4.2 Reveal secuencial de las objeciones y sincronización con el roster
+    const cards = Array.from(document.querySelectorAll('.obj-card'));
+    const verdictBanner = document.getElementById('verdict-banner');
+
+    function updateRosterPersona(source) {
+        const statusEl = document.getElementById('roster-status-' + source);
+        if (statusEl) {
+            statusEl.className = 'roster-status done';
+            statusEl.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Completado</span>';
+        }
+    }
+
+    if (cards.length === 0) {
+        // Si no hay objeciones, marcar todos como listos y revelar veredicto
+        document.querySelectorAll('.roster-status').forEach(st => {
+            st.className = 'roster-status done';
+            st.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Sin objeciones</span>';
+        });
+        if (verdictBanner) {
+            verdictBanner.classList.add('revealed');
+        }
+        return;
+    }
+
+    // Ordenar por data-index por si vienen en orden diferente
+    cards.sort((a, b) => parseInt(a.dataset.index || '0', 10) - parseInt(b.dataset.index || '0', 10));
+
+    let delay = 350;
+    const step = 700; // ~700ms entre cada una
+
+    cards.forEach((card, idx) => {
+        setTimeout(() => {
+            card.classList.add('revealed');
+            const source = card.dataset.source;
+            if (source) {
+                updateRosterPersona(source);
+            }
+
+            // Si es la última card, revelar el veredicto con efecto de sello
+            if (idx === cards.length - 1) {
+                setTimeout(() => {
+                    // Asegurar que cualquier persona sin objeción directa también quede marcada
+                    document.querySelectorAll('.roster-status.waiting').forEach(st => {
+                        st.className = 'roster-status done';
+                        st.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Completado</span>';
+                    });
+                    if (verdictBanner) {
+                        verdictBanner.classList.add('revealed');
+                    }
+                }, 500);
+            }
+        }, delay);
+        delay += step;
+    });
+})();
+</script>
 {% endblock %}

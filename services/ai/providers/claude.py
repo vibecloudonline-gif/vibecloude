@@ -19,16 +19,19 @@ class ClaudeAdapter(AIProviderAdapter):
 
     def __init__(self, api_key: str | None = None):
         self._api_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        self._credit_exhausted_until = 0.0
 
     def validate_config(self) -> bool:
+        if time.monotonic() < self._credit_exhausted_until:
+            return False
         return bool(self._api_key)
 
     async def generate(self, request: AIRequest) -> AIResponse:
-        if not self._api_key:
+        if not self._api_key or time.monotonic() < self._credit_exhausted_until:
             raise AIError(
                 AIErrorCode.authentication_error,
                 self.provider_name,
-                "ANTHROPIC_API_KEY no configurada",
+                "ANTHROPIC_API_KEY no configurada o sin crédito disponible",
             )
 
         try:
@@ -65,10 +68,16 @@ class ClaudeAdapter(AIProviderAdapter):
         except anthropic.APIError as exc:
             code = AIErrorCode.provider_error
             retryable = False
+            msg = str(exc).lower()
             if hasattr(exc, "status_code"):
                 if exc.status_code == 429:
                     code = AIErrorCode.rate_limit
                     retryable = True
+                elif exc.status_code in (400, 402) and any(term in msg for term in ["credit", "balance", "quota", "billing"]):
+                    code = AIErrorCode.authentication_error
+                    retryable = False
+                    self._credit_exhausted_until = time.monotonic() + 300.0
+                    logger.warning("Claude reportó saldo o crédito insuficiente en cuenta Anthropic. Pausando Claude 5m para fallback inmediato.")
                 elif exc.status_code >= 500:
                     retryable = True
             raise AIError(code, self.provider_name, str(exc), retryable=retryable) from exc

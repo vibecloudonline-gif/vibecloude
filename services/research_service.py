@@ -24,6 +24,10 @@ def _get_provider() -> ProductDataProvider:
     if keepa_key:
         from services.research_providers.keepa_provider import KeepaProvider
         return KeepaProvider(keepa_key)
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    if gemini_key:
+        from services.research_providers.gemini_provider import GeminiMarketProvider
+        return GeminiMarketProvider(gemini_key)
     from services.research_providers.mock_provider import MockProvider
     return MockProvider()
 
@@ -69,6 +73,19 @@ async def run_product_search(session: Session, project: ResearchProject) -> list
         session.add(project)
         session.commit()
         raise RuntimeError(f"Error en búsqueda: {exc}") from exc
+
+    # Limpiar resultados y demanda previos en caso de re-análisis
+    existing_listings = session.exec(
+        select(ResearchListing).where(ResearchListing.project_id == project.id)
+    ).all()
+    for el in existing_listings:
+        session.delete(el)
+    existing_demand = session.exec(
+        select(ResearchDemand).where(ResearchDemand.project_id == project.id)
+    ).first()
+    if existing_demand:
+        session.delete(existing_demand)
+    session.flush()
 
     db_listings: list[ResearchListing] = []
     for rl in raw_listings:

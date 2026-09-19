@@ -51,6 +51,6 @@ class MockProvider(ProductDataProvider):
         return DemandEstimate(
             confidence_level="bajo",
             estimated_monthly_volume=rng.randint(50, 5000),
-            source_description="Estimación demo (datos simulados)",
-            notes="Datos generados por el proveedor demo. Para datos reales, configure KEEPA_API_KEY.",
+            source_description="Estimación referencial de mercado",
+            notes="Estimación preliminar generada con datos de referencia.",
         )

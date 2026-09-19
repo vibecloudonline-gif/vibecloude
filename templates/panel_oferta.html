@@ -1,5 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Oferta - Alex IO{% endblock %}
+{% block title %}Oferta Comercial - Alex IO Studio{% endblock %}
+{% block header_title %}Oferta Comercial{% endblock %}
+{% block breadcrumb %}
+    <a href="/panel/research">Alex IO Studio</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Oferta</span>
+{% endblock %}
 {% block extra_css %}
 <style>
     .page-intro { margin-bottom: 8px; }
@@ -33,6 +39,88 @@
     .empty-hero { text-align: center; padding: 64px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); box-shadow: var(--shadow-sm); }
     .empty-hero p { font-size: 1rem; color: var(--text-muted); margin-bottom: 20px; }
     .empty-hero .btn-primary { padding: 12px 32px; font-size: 0.95rem; }
+
+    /* 4.5 Estado de espera de validación con el panel de agentes */
+    .validation-wait-wrap {
+        padding: 24px 28px;
+        border-radius: var(--radius-lg);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%), var(--surface-color);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        margin: 24px 0;
+        display: none;
+    }
+    .vwait-header {
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-main);
+    }
+    .vwait-desc {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+    }
+    .vwait-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 14px;
+    }
+    .vwait-card {
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: var(--surface-alt);
+        border: 1px solid var(--border-color);
+        position: relative;
+        overflow: hidden;
+    }
+    .vwait-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+    }
+    .vwait-card.persona-devil_advocate::before { background: var(--danger-color); }
+    .vwait-card.persona-price_skeptic::before { background: var(--warning-color); }
+    .vwait-card.persona-market_analyst::before { background: var(--info-color); }
+    .vwait-card.persona-customer_sim::before { background: var(--success-color); }
+
+    .vwait-card-title {
+        font-weight: 700;
+        font-size: 0.86rem;
+        margin-bottom: 6px;
+    }
+    .vwait-status {
+        font-size: 0.76rem;
+        color: var(--warning-color);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .dots-pulse {
+        display: inline-flex;
+        gap: 2px;
+    }
+    .dots-pulse span {
+        width: 3px;
+        height: 3px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: dotPulse 1.2s infinite ease-in-out both;
+    }
+    .dots-pulse span:nth-child(1) { animation-delay: -0.32s; }
+    .dots-pulse span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes dotPulse {
+        0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+        40% { transform: scale(1); opacity: 1; }
+    }
 </style>
 {% endblock %}
 
@@ -80,7 +168,7 @@
     </div>
 </div>
 
-<div class="actions-bar">
+<div class="actions-bar" id="actions-bar-container">
     {% if offer.status == 'draft' or offer.status == 'rejected' %}
     <button type="button" class="btn btn-primary" id="btn-validate" data-offer="{{ offer.id }}">Validar con IA</button>
     <span id="validate-status" style="font-size: 0.85rem; line-height: 2.4;"></span>
@@ -91,6 +179,46 @@
     {% if offer.status == 'validated' %}
     <a href="/panel/landing" class="btn btn-primary">Crear sitio</a>
     {% endif %}
+</div>
+
+<!-- 4.5 Estado de espera cuando el usuario dispara el debate -->
+<div class="validation-wait-wrap" id="validation-wait-stage">
+    <div class="vwait-header">
+        <span>&#9881; Panel de Agentes de IA en deliberación</span>
+    </div>
+    <div class="vwait-desc">
+        Nuestros 4 agentes especializados están analizando tu oferta simultáneamente para detectar debilidades y blindar tu propuesta...
+    </div>
+    <div class="vwait-grid">
+        <div class="vwait-card persona-devil_advocate">
+            <div class="vwait-card-title">Abogado del diablo</div>
+            <div class="vwait-status">
+                <span class="dots-pulse"><span></span><span></span><span></span></span>
+                <span>Buscando puntos ciegos...</span>
+            </div>
+        </div>
+        <div class="vwait-card persona-price_skeptic">
+            <div class="vwait-card-title">Escéptico de precio</div>
+            <div class="vwait-status">
+                <span class="dots-pulse"><span></span><span></span><span></span></span>
+                <span>Evaluando márgenes vs rivales...</span>
+            </div>
+        </div>
+        <div class="vwait-card persona-market_analyst">
+            <div class="vwait-card-title">Analista de mercado</div>
+            <div class="vwait-status">
+                <span class="dots-pulse"><span></span><span></span><span></span></span>
+                <span>Contrastando demanda y nicho...</span>
+            </div>
+        </div>
+        <div class="vwait-card persona-customer_sim">
+            <div class="vwait-card-title">Cliente simulado</div>
+            <div class="vwait-status">
+                <span class="dots-pulse"><span></span><span></span><span></span></span>
+                <span>Simulando objeciones de compra...</span>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% else %}
@@ -130,20 +258,41 @@
     }
 
     const btnValidate = document.getElementById('btn-validate');
+    const waitStage = document.getElementById('validation-wait-stage');
+    const actionsBar = document.getElementById('actions-bar-container');
+
     if (btnValidate) {
         btnValidate.addEventListener('click', async () => {
             const oid = btnValidate.dataset.offer;
             const statusEl = document.getElementById('validate-status');
+            
+            // Mostrar roster animado de espera
+            if (waitStage) {
+                waitStage.style.display = 'block';
+                waitStage.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            if (actionsBar) {
+                actionsBar.style.opacity = '0.5';
+            }
             btnValidate.disabled = true;
-            statusEl.textContent = 'Ejecutando debate adversarial...';
+            statusEl.textContent = 'Los 4 agentes están deliberando...';
+
             try {
                 const res = await fetch('/panel/oferta/' + oid + '/validar', { method: 'POST' });
                 const data = await res.json();
-                if (!res.ok) { statusEl.textContent = data.detail || 'Error'; btnValidate.disabled = false; return; }
+                if (!res.ok) {
+                    statusEl.textContent = data.detail || 'Error en la validación';
+                    btnValidate.disabled = false;
+                    if (actionsBar) actionsBar.style.opacity = '1';
+                    if (waitStage) waitStage.style.display = 'none';
+                    return;
+                }
                 window.location.href = '/panel/oferta/' + oid + '/debate';
             } catch (err) {
-                statusEl.textContent = 'Error de conexion';
+                statusEl.textContent = 'Error de conexión durante el debate';
                 btnValidate.disabled = false;
+                if (actionsBar) actionsBar.style.opacity = '1';
+                if (waitStage) waitStage.style.display = 'none';
             }
         });
     }

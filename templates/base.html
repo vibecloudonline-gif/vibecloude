@@ -9,7 +9,175 @@
     <meta name="theme-color" content="#080808">
     <link rel="apple-touch-icon" href="/static/images/icon-192.png">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* Enterprise Suite Switcher Styles */
+        .suite-switcher-wrap {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+            position: relative;
+        }
+        .suite-switcher-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md);
+            padding: 8px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+        .suite-switcher-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+        .suite-badge-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .suite-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .suite-text {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            line-height: 1.2;
+        }
+        .suite-name {
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .suite-desc {
+            font-size: 0.68rem;
+            color: var(--sidebar-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .suite-chevron {
+            color: var(--sidebar-text);
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+        .suite-switcher-btn.open .suite-chevron {
+            transform: rotate(180deg);
+        }
+        .suite-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 12px;
+            right: 12px;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: var(--radius-md);
+            padding: 6px;
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+            z-index: 200;
+            display: none;
+            backdrop-filter: blur(12px);
+        }
+        .suite-dropdown.show {
+            display: block;
+            animation: fadeIn 0.15s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .suite-dropdown-header {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--sidebar-text);
+            padding: 6px 8px 4px;
+        }
+        .suite-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            color: var(--sidebar-text);
+            transition: all 0.12s ease;
+        }
+        .suite-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+        .suite-dropdown-item.active {
+            background: rgba(249, 115, 22, 0.15);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            color: #ffffff;
+        }
+        .suite-item-icon {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .suite-item-info {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.25;
+        }
+        .suite-item-name {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #ffffff;
+        }
+        .suite-item-sub {
+            font-size: 0.68rem;
+            color: var(--sidebar-text);
+        }
+        .suite-dropdown-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.08);
+            margin: 6px 0;
+        }
+        .suite-hub-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: var(--radius-sm);
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 0.76rem;
+            transition: all 0.12s ease;
+        }
+        .suite-hub-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+        }
+        .sidebar-section-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.35);
+            padding: 10px 12px 4px;
+        }
+    </style>
     {% block head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="theme-{{ settings.ui_theme }}">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -27,135 +195,247 @@
                 </a>
             </div>
             
-            {% set tenant_flags = request.session.get('tenant_flags', {'erp': True, 'ecommerce': True, 'landing': True}) %}
-            {% set view = request.session.get('nav_view') or ['erp', 'ecommerce', 'landing'] %}
-            {% if user %}
-            <div class="nav-switcher" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <label style="display:block; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--sidebar-text); margin-bottom:6px;">Módulos</label>
-                <div style="display:flex; flex-direction:column; gap:6px;">
+            {% set path = request.url.path %}
+            {% set tenant_flags = request.session.get('tenant_flags', {'erp': False, 'ecommerce': True, 'landing': True, 'alexio': True}) %}
+            {% set nav_view = request.session.get('nav_view') or [] %}
+
+            {# Suite logic: ERP solo aparece por rutas ERP o nav_view=erp. Default: web. #}
+            {% if path.startswith('/panel/research') or path.startswith('/panel/oferta') or path.startswith('/panel/debate') or path.startswith('/panel/alex-agent') or path.startswith('/panel/forecast') %}
+                {% set current_suite = 'alexio' %}
+                {% set suite_title = 'Alex IO Studio' %}
+                {% set suite_sub = 'Validación & Agentes' %}
+                {% set suite_icon = '🔬' %}
+            {% elif path.startswith('/panel/landing') or path.startswith('/panel/storefront') or path.startswith('/panel/dominios') or path.startswith('/panel/onboarding') or path.startswith('/storefront') %}
+                {% set current_suite = 'web' %}
+                {% set suite_title = 'Web & Storefront' %}
+                {% set suite_sub = 'Canales Online' %}
+                {% set suite_icon = '🌐' %}
+            {% elif path in ['/pos', '/cash', '/picking', '/suppliers'] or path.startswith('/wms') %}
+                {% set current_suite = 'erp' %}
+                {% set suite_title = 'ERP Retail' %}
+                {% set suite_sub = 'Gestión & Operaciones' %}
+                {% set suite_icon = '🏭' %}
+            {% elif 'erp' in nav_view %}
+                {% set current_suite = 'erp' %}
+                {% set suite_title = 'ERP Retail' %}
+                {% set suite_sub = 'Gestión & Operaciones' %}
+                {% set suite_icon = '🏭' %}
+            {% elif 'alexio' in nav_view and not ('ecommerce' in nav_view or 'landing' in nav_view) %}
+                {% set current_suite = 'alexio' %}
+                {% set suite_title = 'Alex IO Studio' %}
+                {% set suite_sub = 'Validación & Agentes' %}
+                {% set suite_icon = '🔬' %}
+            {% elif 'ecommerce' in nav_view or 'landing' in nav_view %}
+                {% set current_suite = 'web' %}
+                {% set suite_title = 'Web & Storefront' %}
+                {% set suite_sub = 'Canales Online' %}
+                {% set suite_icon = '🌐' %}
+            {% elif tenant_flags.alexio and not tenant_flags.ecommerce and not tenant_flags.landing %}
+                {% set current_suite = 'alexio' %}
+                {% set suite_title = 'Alex IO Studio' %}
+                {% set suite_sub = 'Validación & Agentes' %}
+                {% set suite_icon = '🔬' %}
+            {% else %}
+                {% set current_suite = 'web' %}
+                {% set suite_title = 'Web & Storefront' %}
+                {% set suite_sub = 'Canales Online' %}
+                {% set suite_icon = '🌐' %}
+            {% endif %}
+
+            <!-- Enterprise Suite Switcher -->
+            <div class="suite-switcher-wrap">
+                <button type="button" class="suite-switcher-btn" id="suiteSwitcherBtn" aria-label="Cambiar de suite">
+                    <div class="suite-badge-wrap">
+                        <span class="suite-icon">{{ suite_icon }}</span>
+                        <div class="suite-text">
+                            <span class="suite-name">{{ suite_title }}</span>
+                            <span class="suite-desc">{{ suite_sub }}</span>
+                        </div>
+                    </div>
+                    <svg class="suite-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                </button>
+
+                <!-- Suite Dropdown Menu -->
+                <div class="suite-dropdown" id="suiteDropdown">
+                    <div class="suite-dropdown-header">Módulos de la Plataforma</div>
+
                     {% if tenant_flags.erp %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
-                        <input type="checkbox" class="nav-module-check" value="erp" {% if 'erp' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> ERP
-                    </label>
+                    <a href="/pos" onclick="switchSuite(['erp'], '/pos'); return false;" class="suite-dropdown-item {% if current_suite == 'erp' %}active{% endif %}">
+                        <span class="suite-item-icon">🏭</span>
+                        <div class="suite-item-info">
+                            <div class="suite-item-name">ERP Retail & POS</div>
+                            <div class="suite-item-sub">Ventas, stock, caja y almacén</div>
+                        </div>
+                    </a>
                     {% endif %}
-                    {% if tenant_flags.ecommerce %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
-                        <input type="checkbox" class="nav-module-check" value="ecommerce" {% if 'ecommerce' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> Ecommerce
-                    </label>
+
+                    {% if tenant_flags.alexio or tenant_flags.landing or tenant_flags.ecommerce %}
+                    {% set alex_module = 'alexio' if tenant_flags.alexio else ('landing' if tenant_flags.landing else 'ecommerce') %}
+                    <a href="/panel/research" onclick="switchSuite(['{{ alex_module }}'], '/panel/research'); return false;" class="suite-dropdown-item {% if current_suite == 'alexio' and active_page != 'forecast' %}active{% endif %}">
+                        <span class="suite-item-icon">🔬</span>
+                        <div class="suite-item-info">
+                            <div class="suite-item-name">Alex IO Studio</div>
+                            <div class="suite-item-sub">Validación de mercado & ofertas con IA</div>
+                        </div>
+                    </a>
+                    <a href="/panel/forecast" onclick="switchSuite(['{{ alex_module }}'], '/panel/forecast'); return false;" class="suite-dropdown-item {% if active_page == 'forecast' %}active{% endif %}">
+                        <span class="suite-item-icon">📈</span>
+                        <div class="suite-item-info">
+                            <div class="suite-item-name">Google FM (TimesFM)</div>
+                            <div class="suite-item-sub">Predicción de precios, demanda y lanzamiento</div>
+                        </div>
+                    </a>
                     {% endif %}
-                    {% if tenant_flags.landing %}
-                    <label style="display:flex; align-items:center; gap:8px; font-size:0.82rem; color:rgba(255,255,255,0.85); cursor:pointer;">
-                        <input type="checkbox" class="nav-module-check" value="landing" {% if 'landing' in view %}checked{% endif %} onchange="cambiarVistaPanel()"> Landing IA
-                    </label>
+
+                    {% if tenant_flags.ecommerce or tenant_flags.landing %}
+                    {% set web_module = 'ecommerce' if tenant_flags.ecommerce else 'landing' %}
+                    <a href="/panel/landing" onclick="switchSuite(['{{ web_module }}'], '/panel/landing'); return false;" class="suite-dropdown-item {% if current_suite == 'web' %}active{% endif %}">
+                        <span class="suite-item-icon">🌐</span>
+                        <div class="suite-item-info">
+                            <div class="suite-item-name">Web & Storefront</div>
+                            <div class="suite-item-sub">Sitios web y canales online</div>
+                        </div>
+                    </a>
                     {% endif %}
+
+                    <div class="suite-dropdown-divider"></div>
+                    <a href="/" class="suite-hub-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                        <span>Ver Hub general de accesos</span>
+                    </a>
                 </div>
             </div>
-            {% endif %}
+
             <nav class="sidebar-links">
+                <!-- 1. VISTA CONTEXTUAL: ALEX IO STUDIO -->
+                {% if current_suite == 'alexio' %}
+                <div class="sidebar-section-label">Investigación & Mercado</div>
+                <a href="/panel/research" class="{% if active_page == 'research' %}active{% endif %}" data-tooltip="Investigación">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                    <span>Proyectos de Mercado</span>
+                </a>
+                <a href="/panel/forecast" class="{% if active_page == 'forecast' %}active{% endif %}" data-tooltip="Google FM">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                    <span>Google FM (Predicción)</span>
+                </a>
+                <a href="/panel/landing" class="{% if active_page == 'landing_studio' %}active{% endif %}" data-tooltip="Landing con IA">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                    <span>Lanzar Sitio con IA</span>
+                </a>
+                {% if tenant_flags.alexio %}
+                <a href="/panel/alex-agent" class="{% if active_page == 'alex_agent' %}active{% endif %}" data-tooltip="Agente Alex IO">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+                    <span>Agente Alex IO</span>
+                </a>
+                {% endif %}
+
+                <!-- 2. VISTA CONTEXTUAL: WEB & STOREFRONT -->
+                {% elif current_suite == 'web' %}
+                <div class="sidebar-section-label">Canales Online & Web</div>
+                <a href="/panel/landing" class="{% if active_page == 'landing_studio' %}active{% endif %}" data-tooltip="Landing Studio">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                    <span>Landing Studio IA</span>
+                </a>
+                <a href="/panel/onboarding" class="{% if active_page == 'onboarding_wizard' %}active{% endif %}" data-tooltip="Onboarding">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                    <span>Asistente Onboarding</span>
+                </a>
+                <a href="/catalog-import" class="{% if active_page == 'catalog_import' %}active{% endif %}" data-tooltip="Catálogo">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    <span>Importar Catálogo</span>
+                </a>
+                <a href="/panel/dominios" class="{% if active_page == 'domains' %}active{% endif %}" data-tooltip="Dominios">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>
+                    <span>Dominios Conectados</span>
+                </a>
+
+                <div class="sidebar-section-label" style="margin-top: 14px;">Inteligencia & Mercado</div>
+                <a href="/panel/forecast" class="{% if active_page == 'forecast' %}active{% endif %}" data-tooltip="Google FM">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+                    <span>Google FM (Predicción)</span>
+                </a>
+                <a href="/panel/research" class="{% if active_page == 'research' %}active{% endif %}" data-tooltip="Investigación">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                    <span>Investigación de Mercado</span>
+                </a>
+
+
+                <!-- 3. VISTA CONTEXTUAL: ERP RETAIL -->
+                {% else %}
+                <div class="sidebar-section-label">Operaciones & Retail</div>
                 <a href="/" class="{% if active_page == 'home' %}active{% endif %}" data-tooltip="Dashboard">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
                     <span>Dashboard</span>
                 </a>
-                {% if "erp" in view %}
                 <a href="/pos" class="{% if active_page == 'pos' %}active{% endif %}" data-tooltip="POS / Ventas">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
-                    <span>POS / Ventas</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+                    <span>Punto de Venta (POS)</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view or "ecommerce" in view %}
                 <a href="/products" class="{% if active_page == 'products' %}active{% endif %}" data-tooltip="Stock">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
-                    <span>Stock</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                    <span>Inventario & Stock</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view %}
                 <a href="/products/labels" class="{% if active_page == 'print_labels' %}active{% endif %}" data-tooltip="Etiquetas">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096a42.42 42.42 0 01-10.56 0m10.56 0L17.66 18m0 0a.75.75 0 01-.75-.75V15m0 3a.75.75 0 00.75-.75V15M6.34 18a.75.75 0 00.75-.75V15m0 3a.75.75 0 01-.75-.75V15m1.08-10.274l-.007-.003-.004-.001a.752.752 0 00-.704.053l-.003.001-.004.004a.752.752 0 00-.276.608V12h11.25V4.783a.75.75 0 00-.276-.608l-.004-.004-.003-.001a.752.752 0 00-.704-.053l-.004.001-.007.003-4.12 2.06a.75.75 0 01-.672 0l-4.12-2.06z" /></svg>
-                    <span>Etiquetas</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096a42.42 42.42 0 01-10.56 0m10.56 0L17.66 18m0 0a.75.75 0 01-.75-.75V15m0 3a.75.75 0 00.75-.75V15M6.34 18a.75.75 0 00.75-.75V15m0 3a.75.75 0 01-.75-.75V15m1.08-10.274l-.007-.003-.004-.001a.752.752 0 00-.704.053l-.003.001-.004.004a.752.752 0 00-.276.608V12h11.25V4.783a.75.75 0 00-.276-.608l-.004-.004-.003-.001a.752.752 0 00-.704-.053l-.004.001-.007.003-4.12 2.06a.75.75 0 01-.672 0l-4.12-2.06z" /></svg>
+                    <span>Imprimir Etiquetas</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view or "ecommerce" in view %}
-                <a href="/sales" class="{% if active_page == 'sales' %}active{% endif %}" data-tooltip="Ventas Historial">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801-1c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 12.408l-2.062 1.03a.75.75 0 01-.672 0l-2.062-1.03A.75.75 0 003 16.735v.23a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-.23a.75.75 0 00-.428-.671l-2.062-1.03a.75.75 0 01-.672 0l-2.062 1.03a2.25 2.25 0 01-2.016 0l-2.062-1.03a.75.75 0 01-.672 0z" /></svg>
-                    <span>Ventas Historial</span>
+                <a href="/sales" class="{% if active_page == 'sales' %}active{% endif %}" data-tooltip="Ventas">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801-1c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.03 0 1.9.693 2.166 1.638m-7.377 12.408l-2.062 1.03a.75.75 0 01-.672 0l-2.062-1.03A.75.75 0 003 16.735v.23a2.25 2.25 0 002.25 2.25h13.5a2.25 2.25 0 002.25-2.25v-.23a.75.75 0 00-.428-.671l-2.062-1.03a.75.75 0 01-.672 0l-2.062 1.03a2.25 2.25 0 01-2.016 0l-2.062-1.03a.75.75 0 01-.672 0z" /></svg>
+                    <span>Historial de Ventas</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view %}
                 <a href="/cash" class="{% if active_page == 'cash' %}active{% endif %}" data-tooltip="Caja">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span>Caja</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>Caja & Movimientos</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view or "ecommerce" in view %}
                 <a href="/clients" class="{% if active_page == 'clients' %}active{% endif %}" data-tooltip="Clientes">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72" /></svg>
                     <span>Clientes</span>
                 </a>
-                {% endif %}
-                {% if "erp" in view %}
                 <a href="/suppliers" class="{% if active_page == 'suppliers' %}active{% endif %}" data-tooltip="Proveedores">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5-1.5l-3-1m-3.182-3.182a4.5 4.5 0 11-6.364 0M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5-1.5l-3-1m-3.182-3.182a4.5 4.5 0 11-6.364 0M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9" /></svg>
                     <span>Proveedores</span>
                 </a>
                 <a href="/picking" class="{% if active_page == 'picking' %}active{% endif %}" data-tooltip="Picking">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
                     <span>Picking</span>
                 </a>
                 <a href="/wms/depositos" class="{% if active_page == 'wms' %}active{% endif %}" data-tooltip="WMS">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15" /></svg>
-                    <span>WMS</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15" /></svg>
+                    <span>WMS Depósitos</span>
                 </a>
-                {% endif %}
-                {% if user and user.role == "admin" %}
-                {% if "landing" in view %}
-                <a href="/panel/landing" class="{% if active_page == 'landing_studio' %}active{% endif %}" data-tooltip="Landing con IA">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>
-                    <span>Landing con IA</span>
+                <a href="/catalog-import" class="{% if active_page == 'catalog_import' %}active{% endif %}" data-tooltip="Catálogo">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    <span>Importar Catálogo</span>
                 </a>
-                {% endif %}
-                {% if "landing" in view or "ecommerce" in view or "alexio" in view %}
-                <a href="/panel/research" class="{% if active_page == 'research' %}active{% endif %}" data-tooltip="Investigación">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                    <span>Investigación</span>
-                </a>
-                {% endif %}
-                {% if "landing" in view or "ecommerce" in view %}
-                <a href="/panel/onboarding" class="{% if active_page == 'onboarding_wizard' %}active{% endif %}" data-tooltip="Onboarding Guiado">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                    <span>Onboarding Guiado</span>
-                </a>
-                {% endif %}
-                {% if "erp" in view or "ecommerce" in view %}
-                <a href="/catalog-import" class="{% if active_page == 'catalog_import' %}active{% endif %}" data-tooltip="Onboarding de Catálogo">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                    <span>Onboarding Catálogo</span>
-                </a>
-                {% endif %}
-                {% if "erp" in view or "ecommerce" in view %}
                 <a href="/reports" class="{% if active_page == 'reports' %}active{% endif %}" data-tooltip="Reportes">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" /></svg>
-                    <span>Reportes</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" /><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" /></svg>
+                    <span>Reportes Financieros</span>
                 </a>
                 {% endif %}
-                {% if "alexio" in view %}
-                <a href="/panel/alex-agent" class="{% if active_page == 'alex_agent' %}active{% endif %}" data-tooltip="Alex Agent">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
-                    <span>Alex Agent</span>
-                </a>
-                {% endif %}
+
+                <!-- SECCIÓN COMÚN: ADMINISTRACIÓN Y EQUIPO -->
+                <div class="sidebar-section-label" style="margin-top: 14px;">Administración</div>
+                {% if user and user.role in ["admin", "superadmin"] %}
                 <a href="/panel/equipo" class="{% if active_page == 'team' %}active{% endif %}" data-tooltip="Equipo">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72M12 12a3 3 0 100-6 3 3 0 000 6z" /></svg>
-                    <span>Equipo</span>
-                </a>
-                <a href="/panel/ayuda" class="{% if active_page == 'help' %}active{% endif %}" data-tooltip="Ayuda">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
-                    <span>Ayuda</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.985m-.001-2.228A5.965 5.965 0 0012 12c-2.158 0-4.108.575-5.78 1.584m-1.22 2.228A5.97 5.97 0 005 18.72m-.75-2.985a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72M12 12a3 3 0 100-6 3 3 0 000 6z" /></svg>
+                    <span>Gestión de Equipo</span>
                 </a>
                 <a href="/settings" class="{% if active_page == 'settings' %}active{% endif %}" data-tooltip="Configuración">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.991l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     <span>Configuración</span>
                 </a>
                 {% endif %}
+                <a href="/panel/ayuda" class="{% if active_page == 'help' %}active{% endif %}" data-tooltip="Ayuda">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>
+                    <span>Soporte & Ayuda</span>
+                </a>
             </nav>
 
             {% if user %}
@@ -206,21 +486,39 @@
     </div>
 
     {% block scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 
     <script>
-        /* --- Switcher de vista del panel --- */
-        async function cambiarVistaPanel() {
-            const checked = Array.from(document.querySelectorAll('.nav-module-check:checked')).map(c => c.value);
+        /* --- Suite Switcher Persistence & Dropdown (Enterprise) --- */
+        async function switchSuite(modules, targetUrl) {
             const formData = new FormData();
-            checked.forEach(m => formData.append('modules', m));
-            const res = await fetch('/panel/nav-view', { method: 'POST', body: formData });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                alert(data.detail || 'No se pudo cambiar la vista');
-                return;
+            modules.forEach(m => formData.append('modules', m));
+            try {
+                await fetch('/panel/nav-view', { method: 'POST', body: formData });
+            } catch (e) {
+                console.warn('nav-view persist failed:', e);
             }
-            window.location.href = '/';
+            window.location.href = targetUrl;
         }
+
+        (function() {
+            const btn = document.getElementById('suiteSwitcherBtn');
+            const dropdown = document.getElementById('suiteDropdown');
+            if (btn && dropdown) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isOpen = dropdown.classList.contains('show');
+                    dropdown.classList.toggle('show', !isOpen);
+                    btn.classList.toggle('open', !isOpen);
+                });
+                document.addEventListener('click', function(e) {
+                    if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+                        dropdown.classList.remove('show');
+                        btn.classList.remove('open');
+                    }
+                });
+            }
+        })();
 
         /* --- Sidebar Toggle (Mobile) --- */
         (function() {

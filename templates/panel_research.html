@@ -1,5 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Investigacion - Alex IO{% endblock %}
+{% block title %}Investigación de Mercado - Alex IO Studio{% endblock %}
+{% block header_title %}Investigación de Mercado{% endblock %}
+{% block breadcrumb %}
+    <a href="/panel/research">Alex IO Studio</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{% if project %}Proyecto #{{ project.id }}{% else %}Investigación de Mercado{% endif %}</span>
+{% endblock %}
 {% block extra_css %}
 <style>
     .page-intro { margin-bottom: 32px; }
@@ -47,6 +53,15 @@
     .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; }
     .empty-state p:first-child { font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
     .cta-center { text-align: center; padding: 24px 0; }
+
+    .comp-card { padding: 20px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+    .comp-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .comp-url { font-weight: 700; font-size: 0.95rem; color: var(--accent-color); word-break: break-all; text-decoration: none; }
+    .comp-badges { display: flex; align-items: center; gap: 8px; }
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+    .comp-field { padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-alt); border-left: 3px solid var(--accent-color); font-size: 0.86rem; line-height: 1.5; }
+    .comp-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 4px; }
+    .comp-actions { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
 </style>
 {% endblock %}
 
@@ -58,13 +73,19 @@
         <h1>{{ project.query_description[:60] }}{% if project.query_description|length > 60 %}...{% endif %}</h1>
         <p><span class="pill pill-{{ project.status }}">{{ project.status }}</span></p>
     </div>
-    <a href="/panel/research" class="btn btn-outline">Volver</a>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        {% if project.status == 'completed' %}
+        <a href="/panel/forecast/{{ project.id }}" class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); font-weight: 600;">&#128200; Forecast TimesFM</a>
+        <button type="button" class="btn btn-outline btn-re-search-trigger" data-project="{{ project.id }}">&#128260; Re-analizar con IA</button>
+        {% endif %}
+        <a href="/panel/research" class="btn btn-outline">Volver</a>
+    </div>
 </div>
 
 {% if project.status == 'draft' or project.status == 'error' %}
 <div class="section-card">
     <h2><span class="sec-icon">&#128269;</span> Iniciar investigacion</h2>
-    <p style="font-size: 0.9rem; margin-bottom: 14px;">Analiza el mercado para este producto o servicio.</p>
+    <p style="font-size: 0.9rem; margin-bottom: 14px;">Analiza el mercado para este producto o servicio con IA en tiempo real.</p>
     <button type="button" class="btn btn-primary" id="btn-search" data-project="{{ project.id }}">Iniciar busqueda</button>
     <span id="search-status" style="margin-left: 12px; font-size: 0.85rem;"></span>
 </div>
@@ -73,7 +94,12 @@
 {% if project.listings %}
 {% set any_demo = project.listings|selectattr('is_demo')|list|length > 0 %}
 {% if any_demo %}
-<div class="demo-notice">&#9888; Los resultados son datos demo. Para datos reales de mercado, configure KEEPA_API_KEY.</div>
+<div class="demo-notice" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; background: rgba(59, 130, 246, 0.08); border-left-color: var(--accent-color); color: var(--text-color);">
+    <div>
+        <strong>&#128269; Datos de referencia:</strong> Este proyecto se generó con datos iniciales de referencia. Haz clic en "Actualizar con IA" para consultar benchmarks de mercado en tiempo real.
+    </div>
+    <button type="button" class="btn btn-primary btn-re-search-trigger" data-project="{{ project.id }}" style="font-size: 0.8rem; padding: 6px 14px;">Actualizar con IA</button>
+</div>
 {% endif %}
 
 {% if price_range %}
@@ -132,13 +158,96 @@
         {% endif %}
     </div>
     {% if project.demand.notes %}
-    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">{{ project.demand.notes }}</p>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">{{ project.demand.notes|replace('Para datos reales, configure KEEPA_API_KEY.', '')|replace('Para datos reales de mercado, configure KEEPA_API_KEY.', '')|replace('Datos generados por el proveedor demo.', 'Datos de referencia generados por el sistema.') }}</p>
     {% endif %}
 </div>
 {% endif %}
 
+<div class="section-card" id="seccion-competencia">
+    <h2><span class="sec-icon">&#9874;</span> Competencia declarada (<span id="comp-count">{{ project.competitors|length }}</span>)</h2>
+    <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+        Ingresa manualmente los competidores que consideras relevantes para contrastar tu propuesta contra ellos (el análisis IA citará cada competidor explícitamente).
+    </p>
+
+    <!-- Formulario para agregar competidor -->
+    <form id="competitor-form" style="background: var(--surface-alt); padding: 18px 20px; border-radius: var(--radius-md); margin-bottom: 20px; border: 1px solid var(--border-color);">
+        <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 12px;">+ Agregar competidor</div>
+        <div class="form-row" style="margin-bottom: 10px;">
+            <label for="comp_url">URL o nombre del competidor</label>
+            <input type="text" id="comp_url" name="url" placeholder="https://ejemplo.com o nombre comercial" required style="padding: 8px 12px;">
+        </div>
+        <div class="form-row" style="margin-bottom: 12px;">
+            <label for="comp_notes">Notas adicionales (opcional)</label>
+            <input type="text" id="comp_notes" name="notes" placeholder="Ej: líder en precios bajos, garantía de 30 días" style="padding: 8px 12px;">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-add-comp" style="padding: 8px 20px; font-size: 0.85rem;">Analizar con IA</button>
+        <span id="comp-status" style="margin-left: 10px; font-size: 0.85rem; color: var(--text-muted);"></span>
+    </form>
+
+    <!-- Lista de competidores -->
+    <div id="competitors-list">
+        {% if project.competitors %}
+            {% for c in project.competitors %}
+            <div class="comp-card" id="comp-card-{{ c.id }}">
+                <div class="comp-top">
+                    <a href="{{ c.url }}" target="_blank" rel="noopener" class="comp-url">{{ c.url }}</a>
+                    <div class="comp-badges">
+                        {% if c.user_confirmed %}
+                        <span class="pill pill-completed" id="badge-confirm-{{ c.id }}">&#10003; Confirmado</span>
+                        {% else %}
+                        <span class="pill pill-draft" id="badge-confirm-{{ c.id }}">Sin confirmar</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if c.value_proposition or c.price_info or c.guarantees or c.objections_addressed %}
+                <div class="comp-grid">
+                    {% if c.value_proposition %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Propuesta de Valor</div>
+                        <div>{{ c.value_proposition }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.price_info %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Precios</div>
+                        <div>{{ c.price_info }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.guarantees %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Garantías y Soporte</div>
+                        <div>{{ c.guarantees }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.objections_addressed %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Objeciones Resueltas</div>
+                        <div>{{ c.objections_addressed }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 8px 0;">Análisis en proceso o sin datos.</p>
+                {% endif %}
+
+                <div class="comp-actions">
+                    {% if not c.user_confirmed %}
+                    <button type="button" class="btn btn-outline btn-confirm-comp" data-id="{{ c.id }}" id="btn-confirm-{{ c.id }}" style="font-size: 0.8rem; padding: 6px 14px;">Confirmar competidor</button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline btn-delete-comp" data-id="{{ c.id }}" style="font-size: 0.8rem; padding: 6px 14px; color: var(--danger-color); border-color: var(--danger-border);">Eliminar</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p id="no-competitors-msg" style="font-size: 0.88rem; color: var(--text-muted); font-style: italic;">No has declarado competidores para este proyecto.</p>
+        {% endif %}
+    </div>
+</div>
+
 {% if project.status == 'completed' %}
-<div class="cta-center">
+<div class="cta-center" style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 24px;">
+    <a href="/panel/forecast/{{ project.id }}" class="btn btn-outline" style="padding: 12px 24px; font-size: 0.95rem; border-color: var(--accent-color); color: var(--accent-color);">&#128200; Forecast de Mercado (TimesFM)</a>
     <a href="/panel/oferta/{{ project.id }}/generar" class="btn btn-primary" id="btn-offer" style="padding: 12px 32px; font-size: 0.95rem;">Generar Oferta</a>
 </div>
 {% endif %}
@@ -150,13 +259,13 @@
         <h1>Investigacion de mercado</h1>
         <p>Analiza tu mercado antes de lanzar con tecnologia de IA.</p>
     </div>
-    <button type="button" class="btn btn-primary" id="btn-new">Nuevo proyecto</button>
+    <button type="button" class="btn btn-primary" id="btn-new" onclick="document.getElementById('new-form-wrap').style.display='block'; this.style.display='none';">Nuevo proyecto</button>
 </div>
 
 <div id="new-form-wrap" style="display:none;">
     <div class="new-form">
         <h2>Nuevo proyecto de investigacion</h2>
-        <form id="create-form">
+        <form id="create-form" action="/panel/research/nuevo" method="POST">
             <div class="form-row">
                 <label for="project_type">Tipo de proyecto</label>
                 <select id="project_type" name="project_type">
@@ -177,8 +286,8 @@
                 <input type="number" id="factory_price" name="factory_price" step="0.01" min="0" placeholder="15.00">
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Crear proyecto</button>
-                <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-project">Crear proyecto</button>
+                <button type="button" class="btn" id="btn-cancel" onclick="document.getElementById('new-form-wrap').style.display='none'; document.getElementById('btn-new').style.display='';">Cancelar</button>
             </div>
         </form>
     </div>
@@ -229,24 +338,159 @@
         });
     }
 
+    async function triggerSearch(projectId, triggerBtn) {
+        if (!projectId) return;
+        const origText = triggerBtn ? triggerBtn.textContent : '';
+        if (triggerBtn) {
+            triggerBtn.disabled = true;
+            triggerBtn.textContent = 'Analizando con IA...';
+        }
+        const statusEl = document.getElementById('search-status');
+        if (statusEl) statusEl.textContent = 'Consultando inteligencia de mercado...';
+
+        try {
+            const res = await fetch('/panel/research/' + projectId + '/buscar', { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                alert(data.detail || 'Error en la búsqueda');
+                if (statusEl) statusEl.textContent = data.detail || 'Error';
+                if (triggerBtn) {
+                    triggerBtn.disabled = false;
+                    triggerBtn.textContent = origText;
+                }
+                return;
+            }
+            window.location.reload();
+        } catch (err) {
+            alert('Error de conexión al ejecutar el análisis.');
+            if (statusEl) statusEl.textContent = 'Error de conexión';
+            if (triggerBtn) {
+                triggerBtn.disabled = false;
+                triggerBtn.textContent = origText;
+            }
+        }
+    }
+
     const btnSearch = document.getElementById('btn-search');
     if (btnSearch) {
-        btnSearch.addEventListener('click', async () => {
-            const projectId = btnSearch.dataset.project;
-            const statusEl = document.getElementById('search-status');
-            btnSearch.disabled = true;
-            statusEl.textContent = 'Buscando...';
+        btnSearch.addEventListener('click', () => {
+            triggerSearch(btnSearch.dataset.project, btnSearch);
+        });
+    }
+
+    document.querySelectorAll('.btn-re-search-trigger').forEach(btn => {
+        btn.addEventListener('click', () => {
+            triggerSearch(btn.dataset.project, btn);
+        });
+    });
+
+    // --- MANEJO DE COMPETENCIA DECLARADA (Etapa 5 PRD) ---
+    const competitorForm = document.getElementById('competitor-form');
+    if (competitorForm) {
+        competitorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-add-comp');
+            const statusEl = document.getElementById('comp-status');
+            const urlInput = document.getElementById('comp_url');
+            const notesInput = document.getElementById('comp_notes');
+
+            btn.disabled = true;
+            statusEl.textContent = 'Analizando competidor con IA (contrastando contra tu propuesta)...';
+
             try {
-                const res = await fetch('/panel/research/' + projectId + '/buscar', { method: 'POST' });
+                const projectId = '{{ project.id if project else "" }}';
+                const payload = {
+                    url: urlInput.value.trim(),
+                    notes: notesInput.value.trim() || null
+                };
+
+                const res = await fetch('/panel/research/' + projectId + '/competencia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
                 const data = await res.json();
-                if (!res.ok) { statusEl.textContent = data.detail || 'Error'; btnSearch.disabled = false; return; }
+                if (!res.ok) {
+                    alert(data.detail || 'Error al analizar el competidor');
+                    btn.disabled = false;
+                    statusEl.textContent = '';
+                    return;
+                }
+
                 window.location.reload();
             } catch (err) {
-                statusEl.textContent = 'Error de conexion';
-                btnSearch.disabled = false;
+                alert('Error de conexión al agregar competidor');
+                btn.disabled = false;
+                statusEl.textContent = '';
             }
         });
     }
+
+    // Confirmar competidor
+    document.querySelectorAll('.btn-confirm-comp').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const compId = btn.dataset.id;
+            const projectId = '{{ project.id if project else "" }}';
+            btn.disabled = true;
+            btn.textContent = 'Confirmando...';
+
+            try {
+                const res = await fetch('/panel/research/' + projectId + '/competencia/' + compId + '/confirmar', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Error al confirmar');
+                    btn.disabled = false;
+                    btn.textContent = 'Confirmar competidor';
+                    return;
+                }
+                const badge = document.getElementById('badge-confirm-' + compId);
+                if (badge) {
+                    badge.className = 'pill pill-completed';
+                    badge.innerHTML = '&#10003; Confirmado';
+                }
+                btn.remove();
+            } catch (err) {
+                alert('Error al conectar');
+                btn.disabled = false;
+                btn.textContent = 'Confirmar competidor';
+            }
+        });
+    });
+
+    // Eliminar competidor
+    document.querySelectorAll('.btn-delete-comp').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('¿Deseas eliminar este competidor antes de generar la oferta?')) return;
+            const compId = btn.dataset.id;
+            const projectId = '{{ project.id if project else "" }}';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/panel/research/' + projectId + '/competencia/' + compId, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Error al eliminar');
+                    btn.disabled = false;
+                    return;
+                }
+                const card = document.getElementById('comp-card-' + compId);
+                if (card) card.remove();
+                const countEl = document.getElementById('comp-count');
+                if (countEl) {
+                    const current = parseInt(countEl.textContent, 10);
+                    if (!isNaN(current) && current > 0) countEl.textContent = current - 1;
+                }
+            } catch (err) {
+                alert('Error al conectar');
+                btn.disabled = false;
+            }
+        });
+    });
 })();
 </script>
 {% endblock %}

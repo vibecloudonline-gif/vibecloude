@@ -75,9 +75,9 @@ class Tenant(SQLModel, table=True):
     ai_credits: int = Field(default=100)
 
     # Que productos tiene contratados este tenant -- combinacion libre, no
-    # jerarquia (reemplaza al viejo product_plan de un solo nivel). Default
-    # True en los 3 para no romper tenants existentes que ya usaban todo.
-    has_erp: bool = Field(default=True)
+    # jerarquia (reemplaza al viejo product_plan de un solo nivel).
+    # has_erp=False: ERP no se activa por defecto, se habilita explicitamente.
+    has_erp: bool = Field(default=False)
     has_ecommerce: bool = Field(default=True)
     has_landing: bool = Field(default=True)
     has_alexio: bool = Field(default=True)
@@ -817,6 +817,7 @@ class ResearchProject(SQLModel, table=True):
     demand: Optional["ResearchDemand"] = Relationship(sa_relationship=relationship("ResearchDemand", back_populates="project", uselist=False))
     competitors: List["CompetitorAnalysis"] = Relationship(sa_relationship=relationship("CompetitorAnalysis", back_populates="project"))
     offers: List["Offer"] = Relationship(sa_relationship=relationship("Offer", back_populates="project"))
+    forecasts: List["ResearchForecast"] = Relationship(sa_relationship=relationship("ResearchForecast", back_populates="project"))
 
 
 class ResearchListing(SQLModel, table=True):
@@ -944,3 +945,41 @@ class AlexAgentContext(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 
+
+# ===========================================================================
+# TIMESFM — PREDICCION DE MERCADO (Google TimesFM 2.5, Apache-2.0)
+# ===========================================================================
+
+class ResearchForecast(SQLModel, table=True):
+    """
+    Prediccion de tendencia de precios y demanda generada por TimesFM
+    (Google Research Time Series Foundation Model) para un ResearchProject.
+    Los campos price_series, forecast_series, confidence_low, confidence_high
+    almacenan arrays JSON de floats para graficar en el frontend.
+    """
+    __table_args__ = (
+        UniqueConstraint("project_id", "horizon_days", name="uq_researchforecast_project_horizon"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    horizon_days: int = Field(default=30)  # 30 o 90
+
+    # Series como JSON arrays: "[29.99, 31.5, 33.0, ...]"
+    price_series: Optional[str] = None        # historico de precios observados
+    forecast_series: Optional[str] = None     # prediccion de precios
+    confidence_low: Optional[str] = None      # banda inferior de confianza
+    confidence_high: Optional[str] = None     # banda superior de confianza
+
+    # Analisis textual generado por Gemini a partir del forecast
+    trend_direction: str = Field(default="estable")  # alcista, bajista, estable
+    launch_window: Optional[str] = None       # "Q4 2026", "Enero-Febrero 2027"
+    recommendation: Optional[str] = None      # texto de recomendacion de lanzamiento
+    provider: str = Field(default="timesfm_simulated")  # timesfm_api, timesfm_simulated
+
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    project: Optional["ResearchProject"] = Relationship(
+        sa_relationship=relationship("ResearchProject", back_populates="forecasts")
+    )

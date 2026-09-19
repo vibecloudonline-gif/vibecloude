@@ -51,8 +51,11 @@ class GeminiAdapter(AIProviderAdapter):
 
     async def generate(self, request: AIRequest) -> AIResponse:
         api_key = self._get_api_key(request)
-        model = request.model or DEFAULT_MODEL
-        url = f"{GEMINI_API_BASE}/{model}:generateContent?key={api_key}"
+        preferred_model = request.model or os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
+        models_to_try = [preferred_model]
+        for fallback_m in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+            if fallback_m not in models_to_try:
+                models_to_try.append(fallback_m)
 
         payload: dict[str, Any] = {}
 
@@ -72,15 +75,32 @@ class GeminiAdapter(AIProviderAdapter):
             payload["generationConfig"] = gen_config
 
         t0 = time.monotonic()
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(url, json=payload, timeout=request.timeout)
-        except httpx.TimeoutException as exc:
-            raise AIError(AIErrorCode.timeout, self.provider_name, str(exc), retryable=True) from exc
-        except httpx.RequestError as exc:
-            raise AIError(AIErrorCode.network_error, self.provider_name, str(exc), retryable=True) from exc
+        resp = None
+        used_model = preferred_model
+        async with httpx.AsyncClient() as client:
+            for current_model in models_to_try:
+                used_model = current_model
+                url = f"{GEMINI_API_BASE}/{current_model}:generateContent?key={api_key}"
+                try:
+                    resp = await client.post(url, json=payload, timeout=request.timeout)
+                except httpx.TimeoutException as exc:
+                    raise AIError(AIErrorCode.timeout, self.provider_name, str(exc), retryable=True) from exc
+                except httpx.RequestError as exc:
+                    raise AIError(AIErrorCode.network_error, self.provider_name, str(exc), retryable=True) from exc
+
+                if resp.status_code == 404:
+                    logger.warning("Gemini model %s returned 404. Attempting candidate fallback...", current_model)
+                    continue
+                break
+
         latency_ms = int((time.monotonic() - t0) * 1000)
 
+        if resp is None or resp.status_code == 404:
+            raise AIError(
+                AIErrorCode.provider_error, self.provider_name,
+                f"Gemini API error 404: No valid model found among {models_to_try}",
+                retryable=False, status_code=404,
+            )
         if resp.status_code == 429:
             raise AIError(AIErrorCode.rate_limit, self.provider_name, "Gemini rate limit", retryable=True, status_code=429)
         if resp.status_code != 200:
@@ -127,7 +147,7 @@ class GeminiAdapter(AIProviderAdapter):
         return AIResponse(
             request_id=request.request_id,
             provider=self.provider_name,
-            model=model,
+            model=used_model,
             content=text_content,
             tool_calls=tool_calls,
             usage=usage,

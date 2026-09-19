@@ -1,6 +1,6 @@
 """routers/reports.py — Reportes Financieros"""
 from __future__ import annotations
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse

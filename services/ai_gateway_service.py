@@ -28,6 +28,57 @@ class AIGatewayError(Exception):
     pass
 
 
+class AnthropicClient:
+    """Cliente de Claude vía Gateway (wrapper retrocompatible)."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "claude-opus-5"):
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+        self.model = model
+        if not self.api_key:
+            raise AIGatewayError("ANTHROPIC_API_KEY no configurada")
+
+    async def generate(
+        self, system_prompt: str, user_prompt: str, reference_image_path: Optional[str] = None
+    ) -> str:
+        from services.ai.contracts import AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
+        request = AIRequest(
+            task="landing_generation",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
+            provider="claude",
+            model=self.model,
+            metadata={"reference_image_path": reference_image_path} if reference_image_path else {},
+        )
+        response = await ai_gateway.generate(request)
+        return response.content
+
+
+class QwenClient:
+    """Cliente de Qwen vía Gateway (wrapper retrocompatible)."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "qwen-plus"):
+        self.api_key = api_key or os.getenv("QWEN_API_KEY", "")
+        self.model = model
+        if not self.api_key:
+            raise AIGatewayError("QWEN_API_KEY no configurada")
+
+    async def chat(self, system_prompt: str, user_prompt: str) -> str:
+        from services.ai.contracts import AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
+        request = AIRequest(
+            task="qwen_chat",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
+            provider="qwen",
+            model=self.model,
+        )
+        response = await ai_gateway.generate(request)
+        return response.content
+
+
 class AIGatewayService:
     MAX_CANDIDATES = 40
     MAX_RECOMMENDATIONS = 8
@@ -105,7 +156,15 @@ class AIGatewayService:
         try:
             response = await ai_gateway.generate(request)
         except Exception as exc:
-            raise AIGatewayError(str(exc)) from exc
+            if os.getenv("GEMINI_API_KEY"):
+                try:
+                    request.provider = "gemini"
+                    request.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+                    response = await ai_gateway.generate(request)
+                except Exception:
+                    raise AIGatewayError(str(exc)) from exc
+            else:
+                raise AIGatewayError(str(exc)) from exc
 
         raw = response.content.strip()
         if raw.startswith("```"):
@@ -160,19 +219,23 @@ class AIGatewayService:
         errors: list[str] = []
 
         # --- Claude (primary) via Gateway ---
-        try:
-            request = AIRequest(
-                task="landing_generation",
-                messages=[AIMessage(role="user", content=prompt)],
-                system_prompt=SYSTEM_INSTRUCTION,
-                provider="claude",
-                max_tokens=2048,
-                metadata={"reference_image_path": reference_image_path} if reference_image_path else {},
-            )
-            response = await ai_gateway.generate(request)
-            return _validate(response.content), "claude"
-        except Exception as exc:
-            errors.append(f"Claude: {exc}")
+        claude_adapter = ai_gateway.get_adapter("claude")
+        if claude_adapter.validate_config():
+            try:
+                request = AIRequest(
+                    task="landing_generation",
+                    messages=[AIMessage(role="user", content=prompt)],
+                    system_prompt=SYSTEM_INSTRUCTION,
+                    provider="claude",
+                    max_tokens=2048,
+                    metadata={"reference_image_path": reference_image_path} if reference_image_path else {},
+                )
+                response = await ai_gateway.generate(request)
+                return _validate(response.content), "claude"
+            except Exception as exc:
+                errors.append(f"Claude: {exc}")
+        else:
+            errors.append("Claude: no configurado o sin crédito disponible")
 
         # --- Gemini (fallback) via Gateway ---
         try:
@@ -185,19 +248,23 @@ class AIGatewayService:
             errors.append(f"Gemini: {exc}")
 
         # --- Qwen (third fallback) via Gateway ---
-        try:
-            request = AIRequest(
-                task="landing_generation",
-                messages=[AIMessage(role="user", content=prompt)],
-                system_prompt=SYSTEM_INSTRUCTION,
-                provider="qwen",
-                model="qwen-plus",
-                timeout=20.0,
-            )
-            response = await ai_gateway.generate(request)
-            return _validate(response.content), "qwen"
-        except Exception as exc:
-            errors.append(f"Qwen: {exc}")
+        qwen_adapter = ai_gateway.get_adapter("qwen")
+        if qwen_adapter.validate_config():
+            try:
+                request = AIRequest(
+                    task="landing_generation",
+                    messages=[AIMessage(role="user", content=prompt)],
+                    system_prompt=SYSTEM_INSTRUCTION,
+                    provider="qwen",
+                    model="qwen-plus",
+                    timeout=20.0,
+                )
+                response = await ai_gateway.generate(request)
+                return _validate(response.content), "qwen"
+            except Exception as exc:
+                errors.append(f"Qwen: {exc}")
+        else:
+            errors.append("Qwen: no configurado o sin crédito disponible")
 
         raise LandingGenerationError(
             "Ningún proveedor de IA disponible para generar la landing. " + " | ".join(errors)
@@ -214,6 +281,10 @@ class AIGatewayService:
     ) -> Optional[str]:
         from services.ai.contracts import AIError, AIMessage, AIRequest
         from services.ai.gateway import ai_gateway
+
+        qwen_adapter = ai_gateway.get_adapter("qwen")
+        if not qwen_adapter.validate_config():
+            return None
 
         history_text = "\n".join(
             f"{'Usuario' if h.get('role') == 'user' else 'Asistente'}: {h.get('parts', [{}])[0].get('text', '')}"
@@ -347,19 +418,29 @@ class AIGatewayService:
             f"Contexto de ventas del negocio: {category_context}"
         )
 
-        request = AIRequest(
-            task="product_viability",
-            messages=[AIMessage(role="user", content=user_prompt)],
-            system_prompt=system_prompt,
-            provider="qwen",
-            model="qwen-plus",
-            timeout=20.0,
-        )
-
+        raw = None
         try:
-            response = await ai_gateway.generate(request)
-            raw = response.content.strip()
-        except AIError:
+            client = QwenClient()
+            raw = (await client.chat(system_prompt, user_prompt)).strip()
+        except Exception:
+            if os.getenv("GEMINI_API_KEY"):
+                try:
+                    request = AIRequest(
+                        task="product_viability",
+                        messages=[AIMessage(role="user", content=user_prompt)],
+                        system_prompt=system_prompt,
+                        provider="gemini",
+                        model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                        timeout=20.0,
+                    )
+                    response = await ai_gateway.generate(request)
+                    raw = response.content.strip()
+                except Exception:
+                    return None
+            else:
+                return None
+
+        if not raw:
             return None
 
         if raw.startswith("```"):

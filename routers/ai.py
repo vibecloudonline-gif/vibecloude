@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai", tags=["AI Services"])
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 class CopyRequest(BaseModel):
     product_name: str
@@ -50,7 +51,7 @@ async def generate_copy(req: CopyRequest, db: Session = Depends(get_session), cu
         tenant_id=current_user.tenant_id,
         messages=[AIMessage(role="user", content=prompt)],
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
@@ -86,7 +87,7 @@ async def generate_theme(req: ThemeRequest, db: Session = Depends(get_session), 
         tenant_id=current_user.tenant_id,
         messages=[AIMessage(role="user", content=prompt)],
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
         structured_output=True,
     )
 
@@ -205,7 +206,7 @@ async def generate_product_description(
         messages=[AIMessage(role="user", content=prompt)],
         system_prompt=system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
@@ -255,7 +256,7 @@ async def generate_landing_copy(
         messages=[AIMessage(role="user", content=prompt)],
         system_prompt=system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
         structured_output=True,
     )
 
@@ -300,7 +301,7 @@ async def chat_bot_response(
         messages=messages,
         system_prompt=req.system_instruction,
         provider="gemini",
-        model="gemini-2.5-flash",
+        model=DEFAULT_GEMINI_MODEL,
     )
 
     try:
@@ -455,22 +456,68 @@ async def get_tenant_credits(
         "ai_credits": tenant.ai_credits
     }
 
+class CreditPurchaseRequest(BaseModel):
+    amount: int = 100
+    payment_reference: str  # external_id de un PlatformPayment completado
+
+
 @router.post("/credits/buy")
 async def buy_tenant_credits(
-    amount: int = 100,
+    req: CreditPurchaseRequest,
     db: Session = Depends(get_session),
-    tenant_id: int = Depends(get_current_tenant)
+    current_user: User = Depends(require_auth),
+    tenant_id: int = Depends(get_current_tenant),
 ):
+    # 1. Solo admin puede comprar créditos
+    from services.settings_service import SettingsService
+    SettingsService.ensure_admin(current_user)
+
+    # 2. Verificar pago real completado y no reutilizado
+    from database.models import PlatformPayment
+    payment = db.exec(
+        select(PlatformPayment).where(
+            PlatformPayment.tenant_id == tenant_id,
+            PlatformPayment.external_id == req.payment_reference,
+            PlatformPayment.status == "completed",
+            PlatformPayment.payment_type == "credit_purchase",
+        )
+    ).first()
+
+    if not payment:
+        raise HTTPException(
+            status_code=402,
+            detail="Referencia de pago inválida, no completada o no encontrada.",
+        )
+
+    # 3. Idempotencia: verificar que no se acreditaron créditos ya con este pago
+    meta = json.loads(payment.metadata_json or "{}")
+    if meta.get("credits_applied"):
+        raise HTTPException(
+            status_code=409,
+            detail="Los créditos de este pago ya fueron acreditados.",
+        )
+
+    # 4. Acreditar créditos
     tenant = db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant no encontrado.")
 
-    tenant.ai_credits += amount
+    tenant.ai_credits += req.amount
+    meta["credits_applied"] = True
+    meta["credits_amount"] = req.amount
+    payment.metadata_json = json.dumps(meta)
     db.add(tenant)
+    db.add(payment)
     db.commit()
+
+    logger.info(
+        "Credits purchased: tenant_id=%s amount=%s payment=%s",
+        tenant_id, req.amount, req.payment_reference,
+    )
 
     return {
         "success": True,
-        "message": f"Se agregaron {amount} créditos con éxito.",
-        "ai_credits": tenant.ai_credits
+        "message": f"Se agregaron {req.amount} créditos con éxito.",
+        "ai_credits": tenant.ai_credits,
     }
+

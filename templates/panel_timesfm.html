@@ -1,0 +1,265 @@
+﻿{% extends "base.html" %}
+{% block title %}Forecast de Mercado — {{ project.query_description[:40] }}{% endblock %}
+{% block header_title %}Forecast de Mercado&#x202F;&#x1F4C8;{% endblock %}
+{% block breadcrumb %}Investigacion / Forecast TimesFM{% endblock %}
+
+{% block extra_css %}
+<style>
+.forecast-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+.forecast-kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+.forecast-kpi { background:var(--surface); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:16px 18px; }
+.forecast-kpi .label { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); margin-bottom:4px; }
+.forecast-kpi .value { font-size:1.35rem; font-weight:700; color:var(--text-color); }
+.forecast-kpi .value.alcista { color:var(--success-color,#16a34a); }
+.forecast-kpi .value.bajista { color:var(--danger-color,#dc2626); }
+.forecast-kpi .value.estable { color:var(--accent-color,#2563eb); }
+.chart-wrap { background:var(--surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:22px; margin-bottom:20px; position:relative; min-height:280px; }
+.chart-wrap canvas { max-width:100%; }
+.tabs-row { display:flex; gap:8px; margin-bottom:20px; }
+.tab-btn { padding:8px 20px; border-radius:var(--radius-md); border:1px solid var(--border-color); background:var(--surface); cursor:pointer; font-size:0.85rem; font-weight:600; color:var(--text-muted); transition:all 0.15s; }
+.tab-btn.active { background:var(--accent-color); color:#fff; border-color:var(--accent-color); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.reco-box { background:rgba(37,99,235,0.07); border-left:3px solid var(--accent-color); border-radius:var(--radius-md); padding:16px 18px; font-size:0.88rem; line-height:1.65; color:var(--text-color); }
+.provider-badge { font-size:0.7rem; padding:2px 8px; border-radius:99px; background:var(--surface-alt); color:var(--text-muted); border:1px solid var(--border-color); display:inline-block; }
+.no-forecast-box { text-align:center; padding:48px 24px; color:var(--text-muted); }
+.no-forecast-box .icon { font-size:2.5rem; margin-bottom:12px; }
+.generate-form { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div class="page-intro">
+        <h1>&#x1F4C8; Forecast de Mercado</h1>
+        <p>{{ project.query_description[:60] }}{% if project.query_description|length > 60 %}...{% endif %} &mdash; <span class="pill pill-{{ project.status }}">{{ project.status }}</span></p>
+    </div>
+    <a href="/panel/research/{{ project.id }}" class="btn btn-outline">&#8592; Volver al proyecto</a>
+</div>
+
+<!-- Generar / Regenerar Forecast -->
+<div class="section-card" style="margin-bottom:20px;">
+    <h2><span class="sec-icon">&#x2699;&#xFE0F;</span> Generar Forecast</h2>
+    <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:14px;">
+        TimesFM analiza los precios del mercado recopilados y proyecta la tendencia de precios a 30 o 90 dias.
+        El modelo usa <strong>Google TimesFM 2.0</strong> (Apache-2.0) via Gemini AI como analista.
+    </p>
+    <form class="generate-form" id="forecastForm">
+        <select name="horizon_days" id="horizonSelect" style="padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); background:var(--surface); font-size:0.88rem; color:var(--text-color);">
+            <option value="30" {% if not forecast_90 or forecast_30 %}selected{% endif %}>30 dias</option>
+            <option value="90" {% if forecast_90 %}selected{% endif %}>90 dias</option>
+        </select>
+        <button type="submit" class="btn btn-primary" id="btnGenerate">&#x26A1; Generar Forecast con IA</button>
+        <span id="genStatus" style="font-size:0.85rem; color:var(--text-muted);"></span>
+    </form>
+</div>
+
+{% if forecast_30 or forecast_90 %}
+
+<!-- KPIs -->
+{% set active_fc = forecast_90 if forecast_90 else forecast_30 %}
+<div class="forecast-kpi-row">
+    <div class="forecast-kpi">
+        <div class="label">Tendencia</div>
+        <div class="value {{ active_fc.trend_direction }}">
+            {% if active_fc.trend_direction == 'alcista' %}&#x2197; Alcista
+            {% elif active_fc.trend_direction == 'bajista' %}&#x2198; Bajista
+            {% else %}&#x27A1; Estable{% endif %}
+        </div>
+    </div>
+    <div class="forecast-kpi">
+        <div class="label">Ventana de lanzamiento</div>
+        <div class="value" style="font-size:1rem;">{{ active_fc.launch_window }}</div>
+    </div>
+    {% if active_fc.forecast_series %}
+    <div class="forecast-kpi">
+        <div class="label">Precio proyectado (fin de periodo)</div>
+        <div class="value">${{ "%.2f"|format(active_fc.forecast_series[-1]) }}</div>
+    </div>
+    <div class="forecast-kpi">
+        <div class="label">Rango de confianza</div>
+        <div class="value" style="font-size:0.95rem;">
+            ${{ "%.2f"|format(active_fc.confidence_low[-1]) }} &ndash; ${{ "%.2f"|format(active_fc.confidence_high[-1]) }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tabs 30d / 90d -->
+<div class="tabs-row">
+    {% if forecast_30 %}<button class="tab-btn {% if not forecast_90 %}active{% endif %}" onclick="switchTab('fc30', this)">30 dias</button>{% endif %}
+    {% if forecast_90 %}<button class="tab-btn {% if forecast_90 %}active{% endif %}" onclick="switchTab('fc90', this)">90 dias</button>{% endif %}
+</div>
+
+{% if forecast_30 %}
+<div class="tab-content {% if not forecast_90 %}active{% endif %}" id="fc30">
+    <div class="chart-wrap">
+        <canvas id="chart30" height="260"></canvas>
+    </div>
+    <div class="reco-box">
+        <strong>&#x1F4CB; Analisis de oportunidad (30 dias):</strong><br>
+        {{ forecast_30.recommendation }}
+    </div>
+    <p style="margin-top:8px; font-size:0.78rem; color:var(--text-muted);">
+        Fuente: <span class="provider-badge">{{ forecast_30.provider }}</span>
+    </p>
+</div>
+{% endif %}
+
+{% if forecast_90 %}
+<div class="tab-content {% if forecast_90 %}active{% endif %}" id="fc90">
+    <div class="chart-wrap">
+        <canvas id="chart90" height="260"></canvas>
+    </div>
+    <div class="reco-box">
+        <strong>&#x1F4CB; Analisis de oportunidad (90 dias):</strong><br>
+        {{ forecast_90.recommendation }}
+    </div>
+    <p style="margin-top:8px; font-size:0.78rem; color:var(--text-muted);">
+        Fuente: <span class="provider-badge">{{ forecast_90.provider }}</span>
+    </p>
+</div>
+{% endif %}
+
+{% else %}
+<div class="section-card">
+    <div class="no-forecast-box">
+        <div class="icon">&#x1F4CA;</div>
+        <p style="font-weight:600; margin-bottom:8px;">No hay forecast generado todavia.</p>
+        <p style="font-size:0.88rem;">Selecciona el horizonte y haz clic en "Generar Forecast con IA".</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+function switchTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+}
+
+function buildChart(canvasId, data, label) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx || !data) return;
+    const n_hist = data.price_series.length;
+    const labels_hist = Array.from({length: n_hist}, (_, i) => 'S' + (i + 1 - n_hist));
+    const labels_fc = Array.from({length: data.forecast_series.length}, (_, i) => '+S' + (i + 1));
+    const allLabels = [...labels_hist, ...labels_fc];
+
+    const histData = [...data.price_series, ...Array(data.forecast_series.length).fill(null)];
+    const fcData = [...Array(n_hist - 1).fill(null), data.price_series[n_hist-1], ...data.forecast_series];
+    const lowData = [...Array(n_hist).fill(null), ...data.confidence_low];
+    const highData = [...Array(n_hist).fill(null), ...data.confidence_high];
+
+    const isDark = document.documentElement.getAttribute('data-color-mode') === 'dark';
+    const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: allLabels,
+            datasets: [
+                {
+                    label: 'Precio observado',
+                    data: histData,
+                    borderColor: '#2563eb',
+                    backgroundColor: 'transparent',
+                    pointRadius: 3,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    spanGaps: false,
+                },
+                {
+                    label: 'Forecast ' + label,
+                    data: fcData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderDash: [6, 3],
+                    pointRadius: 4,
+                    borderWidth: 2,
+                    tension: 0.35,
+                    spanGaps: true,
+                },
+                {
+                    label: 'Confianza superior',
+                    data: highData,
+                    borderColor: 'rgba(245,158,11,0.3)',
+                    backgroundColor: 'rgba(245,158,11,0.1)',
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    tension: 0.35,
+                    fill: '+1',
+                    spanGaps: true,
+                },
+                {
+                    label: 'Confianza inferior',
+                    data: lowData,
+                    borderColor: 'rgba(245,158,11,0.3)',
+                    backgroundColor: 'transparent',
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    tension: 0.35,
+                    spanGaps: true,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { color: textColor, font: { size: 11 } } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': $' + (ctx.raw !== null ? ctx.raw.toFixed(2) : '-')
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: textColor, font: { size: 10 } }, grid: { color: gridColor } },
+                y: {
+                    ticks: { color: textColor, font: { size: 11 }, callback: v => '$' + v.toFixed(2) },
+                    grid: { color: gridColor }
+                }
+            }
+        }
+    });
+}
+
+{% if forecast_30 %}
+buildChart('chart30', {{ forecast_30 | tojson }}, '30d');
+{% endif %}
+{% if forecast_90 %}
+buildChart('chart90', {{ forecast_90 | tojson }}, '90d');
+{% endif %}
+
+// Generar forecast
+document.getElementById('forecastForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btnGenerate');
+    const status = document.getElementById('genStatus');
+    const horizon = document.getElementById('horizonSelect').value;
+    btn.disabled = true;
+    btn.textContent = 'Analizando con IA...';
+    status.textContent = 'Procesando serie temporal con TimesFM...';
+    try {
+        const fd = new FormData();
+        fd.append('horizon_days', horizon);
+        const res = await fetch('/panel/research/{{ project.id }}/forecast', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Error al generar el forecast'); btn.disabled = false; btn.textContent = '⚡ Generar Forecast con IA'; status.textContent = ''; return; }
+        status.textContent = 'Forecast generado! Recargando...';
+        setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+        alert('Error de conexion');
+        btn.disabled = false;
+        btn.textContent = '⚡ Generar Forecast con IA';
+        status.textContent = '';
+    }
+});
+</script>
+{% endblock %}

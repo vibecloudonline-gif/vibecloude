@@ -231,20 +231,55 @@ async def test_template_studio_success(client, session, monkeypatch):
 
 @pytest.mark.anyio
 async def test_credits_management_endpoints(client, session):
+    from database.models import PlatformPayment
+    from decimal import Decimal
+    from web.dependencies import require_auth
+
     t1 = Tenant(name="Tenant 1", subdomain="t1", ai_credits=50, ai_tier="free")
     session.add(t1)
     session.commit()
+    session.refresh(t1)
 
-    resp_get = client.get("/api/v1/ai/credits", headers={"x-tenant-subdomain": "t1"})
-    assert resp_get.status_code == 200
-    data_get = resp_get.json()
-    assert data_get["ai_credits"] == 50
-    assert data_get["ai_tier"] == "free"
+    admin_user = User(
+        tenant_id=t1.id,
+        username="admin_test",
+        password_hash="pw",
+        role="admin",
+        is_active=True,
+    )
+    session.add(admin_user)
 
-    resp_buy = client.post("/api/v1/ai/credits/buy?amount=150", headers={"x-tenant-subdomain": "t1"})
-    assert resp_buy.status_code == 200
-    data_buy = resp_buy.json()
-    assert data_buy["ai_credits"] == 200
+    payment = PlatformPayment(
+        tenant_id=t1.id,
+        provider="manual_test",
+        external_id="pay_ref_test_150",
+        amount=Decimal("15.00"),
+        currency="ARS",
+        status="completed",
+        payment_type="credit_purchase",
+    )
+    session.add(payment)
+    session.commit()
 
-    db_tenant = session.get(Tenant, t1.id)
-    assert db_tenant.ai_credits == 200
+    app.dependency_overrides[require_auth] = lambda: admin_user
+
+    try:
+        resp_get = client.get("/api/v1/ai/credits", headers={"x-tenant-subdomain": "t1"})
+        assert resp_get.status_code == 200
+        data_get = resp_get.json()
+        assert data_get["ai_credits"] == 50
+        assert data_get["ai_tier"] == "free"
+
+        resp_buy = client.post(
+            "/api/v1/ai/credits/buy",
+            headers={"x-tenant-subdomain": "t1"},
+            json={"amount": 150, "payment_reference": "pay_ref_test_150"},
+        )
+        assert resp_buy.status_code == 200
+        data_buy = resp_buy.json()
+        assert data_buy["ai_credits"] == 200
+
+        db_tenant = session.get(Tenant, t1.id)
+        assert db_tenant.ai_credits == 200
+    finally:
+        app.dependency_overrides.pop(require_auth, None)
