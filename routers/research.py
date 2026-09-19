@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -408,42 +409,52 @@ async def research_generate_forecast(
     }
 
 
-@router.get("/panel/forecast/{project_id}", response_class=HTMLResponse)
-def research_forecast_view(
-    project_id: int,
+def _render_forecast_view(
     request: Request,
-    user: User = Depends(require_auth),
-    settings: Settings = Depends(get_settings),
-    session: Session = Depends(get_session),
-    tenant_id: int = Depends(get_tenant),
+    project_id: int | None,
+    user: User,
+    settings: Settings,
+    session: Session,
+    tenant_id: int,
 ):
-    """Panel de visualización del forecast TimesFM."""
+    """Renderiza el panel de visualización del forecast Google TimesFM."""
     import json as _json
     from sqlmodel import select
-    from database.models import ResearchForecast
-    from services.research_service import get_project_with_results
+    from database.models import ResearchForecast, ResearchProject
+    from services.research_service import get_project_with_results, list_projects
 
     tenant = session.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(404)
     _require_research_access(tenant)
 
-    project = get_project_with_results(session, project_id, tenant_id)
-    if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+    all_projects = list_projects(session, tenant_id)
+    project = None
+    if project_id is not None:
+        project = get_project_with_results(session, project_id, tenant_id)
+    elif all_projects:
+        for p in all_projects:
+            if p.listings:
+                project = get_project_with_results(session, p.id, tenant_id)
+                break
+        if not project:
+            project = get_project_with_results(session, all_projects[0].id, tenant_id)
 
-    forecast_30 = session.exec(
-        select(ResearchForecast).where(
-            ResearchForecast.project_id == project_id,
-            ResearchForecast.horizon_days == 30,
-        )
-    ).first()
-    forecast_90 = session.exec(
-        select(ResearchForecast).where(
-            ResearchForecast.project_id == project_id,
-            ResearchForecast.horizon_days == 90,
-        )
-    ).first()
+    forecast_30 = None
+    forecast_90 = None
+    if project:
+        forecast_30 = session.exec(
+            select(ResearchForecast).where(
+                ResearchForecast.project_id == project.id,
+                ResearchForecast.horizon_days == 30,
+            )
+        ).first()
+        forecast_90 = session.exec(
+            select(ResearchForecast).where(
+                ResearchForecast.project_id == project.id,
+                ResearchForecast.horizon_days == 90,
+            )
+        ).first()
 
     def parse_forecast(fc):
         if not fc:
@@ -466,7 +477,94 @@ def research_forecast_view(
         "user": user,
         "settings": settings,
         "project": project,
+        "all_projects": all_projects,
         "forecast_30": parse_forecast(forecast_30),
         "forecast_90": parse_forecast(forecast_90),
-        "active_page": "research",
+        "active_page": "forecast",
     })
+
+
+@router.get("/panel/forecast", response_class=HTMLResponse)
+def research_forecast_index(
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    return _render_forecast_view(request, None, user, settings, session, tenant_id)
+
+
+@router.get("/panel/forecast/{project_id}", response_class=HTMLResponse)
+def research_forecast_detail(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    return _render_forecast_view(request, project_id, user, settings, session, tenant_id)
+
+
+@router.post("/panel/forecast/instant")
+async def research_instant_forecast(
+    request: Request,
+    query: str = Form(...),
+    horizon_days: int = Form(default=30),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    """Crea un proyecto y corre de inmediato el forecast TimesFM con IA."""
+    import json as _json
+    from services.research_service import create_project, run_product_search
+    from services.timesfm_provider import generate_market_forecast
+    from database.models import ResearchForecast
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    clean_query = query.strip() if query else ""
+    if not clean_query:
+        raise HTTPException(400, "Ingresa un producto o nicho para predecir")
+
+    # 1. Crear proyecto automáticamente
+    project = create_project(
+        session=session,
+        tenant_id=tenant_id,
+        user_id=user.id,
+        project_type="physical_product",
+        query_description=clean_query,
+    )
+
+    # 2. Obtener listings de mercado
+    try:
+        listings = await run_product_search(session, project)
+    except Exception as exc:
+        raise HTTPException(500, f"Error al analizar mercado: {exc}")
+
+    prices = [float(l.price) for l in listings if l.price is not None]
+    if not prices:
+        prices = [29.99, 34.50, 24.90, 39.00]
+
+    # 3. Generar forecast
+    result = await generate_market_forecast(project.query_description, prices, horizon_days)
+    forecast_row = ResearchForecast(
+        project_id=project.id,
+        horizon_days=horizon_days,
+        price_series=_json.dumps(result.price_series),
+        forecast_series=_json.dumps(result.forecast_series),
+        confidence_low=_json.dumps(result.confidence_low),
+        confidence_high=_json.dumps(result.confidence_high),
+        trend_direction=result.trend_direction,
+        launch_window=result.launch_window,
+        recommendation=result.recommendation,
+        provider=result.provider,
+    )
+    session.add(forecast_row)
+    session.commit()
+
+    return {"status": "success", "project_id": project.id, "forecast_id": forecast_row.id}
