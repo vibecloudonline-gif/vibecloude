@@ -88,7 +88,7 @@
 {% if project.listings %}
 {% set any_demo = project.listings|selectattr('is_demo')|list|length > 0 %}
 {% if any_demo %}
-<div class="demo-notice">&#9888; Los resultados son datos demo. Para datos reales de mercado, configure KEEPA_API_KEY.</div>
+<div class="demo-notice">&#9888; Modo de demostración activo. Configure GEMINI_API_KEY o KEEPA_API_KEY para inteligencia de mercado en tiempo real.</div>
 {% endif %}
 
 {% if price_range %}

@@ -24,6 +24,10 @@ def _get_provider() -> ProductDataProvider:
     if keepa_key:
         from services.research_providers.keepa_provider import KeepaProvider
         return KeepaProvider(keepa_key)
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    if gemini_key:
+        from services.research_providers.gemini_provider import GeminiMarketProvider
+        return GeminiMarketProvider(gemini_key)
     from services.research_providers.mock_provider import MockProvider
     return MockProvider()
 

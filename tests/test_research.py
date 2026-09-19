@@ -123,3 +123,66 @@ def test_project_detail_requires_auth():
     resp = fresh_client.get("/panel/research/1", follow_redirects=False)
     assert resp.status_code == 302
     assert "/login" in resp.headers.get("location", "")
+
+
+def test_gemini_market_provider_search_and_demand(monkeypatch):
+    from unittest.mock import AsyncMock
+    import json
+    from services.gemini_service import GeminiService
+    from services.research_providers.gemini_provider import GeminiMarketProvider
+    from services.research_service import _get_provider
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.delenv("KEEPA_API_KEY", raising=False)
+
+    provider = _get_provider()
+    assert isinstance(provider, GeminiMarketProvider)
+
+    mock_listings_json = json.dumps([
+        {
+            "source": "Amazon",
+            "title": "Auriculares Bluetooth Pro Sport X1",
+            "price": 49.99,
+            "currency": "USD",
+            "rating": 4.6,
+            "review_count": 820,
+            "url": "https://www.amazon.com/dp/B000TEST"
+        },
+        {
+            "source": "MercadoLibre",
+            "title": "Auriculares Deportivos Inalámbricos V5",
+            "price": 38.50,
+            "currency": "USD",
+            "rating": 4.4,
+            "review_count": 430,
+            "url": "https://articulo.mercadolibre.com.ar/test"
+        }
+    ])
+
+    mock_demand_json = json.dumps({
+        "confidence_level": "alto",
+        "estimated_monthly_volume": 4200,
+        "source_description": "Inteligencia de Mercado Alex.io AI",
+        "notes": "Alta demanda sostenida en canales digitales."
+    })
+
+    call_count = 0
+    async def fake_call(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_listings_json
+        return mock_demand_json
+
+    monkeypatch.setattr(GeminiService, "_call_gemini_api", fake_call)
+
+    listings = asyncio.run(provider.search_products("auriculares"))
+    assert len(listings) == 2
+    assert listings[0].is_demo is False
+    assert listings[0].source == "Amazon"
+    assert float(listings[0].price) == 49.99
+
+    demand = asyncio.run(provider.estimate_demand("auriculares"))
+    assert demand.confidence_level == "alto"
+    assert demand.estimated_monthly_volume == 4200
+
