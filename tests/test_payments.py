@@ -1,6 +1,6 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["ALEXIO_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 os.environ["PAYPAL_CLIENT_ID"] = "test_client_id"
 os.environ["PAYPAL_CLIENT_SECRET"] = "test_client_secret"
 
@@ -250,7 +250,7 @@ def test_storefront_checkout_payment(session, client, tenant_and_user, mock_payp
     resp = client.post(
         "/tienda/checkout/pagar",
         data={"sale_id": str(sale.id), "provider": "paypal"},
-        headers={"host": "testshop.vibecloud.com"},
+        headers={"host": "testshop.alexio.com"},
         follow_redirects=False,
     )
     assert resp.status_code == 303
@@ -289,7 +289,7 @@ def test_storefront_capture_marks_sale_paid(session, client, tenant_and_user, mo
 
     resp = client.get(
         f"/tienda/checkout/capturar?sale_id={sale.id}&token=PAYPAL-ORDER-123&provider=paypal",
-        headers={"host": "testshop.vibecloud.com"},
+        headers={"host": "testshop.alexio.com"},
         follow_redirects=False,
     )
     assert resp.status_code == 303

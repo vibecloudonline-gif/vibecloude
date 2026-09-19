@@ -86,7 +86,7 @@ export default function WebBuilder() {
         <div className="absolute top-10 right-10 w-60 h-60 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
         
         <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tighter bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-300 bg-clip-text text-transparent">
-          VibeCloud Web Creator ✨
+          Alex IO Web Creator ✨
         </h1>
         <p className="text-gray-400 text-lg max-w-2xl">
           Construye tu presencia digital impulsada por Inteligencia Artificial. Diseña landing pages, descripciones de productos y entrena a tu asistente virtual en segundos.

@@ -1,7 +1,7 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
-os.environ["BASE_DOMAIN"] = "vibecloud.test"
+os.environ["ALEXIO_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["BASE_DOMAIN"] = "alexio.test"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -203,9 +203,9 @@ def test_dos_tenants_pueden_tener_cada_uno_su_admin(client, session):
     _make_tenant_with_admin(session, "negocio-uno", "admin")
     _make_tenant_with_admin(session, "negocio-dos", "admin")
 
-    resp1 = _login(client, "admin", host="negocio-uno.vibecloud.test")
+    resp1 = _login(client, "admin", host="negocio-uno.alexio.test")
     assert resp1.status_code == 302
-    resp2 = _login(client, "admin", host="negocio-dos.vibecloud.test")
+    resp2 = _login(client, "admin", host="negocio-dos.alexio.test")
     assert resp2.status_code == 302
 
 
@@ -213,7 +213,7 @@ def test_panel_equipo_crea_usuario_y_aisla_por_tenant(client, session):
     tenant_a, _ = _make_tenant_with_admin(session, "equipo-a", "admin")
     tenant_b, _ = _make_tenant_with_admin(session, "equipo-b", "admin")
 
-    _login(client, "admin", host="equipo-a.vibecloud.test")
+    _login(client, "admin", host="equipo-a.alexio.test")
     resp = client.post(
         "/panel/equipo",
         data={"username": "cajera1", "password": "Contrasena123!", "role": "cashier"},
@@ -225,7 +225,7 @@ def test_panel_equipo_crea_usuario_y_aisla_por_tenant(client, session):
     assert new_user.tenant_id == tenant_a.id
 
     # tenant B (logueado con SU PROPIO admin) no ve a la empleada de tenant A
-    _login(client, "admin", host="equipo-b.vibecloud.test")
+    _login(client, "admin", host="equipo-b.alexio.test")
     page_b = client.get("/panel/equipo")
     assert page_b.status_code == 200
     assert "cajera1" not in page_b.text
@@ -233,12 +233,12 @@ def test_panel_equipo_crea_usuario_y_aisla_por_tenant(client, session):
 
 def test_panel_equipo_username_duplicado_dentro_del_tenant(client, session):
     _make_tenant_with_admin(session, "equipo-c", "admin")
-    _login(client, "admin", host="equipo-c.vibecloud.test")
+    _login(client, "admin", host="equipo-c.alexio.test")
 
     resp = client.post(
         "/panel/equipo",
         data={"username": "admin", "password": "Contrasena123!", "role": "cashier"},
-        headers={"Host": "equipo-c.vibecloud.test"},
+        headers={"Host": "equipo-c.alexio.test"},
     )
     assert resp.status_code == 400
     assert "ya existe" in resp.text.lower()

@@ -2,7 +2,7 @@ import "./globals.css";
 import { StoreProvider } from "../context/StoreContext";
 
 export const metadata = {
-  title: "VibeCloud SaaS POS Terminal & Tienda Online",
+  title: "Alex IO — POS & Tienda Online",
   description: "Terminal de Ventas Minorista y Tienda E-commerce Moderna",
 };
 

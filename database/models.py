@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-database/models.py — VibeCloud SaaS
+database/models.py — Alex IO SaaS
 =================================
 CORRECCIONES APLICADAS:
   1. ui_theme default unificado → "standard" (igual que la migración DB)
@@ -28,15 +28,15 @@ import os
 # ---------------------------------------------------------------------------
 # Cifrado de credenciales (FIX #7)
 # Requiere: pip install cryptography
-# Configurar variable de entorno: VIBECLOUD_FERNET_KEY=<fernet_key>
+# Configurar variable de entorno: ALEXIO_FERNET_KEY=<fernet_key>
 # Generar una vez con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # ---------------------------------------------------------------------------
 
 def _get_fernet() -> Fernet:
-    key = os.environ.get("VIBECLOUD_FERNET_KEY")
+    key = os.environ.get("ALEXIO_FERNET_KEY")
     if not key:
         raise RuntimeError(
-            "VIBECLOUD_FERNET_KEY no está configurada. "
+            "ALEXIO_FERNET_KEY no está configurada. "
             "Generá una clave con Fernet.generate_key() y agrégala como variable de entorno."
         )
     return Fernet(key.encode())
@@ -112,7 +112,7 @@ class TenantDomain(SQLModel, table=True):
 
 class SupportTicket(SQLModel, table=True):
     """
-    Ticket de soporte de un tenant hacia VibeCloud (centro de ayuda,
+    Ticket de soporte de un tenant hacia Alex IO (centro de ayuda,
     /panel/ayuda). Cualquier usuario del tenant puede crearlo, no solo el
     admin; SuperAdmin los ve todos y responde -- ver routers/superadmin.py.
     """
@@ -141,7 +141,7 @@ class Settings(SQLModel, table=True):
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id")
     tenant: Optional[Tenant] = Relationship(sa_relationship=relationship("Tenant", back_populates="settings"))
 
-    company_name: str = Field(default="VibeCloud")
+    company_name: str = Field(default="Alex IO")
     logo_url: str = Field(default="/static/images/logo.png")
     tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), sa_column=Column(Numeric(5, 4), nullable=True))
     printer_name: Optional[str] = Field(default=None)

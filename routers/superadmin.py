@@ -119,7 +119,7 @@ async def security_audit(
         ]
         
     system_instruction = (
-        "Eres un analista de ciberseguridad experto de VibeCloud. Tu tarea es analizar la bitácora de accesos proporcionada "
+        "Eres un analista de ciberseguridad experto de Alex IO. Tu tarea es analizar la bitácora de accesos proporcionada "
         "y emitir un reporte de auditoría de seguridad detallado y conciso. Detecta intentos de fuerza bruta, "
         "geografías extrañas o patrones inusuales. Elige un tono profesional y estructurado."
     )

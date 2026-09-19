@@ -1,5 +1,5 @@
 """routers/signup.py — Alta self-service de tenant (Fase 3 del roadmap,
-sección 7 de CLAUDE.md/VIBECLOUD_ROADMAP_V2.md).
+sección 7 de CLAUDE.md/ALEXIO_ROADMAP_V2.md).
 
 Cualquier visitante puede crearse una cuenta y elegir qué producto(s)
 contrata (ERP, ecommerce, landing con IA, AlexIO) sin intervención manual

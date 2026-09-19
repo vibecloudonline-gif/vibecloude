@@ -44,7 +44,7 @@ export default function StorefrontHeader() {
           />
         )}
         <h1 style={{ fontSize: "1.5rem", fontWeight: "800", margin: 0, letterSpacing: "-0.5px" }}>
-          {storeInfo.company_name || "VibeCloud Store"}
+          {storeInfo.company_name || "Alex IO Store"}
         </h1>
       </div>
 

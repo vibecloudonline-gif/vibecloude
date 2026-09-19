@@ -5,7 +5,7 @@ import { predefinedCombinations, composeTheme, applyThemeToDOM } from '../lib/th
 export default function Header({ user, onLogout }) {
   const [activeTheme, setActiveTheme] = useState(() => {
     if (typeof window === 'undefined') return 'combo-1';
-    return localStorage.getItem('vibecloud_theme') || 'combo-1';
+    return localStorage.getItem('alexio_theme') || 'combo-1';
   });
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export default function Header({ user, onLogout }) {
 
   const handleThemeChange = useCallback(async (comboId, saveToBackend = true) => {
     setActiveTheme(comboId);
-    localStorage.setItem('vibecloud_theme', comboId);
+    localStorage.setItem('alexio_theme', comboId);
 
     if (saveToBackend && user?.tenant_id) {
       try {
@@ -46,7 +46,7 @@ export default function Header({ user, onLogout }) {
     }}>
       <div>
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '700', fontFamily: 'var(--font-family)' }}>
-          VibeCloud <span style={{ color: 'var(--primary-color)' }}>Minorista</span>
+          Alex IO
         </h1>
       </div>
 

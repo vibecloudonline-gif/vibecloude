@@ -1,5 +1,5 @@
 """routers/help.py — Centro de ayuda del tenant (/panel/ayuda): FAQ +
-tickets de soporte hacia VibeCloud.
+tickets de soporte hacia Alex IO.
 
 Regla 1.1 aplicada: los tickets siempre se crean y se listan filtrados por
 el tenant_id del usuario logueado (get_tenant), nunca por uno que mande el

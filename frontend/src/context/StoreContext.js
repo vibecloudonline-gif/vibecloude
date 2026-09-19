@@ -5,11 +5,11 @@ const StoreContext = createContext();
 
 export const useStore = () => useContext(StoreContext);
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_VIBECLOUD_URL || "https://vibecloud-backend.onrender.com";
+const BACKEND_URL = process.env.NEXT_PUBLIC_ALEXIO_URL || "https://vibecloud-backend.onrender.com";
 
 export const StoreProvider = ({ children }) => {
   const [storeInfo, setStoreInfo] = useState({
-    company_name: "VibeCloud Store",
+    company_name: "Alex IO Store",
     logo_url: "/static/images/berelk_logo.png",
     storefront_template: "elegante",
   });
@@ -18,7 +18,7 @@ export const StoreProvider = ({ children }) => {
   const [cart, setCart] = useState(() => {
     if (typeof window === 'undefined') return [];
     try {
-      const savedCart = localStorage.getItem("vibecloud_cart");
+      const savedCart = localStorage.getItem("alexio_cart");
       return savedCart ? JSON.parse(savedCart) : [];
     } catch (e) {
       console.error("Error loading cart:", e);
@@ -30,7 +30,7 @@ export const StoreProvider = ({ children }) => {
   // Save cart to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem("vibecloud_cart", JSON.stringify(cart));
+      localStorage.setItem("alexio_cart", JSON.stringify(cart));
     } catch (e) {
       console.error("Error saving cart:", e);
     }

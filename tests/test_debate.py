@@ -1,7 +1,7 @@
 """Tests for the debate service (Fase 2 of Alex IO pipeline)."""
 import os
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("ALEXIO_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 
 import pytest
 from unittest.mock import patch, AsyncMock

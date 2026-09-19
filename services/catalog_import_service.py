@@ -2,7 +2,7 @@
 de producto (item_number/barcode). Reemplaza el flujo manual de import_productos.py
 por una feature real, multi-tenant, disponible desde el panel.
 
-Fase 2 del roadmap (VIBECLOUD_ROADMAP_V2.md, sección 5): "la magia" acá es el
+Fase 2 del roadmap (ALEXIO_ROADMAP_V2.md, sección 5): "la magia" acá es el
 emparejamiento automático imagen<->producto por nombre de archivo. No genera
 título/descripción — eso lo define el cliente.
 """

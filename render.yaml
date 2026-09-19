@@ -1,14 +1,11 @@
-# render.yaml — VibeCloud
+# render.yaml — Alex IO
 # Infrastructure as Code — 2 servicios
-# Actualizado: 2026-08-10 — Medusa, su worker de sync y el storefront Next.js
-# se sacaron del proyecto (ver VIBECLOUD_ROADMAP_V2.md): el ecommerce ahora
-# se sirve desde el mismo backend FastAPI, sin sistema externo que sincronizar.
 
 services:
 
-  # ── 1. VibeCloud: FastAPI + Python ──────────────────────
+  # ── 1. Alex IO: FastAPI + Python ──────────────────────
   - type: web
-    name: vibecloud-backend
+    name: alexio-backend
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
@@ -30,10 +27,10 @@ services:
         sync: false
       - key: REDIS_URL
         fromService:
-          name: vibecloud-redis
+          name: alexio-redis
           type: redis
           property: connectionString
-      - key: VIBECLOUD_API_KEY
+      - key: ALEXIO_API_KEY
         generateValue: true  # ← Render genera automáticamente
       - key: SECRET_KEY
         generateValue: true
@@ -42,7 +39,7 @@ services:
 
   # ── 2. Redis: rate limiting + cache de catálogo/IA ────
   - type: redis
-    name: vibecloud-redis
+    name: alexio-redis
     plan: starter
     maxmemoryPolicy: noeviction
     ipAllowList: []          # solo acceso interno entre servicios

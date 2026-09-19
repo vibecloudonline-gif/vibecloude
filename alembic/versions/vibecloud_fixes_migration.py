@@ -1,6 +1,6 @@
 """vibecloud_all_fixes
 
-Aplica TODAS las correcciones al schema de VibeCloud SaaS:
+Aplica TODAS las correcciones al schema de Alex IO SaaS:
   1. ui_theme server_default corregido a 'standard'
   2. Soft delete (is_deleted + deleted_at) en Supplier, User, Purchase, Location, Bin
   3. barcode: UniqueConstraint(tenant_id, barcode) — elimina unique global

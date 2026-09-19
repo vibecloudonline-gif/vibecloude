@@ -5,7 +5,7 @@ Revises: c9d0e1f2a3b4
 Create Date: 2026-08-12 16:00:00.000000
 
 Tabla nueva para el centro de ayuda (/panel/ayuda): tickets de soporte de
-un tenant hacia VibeCloud, que SuperAdmin ve y responde.
+un tenant hacia Alex IO, que SuperAdmin ve y responde.
 """
 from typing import Sequence, Union
 

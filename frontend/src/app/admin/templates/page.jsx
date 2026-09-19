@@ -8,7 +8,7 @@ export default function TemplatesAdmin() {
   const router = useRouter();
   const [activeTheme, setActiveTheme] = useState(() => {
     if (typeof window === 'undefined') return 'combo-1';
-    return localStorage.getItem('vibecloud_theme') || 'combo-1';
+    return localStorage.getItem('alexio_theme') || 'combo-1';
   });
   const [saving, setSaving] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -30,7 +30,7 @@ export default function TemplatesAdmin() {
         method: 'PUT',
         body: { theme_id: activeTheme }
       });
-      localStorage.setItem('vibecloud_theme', activeTheme);
+      localStorage.setItem('alexio_theme', activeTheme);
       alert('Tema guardado con éxito.');
     } catch (err) {
       alert('Error al guardar el tema: ' + err.message);
@@ -91,7 +91,7 @@ export default function TemplatesAdmin() {
       <div style={{ background: 'var(--card-bg, rgba(255,255,255,0.05))', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}>
         <h2 style={{ marginTop: 0 }}>Generar con IA (Gemini)</h2>
         <p style={{ opacity: 0.8, fontSize: '0.9rem', marginBottom: '1rem' }}>
-          Describe el estilo que quieres para tu tienda y la IA de VibeCloud generará una paleta y estructura única para ti.
+          Describe el estilo que quieres para tu tienda y la IA de Alex IO generará una paleta y estructura única para ti.
         </p>
         <div style={{ display: 'flex', gap: '1rem' }}>
           <input 

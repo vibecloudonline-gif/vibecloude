@@ -10,7 +10,7 @@ export default function StorefrontCartModal() {
   const handleWhatsAppCheckout = () => {
     if (cart.length === 0) return;
     const phone = "5491123456789"; // Default / store phone
-    let message = `¡Hola *${storeInfo.company_name || "VibeCloud"}*! Quiero realizar un pedido desde la tienda online:\n\n`;
+    let message = `¡Hola *${storeInfo.company_name || "Alex IO"}*! Quiero realizar un pedido desde la tienda online:\n\n`;
     
     cart.forEach((item, index) => {
       const price = item.price_retail ?? item.price ?? 0;

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dominios de {{ tenant.name }} - VibeCloud{% endblock %}
+{% block title %}Dominios de {{ tenant.name }} - Alex IO{% endblock %}
 {% block header_title %}Dominios{% endblock %}
 {% block breadcrumb %}Dominios de {{ tenant.name }}{% endblock %}
 
@@ -32,7 +32,7 @@
                 </td>
                 <td style="font-family: monospace; font-size: 0.8rem;">
                     {% if d.status != 'purchase_requested' %}
-                    _vibecloud-verify.{{ d.domain }} = {{ d.verification_token }}
+                    _alexio-verify.{{ d.domain }} = {{ d.verification_token }}
                     {% else %}
                     <span style="color:var(--text-muted); font-style: italic;">Se genera al confirmar la compra</span>
                     {% endif %}

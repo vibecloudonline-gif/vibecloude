@@ -8,7 +8,7 @@ def setup_logging():
     
     try:
         os.makedirs('logs', exist_ok=True)
-        logHandler = logging.FileHandler(filename='logs/vibecloud.log')
+        logHandler = logging.FileHandler(filename='logs/alexio.log')
         logHandler.setFormatter(formatter)
         handlers.append(logHandler)
     except Exception:

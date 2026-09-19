@@ -1,8 +1,8 @@
-# VibeCloud — Plan de Implementación v2: Hosting Provider (ERP B2B + Ecommerce propio + Landing Pages + AlexIO Live)
+# Alex IO — Plan de Implementación v2: Hosting Provider (ERP B2B + Ecommerce propio + Landing Pages + AlexIO Live)
 
 > Este documento reemplaza la sección de arquitectura/fases de `CLAUDE.md` v1. Las reglas de seguridad de la sección 1 de `CLAUDE.md` (tenant_id nunca completado por el modelo, sanitización de IA-Template-Studio) **no cambian y siguen aplicando sin excepción** a todo lo nuevo descrito acá.
 
-**Cambio de visión:** VibeCloud deja de ser "FastAPI + MedusaJS v2 + Next.js" y pasa a ser un **proveedor de hosting multi-tenant** con cuatro productos sobre la misma base de Core:
+**Cambio de visión:** Alex IO deja de ser "FastAPI + MedusaJS v2 + Next.js" y pasa a ser un **proveedor de hosting multi-tenant** con cuatro productos sobre la misma base de Core:
 
 1. **ERP B2B** — lo que ya existe (`core/`, `routers/`, `services/`, `database/models.py`): ventas, stock/Kardex, clientes, proveedores, caja, picking/WMS. Se mantiene, es la base validada.
 2. **Ecommerce propio (B2C)** — reemplaza a MedusaJS. Ya no hay sincronización Core→Medusa; el storefront consume directamente los datos del Core (mismo modelo de `Product`, `Sale`, `BinStock` que ya tiene `tenant_id`).
@@ -18,8 +18,8 @@ Todo lo acoplado a MedusaJS queda deprecated y se saca del pipeline activo, no s
 - `services/medusa_sync.py`, `services/medusa_sync_original.py`
 - `routers/api/v1/medusa_sync.py`
 - `storefront/` (Next.js actual, hablaba con la API admin de Medusa)
-- Servicio `vibecloud-medusa` en `render.yaml` y `digitalocean.yaml`
-- El bundle `vibecloud-medusa-20260702-1952.bundle` en la raíz del repo (además de ser un archivo pesado que no debería estar trackeado — ver deuda de seguridad abajo)
+- Servicio `alexio-medusa` en `render.yaml` y `digitalocean.yaml`
+- El bundle `alexio-medusa-20260702-1952.bundle` en la raíz del repo (además de ser un archivo pesado que no debería estar trackeado — ver deuda de seguridad abajo)
 
 Lo que **sí se conserva** de la arquitectura de sincronización, porque ya no hay dos bases de datos separadas que sincronizar:
 - El patrón `SyncQueue` con `SELECT FOR UPDATE SKIP LOCKED` (`medusa_sync.py:338`) es reutilizable si en el futuro hay algún proceso async desacoplado (ej. facturación, webhooks salientes), pero deja de ser el mecanismo central del ecommerce.
@@ -99,7 +99,7 @@ Esto viene del review de código hecho sobre el estado actual del repo, sigue pe
 
 1. ~~`routers/auth.py:44` — override de admin en texto plano~~ **Resuelto 2026-08-10**: se eliminó por completo el bypass, no solo se le agregó `compare_digest`. El bootstrap de admin ya funciona vía `AuthService.create_default_user_and_settings` (hash real sincronizado desde `ADMIN_PASSWORD`).
 2. ~~Rate limit de login no wireado~~ **Resuelto 2026-08-10**: `@limiter.limit(...)` conectado a `/login`, verificado con pruebas (6ta request seguida da 429).
-3. **Datos reales expuestos en el repo viejo** (`sistemasberelk-cyber/vibecloud`) — sigue sin resolverse. El trabajo se movió a un repo nuevo y limpio (`vibecloudonline-gif/vibecloude`) que nunca tuvo esos archivos, pero el repo viejo con el historial expuesto (CUIT/DNI reales de clientes) sigue público. Bloqueado por falta de acceso de colaborador — ver resumen final.
+3. **Datos reales expuestos en el repo viejo** (`sistemasberelk-cyber/alexio`) — sigue sin resolverse. El trabajo se movió a un repo nuevo y limpio (`alexioonline-gif/alexioe`) que nunca tuvo esos archivos, pero el repo viejo con el historial expuesto (CUIT/DNI reales de clientes) sigue público. Bloqueado por falta de acceso de colaborador — ver resumen final.
 
 ### 3.1 Bugs adicionales encontrados durante la construcción (2026-08-10)
 
@@ -118,7 +118,7 @@ Ninguno de estos estaba relacionado con lo que se pidió construir, se encontrar
 2. **Base de datos:** se mantiene una sola base compartida, tenants separados por `tenant_id` (arquitectura ya implementada en Fase 1, sin cambios). No hay bases físicas separadas por cliente.
 3. **Medusa:** se saca **por completo** del proyecto, no queda como opción ni como referencia de diseño. Ver sección 0 para el detalle de qué archivos/servicios se eliminan.
 4. **AlexIO Live:** solo versión web, chat de texto (sin voz, sin WebRTC/LiveKit), alimentado por Gemini. Reutiliza `AIBrainService` tal cual está — "Live" en este contexto es UX (respuesta rápida/streaming en la misma página), no un canal de transporte nuevo.
-5. **Hosting/dominios:** el cliente puede elegir subdominio propio de VibeCloud (gratis, automático) **o** dominio propio conectado. Panel de gestión de dominios vive dentro del `SuperAdmin` (Fase 6), no un panel de hosting genérico tipo cPanel. Capa técnica de HTTPS automático: **Caddy** (open source, certificado solo con indicarle el dominio).
+5. **Hosting/dominios:** el cliente puede elegir subdominio propio de Alex IO (gratis, automático) **o** dominio propio conectado. Panel de gestión de dominios vive dentro del `SuperAdmin` (Fase 6), no un panel de hosting genérico tipo cPanel. Capa técnica de HTTPS automático: **Caddy** (open source, certificado solo con indicarle el dominio).
 6. **API de venta de dominios:** arrancar con **NameSilo o Dynadot** (sin mínimos de volumen, API simple, buen costo base). Cuando haya volumen real de dominios/mes, sumar **OpenSRS** para esos volúmenes (mejor precio por escala, pero con compromiso mínimo que no tiene sentido asumir todavía).
 7. **Landing Pages con IA — refinamiento del flujo:** un chat dentro del panel del cliente donde pega una idea/referencia y se genera una landing con Gemini. Dos reglas de diseño:
    - Pasa por la misma sanitización obligatoria de la Regla 1.2 (allowlist de CSS, validación de schema antes de persistir) — no cambia nada de lo ya definido, solo se le agrega la superficie de chat como input.
@@ -154,7 +154,7 @@ Google Cloud **queda descartado** como proveedor de infraestructura (Gemini se s
 
 ## 7. Pivot a hosting multi-producto (confirmado 2026-08-11) — "no es un ERP, es un hosting"
 
-Corrección de visión: VibeCloud no es el ERP con un ecommerce opcional colgado — es un **hosting** donde el cliente se crea una cuenta y decide qué producto(s) usar (ERP, ecommerce, landing con IA, dominios, AlexIO web), libremente combinables, no en una jerarquía. El "cerebro" de generación de web va a cascada de 3 IAs: **Claude primario → Gemini fallback → Qwen tercer fallback** para contenido creativo/landing/ecommerce; **Gemini primario → Qwen fallback** para el chat de AlexIO. Plan completo aprobado en 5 fases:
+Corrección de visión: Alex IO no es el ERP con un ecommerce opcional colgado — es un **hosting** donde el cliente se crea una cuenta y decide qué producto(s) usar (ERP, ecommerce, landing con IA, dominios, AlexIO web), libremente combinables, no en una jerarquía. El "cerebro" de generación de web va a cascada de 3 IAs: **Claude primario → Gemini fallback → Qwen tercer fallback** para contenido creativo/landing/ecommerce; **Gemini primario → Qwen fallback** para el chat de AlexIO. Plan completo aprobado en 5 fases:
 
 ### Fase 1 — Flags de producto por tenant (completada 2026-08-11)
 Reemplaza el viejo `Tenant.product_plan` (string jerárquico `full`/`ecommerce`/`landing`) por cuatro booleanas independientes y libremente combinables: `has_erp`, `has_ecommerce`, `has_landing`, `has_alexio` (default `True` los cuatro, para no romper tenants existentes). Migración `e5f6a7b8c9d0` data-migra desde `product_plan` y lo dropea. Switcher del sidebar (`/panel/nav-view`) pasó de un `<select>` de una sola opción a checkboxes de `modules[]`, validado contra `session["tenant_flags"]` (seteado en `/login`) — no se puede "prender" un módulo que el tenant no tiene contratado. Alta/edición de tenant en SuperAdmin (`/tenants`) actualizada a las tres flags (con checkboxes). Probado end-to-end con `TestClient`: tenant full sin regresión, tenant solo-landing oculta ERP/Ecommerce en dashboard y sidebar, rechazo de módulos no contratados (403) y de altas sin ningún producto activo (400). Desplegado y verificado en Render (`/health`, `/login` 200 sobre el commit `897021d`).
@@ -256,7 +256,7 @@ Decisión de diseño explícita del usuario, reemplazando el estilo azul/celeste
 
 ## Actualización 2026-08-12 — Confirmación de cuenta por email (opcional) + fix de plan cacheado
 
-Contexto: se evaluó adoptar el patrón de signup verificado por WhatsApp OTP de otro proyecto del usuario (Node/Express + Supabase + Telnyx) -- **no aplica tal cual** porque VibeCloud no usa Supabase ni tiene ese stack. Se decidió tomar la parte que sí sirve ahora (confirmar que el email es real, mismo problema de fondo que Codex ya había marcado: `/registro` público sin ninguna verificación) con una versión propia, más liviana, sin depender de un proveedor de WhatsApp Business. **WhatsApp OTP queda anotado como Fase 2, no arrancado.**
+Contexto: se evaluó adoptar el patrón de signup verificado por WhatsApp OTP de otro proyecto del usuario (Node/Express + Supabase + Telnyx) -- **no aplica tal cual** porque Alex IO no usa Supabase ni tiene ese stack. Se decidió tomar la parte que sí sirve ahora (confirmar que el email es real, mismo problema de fondo que Codex ya había marcado: `/registro` público sin ninguna verificación) con una versión propia, más liviana, sin depender de un proveedor de WhatsApp Business. **WhatsApp OTP queda anotado como Fase 2, no arrancado.**
 
 - [x] **`services/email_service.py`** (nuevo): confirmación dual-mode vía la presencia de `SMTP_HOST` -- mismo patrón que `GODADDY_API_KEY`/`ANTHROPIC_API_KEY` en el resto del proyecto (buildable y testeable sin credenciales reales, el dueño lo activa cargando la variable en Render). SMTP plano vía `smtplib` (stdlib, sin dependencia nueva). El link de confirmación usa un token firmado con `itsdangerous` (ya es dependencia del proyecto, la usa el cookie de sesión) en vez de una tabla nueva en la DB -- el token en sí mismo prueba que es válido (firma + vencimiento de 24hs), no hace falta guardar nada para verificarlo.
 - [x] **`database/models.py`**: `User.email` (nullable, migración `c9d0e1f2a3b4`). Reusa `User.is_active` (ya existía) para el estado "pendiente de confirmar" -- `routers/auth.py::login` ya rechazaba usuarios inactivos, no hizo falta un chequeo nuevo.

@@ -1,4 +1,4 @@
-# VIBECLOUD — AUDITORÍA DE ESTADO ACTUAL DEL REPOSITORIO
+# ALEXIO — AUDITORÍA DE ESTADO ACTUAL DEL REPOSITORIO
 
 > Generado: 2026-08-23
 > Método: inspección archivo por archivo del código real, no de documentación ni comentarios.

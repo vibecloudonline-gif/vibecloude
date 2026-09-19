@@ -1,10 +1,10 @@
-# Estado Técnico: VibeCloud Enterprise (B2B / B2C)
+# Estado Técnico: Alex IO Enterprise (B2B / B2C)
 
-A continuación se detalla el estado actual de la plataforma híbrida VibeCloud, luego de haber completado las fases de sincronización bidireccional, inyección SDUI, autenticación y *rebranding* global.
+A continuación se detalla el estado actual de la plataforma híbrida Alex IO, luego de haber completado las fases de sincronización bidireccional, inyección SDUI, autenticación y *rebranding* global.
 
 ## 1. Arquitectura General (Híbrida)
 El sistema está compuesto por dos "cerebros" conectados a una única base de datos Supabase (PostgreSQL):
-- **Cerebro Operativo (Python/FastAPI):** Núcleo de VibeCloud SaaS. Maneja el Backoffice, inventario complejo (BinStock), IA (Google Gemini), y configuración de Server-Driven UI (SDUI).
+- **Cerebro Operativo (Python/FastAPI):** Núcleo de Alex IO SaaS. Maneja el Backoffice, inventario complejo (BinStock), IA (Google Gemini), y configuración de Server-Driven UI (SDUI).
 - **Motor E-commerce (Node.js/MedusaJS v2):** Maneja los carritos, checkout, pasarelas de pago y lógica de precios dinámicos (Price Lists y Customer Groups).
 - **Storefront B2C/B2B (Next.js):** Interfaz pública que lee el catálogo de Medusa y recibe su diseño/colores desde Python.
 
@@ -25,16 +25,16 @@ El flujo mayorista se ha cerrado con éxito:
 
 ## 5. Infraestructura y Despliegue (Render)
 El archivo `render.yaml` está configurado para un ecosistema de 5 servicios:
-1. `vibecloud-api` (FastAPI)
-2. `vibecloud-worker` (Background jobs)
-3. `vibecloud-medusa` (Node.js backend)
-4. `vibecloud-storefront` (Next.js)
-5. `vibecloud-redis` (Caché y colas)
+1. `alexio-api` (FastAPI)
+2. `alexio-worker` (Background jobs)
+3. `alexio-medusa` (Node.js backend)
+4. `alexio-storefront` (Next.js)
+5. `alexio-redis` (Caché y colas)
 
-> **Rebranding Finalizado:** Se ha ejecutado un script de limpieza global que renombró todas las menciones a `VibeCloud`. Deberás actualizar los *Environment Secrets* en Render (ej. usar `VIBECLOUD_API_KEY`) la próxima vez que se despliegue.
+> **Rebranding Finalizado:** Se ha ejecutado un script de limpieza global que renombró todas las menciones a `Alex IO`. Deberás actualizar los *Environment Secrets* en Render (ej. usar `ALEXIO_API_KEY`) la próxima vez que se despliegue.
 
 ## Siguientes Pasos (Roadmap Enterprise)
 La plataforma base está 100% operativa. Los siguientes pasos recomendados para pasar a producción a gran escala son:
 1. **Poblar la Base de Datos:** Ejecutar los scripts de importación de `clientes.xlsx` y `productos.xlsx` en el backend de Python para desencadenar la sincronización masiva a Medusa.
 2. **Configuración de Pasarelas de Pago:** Activar Stripe/MercadoPago dentro del administrador de Medusa.
-3. **Mapeo de Dominios:** Conectar el dominio final de VibeCloud a los endpoints en Render.
+3. **Mapeo de Dominios:** Conectar el dominio final de Alex IO a los endpoints en Render.

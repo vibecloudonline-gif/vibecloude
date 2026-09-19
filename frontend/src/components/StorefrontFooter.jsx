@@ -28,7 +28,7 @@ export default function StorefrontFooter() {
         {/* Brand */}
         <div>
           <h3 style={{ fontSize: "1.5rem", fontWeight: "800", marginBottom: "1rem" }}>
-            {storeInfo.company_name || "VibeCloud Store"}
+            {storeInfo.company_name || "Alex IO Store"}
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: "1.6" }}>
             Tienda minorista y mayorista oficial. Tecnología, indumentaria y lifestyle con envíos a todo el país y atención preferencial.
@@ -89,8 +89,8 @@ export default function StorefrontFooter() {
           margin: "0 auto",
         }}
       >
-        <span>© {new Date().getFullYear()} {storeInfo.company_name || "VibeCloud Store"}. Todos los derechos reservados.</span>
-        <span>⚡ Powered by <strong>VibeCloud Enterprise SaaS</strong> • E-Commerce & POS</span>
+        <span>© {new Date().getFullYear()} {storeInfo.company_name || "Alex IO Store"}. Todos los derechos reservados.</span>
+        <span>⚡ Powered by <strong>Alex IO</strong> • E-Commerce & POS</span>
       </div>
     </footer>
   );

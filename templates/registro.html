@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creá tu cuenta - VibeCloud</title>
+    <title>Creá tu cuenta - Alex IO</title>
     <link rel="stylesheet" href="/static/css/style.css?v=10">
     <style>
         body {
@@ -97,7 +97,7 @@
 </head>
 <body>
     <div class="signup-card glass-card">
-        <h1>Creá tu cuenta en VibeCloud</h1>
+        <h1>Creá tu cuenta en Alex IO</h1>
         <p class="subtitle">Elegí qué vas a usar. Podés combinarlo o ajustarlo después.</p>
 
         {% if error %}
@@ -119,11 +119,11 @@
 
                 <div class="field">
                     <label for="subdominio">Subdominio
-                        <span title="Es la dirección con la que vas a entrar a tu panel y, si tenés ecommerce o landing, la que ven tus clientes (ej. mi-empresa.vibecloud.online). Podés conectar tu propio dominio después." style="cursor: help; color: var(--text-muted); font-weight: 400; border: 1px solid var(--border-color); border-radius: 50%; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem;">?</span>
+                        <span title="Es la dirección con la que vas a entrar a tu panel y, si tenés ecommerce o landing, la que ven tus clientes (ej. mi-empresa.alexio.online). Podés conectar tu propio dominio después." style="cursor: help; color: var(--text-muted); font-weight: 400; border: 1px solid var(--border-color); border-radius: 50%; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem;">?</span>
                     </label>
                     <div class="subdomain-row">
                         <input type="text" id="subdominio" name="subdominio" required placeholder="mi-empresa" pattern="[a-z0-9-]+">
-                        <span class="subdomain-suffix">.vibecloud.online</span>
+                        <span class="subdomain-suffix">.alexio.online</span>
                     </div>
                     <div id="subdomain-hint" class="field-hint"></div>
                 </div>
@@ -170,7 +170,7 @@
             <!-- Paso 3: dominio (solo si Sitio Web) -->
             <div class="wizard-step" data-step="dominio">
                 <h2>¿Con qué dominio?</h2>
-                <p class="step-desc">Podés usar gratis tu subdominio de VibeCloud, o pedir uno propio.</p>
+                <p class="step-desc">Podés usar gratis tu subdominio de Alex IO, o pedir uno propio.</p>
 
                 <div class="domain-search-row">
                     <input type="text" id="desired_domain_input" placeholder="miempresa.com">
@@ -181,7 +181,7 @@
                 <div class="domain-choice-row">
                     <label>
                         <input type="radio" name="domain_choice" value="subdominio" id="domain-choice-subdominio" checked>
-                        Uso mi subdominio gratis (<span id="domain-choice-subdomain-preview">tu-subdominio</span>.vibecloud.online)
+                        Uso mi subdominio gratis (<span id="domain-choice-subdomain-preview">tu-subdominio</span>.alexio.online)
                     </label>
                     <label>
                         <input type="radio" name="domain_choice" value="comprar" id="domain-choice-comprar" disabled>
@@ -310,7 +310,7 @@
                 const data = await res.json();
                 lastCheckedAvailable = data.available;
                 if (data.available) {
-                    subdomainHint.textContent = `¡Disponible! ${value}.vibecloud.online`;
+                    subdomainHint.textContent = `¡Disponible! ${value}.alexio.online`;
                     subdomainHint.className = 'field-hint ok';
                 } else {
                     subdomainHint.textContent = data.reason || 'No disponible';

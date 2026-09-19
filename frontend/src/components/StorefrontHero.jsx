@@ -31,7 +31,7 @@ export default function StorefrontHero() {
             border: "1px solid var(--primary-color)",
           }}
         >
-          🚀 TIENDA OFICIAL DE {storeInfo.company_name?.toUpperCase() || "VIBECLOUD"}
+          🚀 TIENDA OFICIAL DE {storeInfo.company_name?.toUpperCase() || "ALEX IO"}
         </div>
 
         <h2

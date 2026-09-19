@@ -1,4 +1,4 @@
-"""VibeCloud Cloud SaaS — Main Application (Refactored)"""
+"""Alex IO SaaS — Main Application (Refactored)"""
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -68,7 +68,7 @@ if HAS_SLOWAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-app = FastAPI(title="VibeCloud Cloud", lifespan=lifespan)
+app = FastAPI(title="Alex IO", lifespan=lifespan)
 if HAS_SLOWAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
