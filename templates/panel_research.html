@@ -47,6 +47,15 @@
     .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; }
     .empty-state p:first-child { font-size: 1.05rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
     .cta-center { text-align: center; padding: 24px 0; }
+
+    .comp-card { padding: 20px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+    .comp-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+    .comp-url { font-weight: 700; font-size: 0.95rem; color: var(--accent-color); word-break: break-all; text-decoration: none; }
+    .comp-badges { display: flex; align-items: center; gap: 8px; }
+    .comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+    .comp-field { padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-alt); border-left: 3px solid var(--accent-color); font-size: 0.86rem; line-height: 1.5; }
+    .comp-field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 4px; }
+    .comp-actions { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
 </style>
 {% endblock %}
 
@@ -136,6 +145,88 @@
     {% endif %}
 </div>
 {% endif %}
+
+<div class="section-card" id="seccion-competencia">
+    <h2><span class="sec-icon">&#9874;</span> Competencia declarada (<span id="comp-count">{{ project.competitors|length }}</span>)</h2>
+    <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+        Ingresa manualmente los competidores que consideras relevantes para contrastar tu propuesta contra ellos (el análisis IA citará cada competidor explícitamente).
+    </p>
+
+    <!-- Formulario para agregar competidor -->
+    <form id="competitor-form" style="background: var(--surface-alt); padding: 18px 20px; border-radius: var(--radius-md); margin-bottom: 20px; border: 1px solid var(--border-color);">
+        <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 12px;">+ Agregar competidor</div>
+        <div class="form-row" style="margin-bottom: 10px;">
+            <label for="comp_url">URL o nombre del competidor</label>
+            <input type="text" id="comp_url" name="url" placeholder="https://ejemplo.com o nombre comercial" required style="padding: 8px 12px;">
+        </div>
+        <div class="form-row" style="margin-bottom: 12px;">
+            <label for="comp_notes">Notas adicionales (opcional)</label>
+            <input type="text" id="comp_notes" name="notes" placeholder="Ej: líder en precios bajos, garantía de 30 días" style="padding: 8px 12px;">
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-add-comp" style="padding: 8px 20px; font-size: 0.85rem;">Analizar con IA</button>
+        <span id="comp-status" style="margin-left: 10px; font-size: 0.85rem; color: var(--text-muted);"></span>
+    </form>
+
+    <!-- Lista de competidores -->
+    <div id="competitors-list">
+        {% if project.competitors %}
+            {% for c in project.competitors %}
+            <div class="comp-card" id="comp-card-{{ c.id }}">
+                <div class="comp-top">
+                    <a href="{{ c.url }}" target="_blank" rel="noopener" class="comp-url">{{ c.url }}</a>
+                    <div class="comp-badges">
+                        {% if c.user_confirmed %}
+                        <span class="pill pill-completed" id="badge-confirm-{{ c.id }}">&#10003; Confirmado</span>
+                        {% else %}
+                        <span class="pill pill-draft" id="badge-confirm-{{ c.id }}">Sin confirmar</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if c.value_proposition or c.price_info or c.guarantees or c.objections_addressed %}
+                <div class="comp-grid">
+                    {% if c.value_proposition %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Propuesta de Valor</div>
+                        <div>{{ c.value_proposition }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.price_info %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Precios</div>
+                        <div>{{ c.price_info }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.guarantees %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Garantías y Soporte</div>
+                        <div>{{ c.guarantees }}</div>
+                    </div>
+                    {% endif %}
+                    {% if c.objections_addressed %}
+                    <div class="comp-field">
+                        <div class="comp-field-label">Objeciones Resueltas</div>
+                        <div>{{ c.objections_addressed }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 8px 0;">Análisis en proceso o sin datos.</p>
+                {% endif %}
+
+                <div class="comp-actions">
+                    {% if not c.user_confirmed %}
+                    <button type="button" class="btn btn-outline btn-confirm-comp" data-id="{{ c.id }}" id="btn-confirm-{{ c.id }}" style="font-size: 0.8rem; padding: 6px 14px;">Confirmar competidor</button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline btn-delete-comp" data-id="{{ c.id }}" style="font-size: 0.8rem; padding: 6px 14px; color: var(--danger-color); border-color: var(--danger-border);">Eliminar</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p id="no-competitors-msg" style="font-size: 0.88rem; color: var(--text-muted); font-style: italic;">No has declarado competidores para este proyecto.</p>
+        {% endif %}
+    </div>
+</div>
 
 {% if project.status == 'completed' %}
 <div class="cta-center">
@@ -247,6 +338,114 @@
             }
         });
     }
+
+    // --- MANEJO DE COMPETENCIA DECLARADA (Etapa 5 PRD) ---
+    const competitorForm = document.getElementById('competitor-form');
+    if (competitorForm) {
+        competitorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-add-comp');
+            const statusEl = document.getElementById('comp-status');
+            const urlInput = document.getElementById('comp_url');
+            const notesInput = document.getElementById('comp_notes');
+
+            btn.disabled = true;
+            statusEl.textContent = 'Analizando competidor con IA (contrastando contra tu propuesta)...';
+
+            try {
+                const projectId = '{{ project.id if project else "" }}';
+                const payload = {
+                    url: urlInput.value.trim(),
+                    notes: notesInput.value.trim() || null
+                };
+
+                const res = await fetch('/panel/research/' + projectId + '/competencia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Error al analizar el competidor');
+                    btn.disabled = false;
+                    statusEl.textContent = '';
+                    return;
+                }
+
+                window.location.reload();
+            } catch (err) {
+                alert('Error de conexión al agregar competidor');
+                btn.disabled = false;
+                statusEl.textContent = '';
+            }
+        });
+    }
+
+    // Confirmar competidor
+    document.querySelectorAll('.btn-confirm-comp').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const compId = btn.dataset.id;
+            const projectId = '{{ project.id if project else "" }}';
+            btn.disabled = true;
+            btn.textContent = 'Confirmando...';
+
+            try {
+                const res = await fetch('/panel/research/' + projectId + '/competencia/' + compId + '/confirmar', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Error al confirmar');
+                    btn.disabled = false;
+                    btn.textContent = 'Confirmar competidor';
+                    return;
+                }
+                const badge = document.getElementById('badge-confirm-' + compId);
+                if (badge) {
+                    badge.className = 'pill pill-completed';
+                    badge.innerHTML = '&#10003; Confirmado';
+                }
+                btn.remove();
+            } catch (err) {
+                alert('Error al conectar');
+                btn.disabled = false;
+                btn.textContent = 'Confirmar competidor';
+            }
+        });
+    });
+
+    // Eliminar competidor
+    document.querySelectorAll('.btn-delete-comp').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (!confirm('¿Deseas eliminar este competidor antes de generar la oferta?')) return;
+            const compId = btn.dataset.id;
+            const projectId = '{{ project.id if project else "" }}';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/panel/research/' + projectId + '/competencia/' + compId, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.detail || 'Error al eliminar');
+                    btn.disabled = false;
+                    return;
+                }
+                const card = document.getElementById('comp-card-' + compId);
+                if (card) card.remove();
+                const countEl = document.getElementById('comp-count');
+                if (countEl) {
+                    const current = parseInt(countEl.textContent, 10);
+                    if (!isNaN(current) && current > 0) countEl.textContent = current - 1;
+                }
+            } catch (err) {
+                alert('Error al conectar');
+                btn.disabled = false;
+            }
+        });
+    });
 })();
 </script>
 {% endblock %}

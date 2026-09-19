@@ -172,3 +172,157 @@ def research_detail(
             "view": "research_detail",
         },
     )
+
+
+@router.post("/panel/research/{project_id}/competencia")
+async def research_add_competitor(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from services.competitor_service import add_competitor, run_competitor_analysis
+    from services.research_service import get_project_with_results
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        url = str(body.get("url", "")).strip()
+        notes = body.get("notes")
+    else:
+        form = await request.form()
+        url = str(form.get("url", "")).strip()
+        notes = form.get("notes")
+
+    if not url:
+        raise HTTPException(400, "URL del competidor requerida")
+
+    try:
+        competitor = add_competitor(
+            session=session,
+            project_id=project_id,
+            tenant_id=tenant_id,
+            url=url,
+            notes=str(notes).strip() if notes else None,
+        )
+    except ValueError as val_err:
+        raise HTTPException(400, str(val_err))
+
+    # Ejecutar análisis en cascada para este competidor
+    try:
+        await run_competitor_analysis(session, project)
+        session.refresh(competitor)
+    except Exception as exc:
+        # No bloquear la creación si la IA falla; quedará pendiente
+        pass
+
+    return {
+        "status": "success",
+        "competitor": {
+            "id": competitor.id,
+            "url": competitor.url,
+            "value_proposition": competitor.value_proposition,
+            "price_info": competitor.price_info,
+            "guarantees": competitor.guarantees,
+            "objections_addressed": competitor.objections_addressed,
+            "user_confirmed": competitor.user_confirmed,
+        },
+    }
+
+
+@router.get("/panel/research/{project_id}/competencia")
+def research_list_competitors(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from services.competitor_service import list_competitors
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    competitors = list_competitors(session, project_id, tenant_id)
+    return {
+        "status": "success",
+        "competitors": [
+            {
+                "id": c.id,
+                "url": c.url,
+                "value_proposition": c.value_proposition,
+                "price_info": c.price_info,
+                "guarantees": c.guarantees,
+                "objections_addressed": c.objections_addressed,
+                "user_confirmed": c.user_confirmed,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in competitors
+        ],
+    }
+
+
+@router.delete("/panel/research/{project_id}/competencia/{competitor_id}")
+def research_delete_competitor(
+    project_id: int,
+    competitor_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from services.competitor_service import remove_competitor
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    success = remove_competitor(session, competitor_id, tenant_id)
+    if not success:
+        raise HTTPException(404, "Competidor no encontrado o no pertenece al tenant")
+
+    return {"status": "success", "message": "Competidor eliminado correctamente"}
+
+
+@router.post("/panel/research/{project_id}/competencia/{competitor_id}/confirmar")
+def research_confirm_competitor(
+    project_id: int,
+    competitor_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from services.competitor_service import confirm_competitor
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    comp = confirm_competitor(session, competitor_id, tenant_id)
+    if not comp:
+        raise HTTPException(404, "Competidor no encontrado o no pertenece al tenant")
+
+    return {
+        "status": "success",
+        "competitor": {
+            "id": comp.id,
+            "url": comp.url,
+            "user_confirmed": comp.user_confirmed,
+        },
+    }
+
