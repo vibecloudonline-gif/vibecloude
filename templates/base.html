@@ -196,11 +196,11 @@
             </div>
             
             {% set path = request.url.path %}
-            {% set tenant_flags = request.session.get('tenant_flags', {'erp': True, 'ecommerce': True, 'landing': True, 'alexio': False}) %}
+            {% set tenant_flags = request.session.get('tenant_flags', {'erp': False, 'ecommerce': True, 'landing': True, 'alexio': True}) %}
             {% set nav_view = request.session.get('nav_view') or [] %}
 
-            {# Determinación contextual de Suite: ruta específica o flags/nav_view #}
-            {% if path.startswith('/panel/research') or path.startswith('/panel/oferta') or path.startswith('/panel/debate') or path.startswith('/panel/alex-agent') %}
+            {# Suite logic: ERP solo aparece por rutas ERP o nav_view=erp. Default: web. #}
+            {% if path.startswith('/panel/research') or path.startswith('/panel/oferta') or path.startswith('/panel/debate') or path.startswith('/panel/alex-agent') or path.startswith('/panel/forecast') %}
                 {% set current_suite = 'alexio' %}
                 {% set suite_title = 'Alex IO Studio' %}
                 {% set suite_sub = 'Validación & Agentes' %}
@@ -210,36 +210,36 @@
                 {% set suite_title = 'Web & Storefront' %}
                 {% set suite_sub = 'Canales Online' %}
                 {% set suite_icon = '🌐' %}
-            {% elif 'alexio' in nav_view and not ('erp' in nav_view or 'ecommerce' in nav_view) and path in ['/', '/settings', '/panel/equipo', '/panel/ayuda'] %}
-                {% set current_suite = 'alexio' %}
-                {% set suite_title = 'Alex IO Studio' %}
-                {% set suite_sub = 'Validación & Agentes' %}
-                {% set suite_icon = '🔬' %}
-            {% elif ('ecommerce' in nav_view or 'landing' in nav_view) and not ('erp' in nav_view) and path in ['/', '/settings', '/panel/equipo', '/panel/ayuda'] %}
-                {% set current_suite = 'web' %}
-                {% set suite_title = 'Web & Storefront' %}
-                {% set suite_sub = 'Canales Online' %}
-                {% set suite_icon = '🌐' %}
-            {% elif tenant_flags.erp and ('erp' in nav_view or not nav_view) %}
+            {% elif path in ['/pos', '/cash', '/picking', '/suppliers'] or path.startswith('/wms') %}
                 {% set current_suite = 'erp' %}
                 {% set suite_title = 'ERP Retail' %}
                 {% set suite_sub = 'Gestión & Operaciones' %}
                 {% set suite_icon = '🏭' %}
-            {% elif tenant_flags.ecommerce or tenant_flags.landing %}
+            {% elif 'erp' in nav_view %}
+                {% set current_suite = 'erp' %}
+                {% set suite_title = 'ERP Retail' %}
+                {% set suite_sub = 'Gestión & Operaciones' %}
+                {% set suite_icon = '🏭' %}
+            {% elif 'alexio' in nav_view and not ('ecommerce' in nav_view or 'landing' in nav_view) %}
+                {% set current_suite = 'alexio' %}
+                {% set suite_title = 'Alex IO Studio' %}
+                {% set suite_sub = 'Validación & Agentes' %}
+                {% set suite_icon = '🔬' %}
+            {% elif 'ecommerce' in nav_view or 'landing' in nav_view %}
                 {% set current_suite = 'web' %}
                 {% set suite_title = 'Web & Storefront' %}
                 {% set suite_sub = 'Canales Online' %}
                 {% set suite_icon = '🌐' %}
-            {% elif tenant_flags.alexio %}
+            {% elif tenant_flags.alexio and not tenant_flags.ecommerce and not tenant_flags.landing %}
                 {% set current_suite = 'alexio' %}
                 {% set suite_title = 'Alex IO Studio' %}
                 {% set suite_sub = 'Validación & Agentes' %}
                 {% set suite_icon = '🔬' %}
             {% else %}
-                {% set current_suite = 'erp' %}
-                {% set suite_title = 'ERP Retail' %}
-                {% set suite_sub = 'Gestión & Operaciones' %}
-                {% set suite_icon = '🏭' %}
+                {% set current_suite = 'web' %}
+                {% set suite_title = 'Web & Storefront' %}
+                {% set suite_sub = 'Canales Online' %}
+                {% set suite_icon = '🌐' %}
             {% endif %}
 
             <!-- Enterprise Suite Switcher -->

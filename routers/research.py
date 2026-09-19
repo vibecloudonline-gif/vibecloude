@@ -331,3 +331,142 @@ def research_confirm_competitor(
         },
     }
 
+
+# ---------------------------------------------------------------------------
+# TIMESFM — FORECAST DE MERCADO
+# ---------------------------------------------------------------------------
+
+@router.post("/panel/research/{project_id}/forecast")
+async def research_generate_forecast(
+    project_id: int,
+    request: Request,
+    horizon_days: int = Form(default=30),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    """Genera (o regenera) el forecast de precio/demanda con TimesFM/Gemini."""
+    import json as _json
+    from sqlmodel import select
+    from database.models import ResearchForecast
+    from services.research_service import get_project_with_results
+    from services.timesfm_provider import generate_market_forecast
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+    if not project.listings:
+        raise HTTPException(400, "El proyecto no tiene listings. Inicia la búsqueda de mercado primero.")
+
+    prices = [float(l.price) for l in project.listings if l.price is not None]
+    if not prices:
+        raise HTTPException(400, "No hay precios disponibles en los listings para generar el forecast.")
+
+    if horizon_days not in (30, 90):
+        horizon_days = 30
+
+    # Limpiar forecast previo con mismo horizonte
+    existing = session.exec(
+        select(ResearchForecast).where(
+            ResearchForecast.project_id == project_id,
+            ResearchForecast.horizon_days == horizon_days,
+        )
+    ).first()
+    if existing:
+        session.delete(existing)
+        session.flush()
+
+    result = await generate_market_forecast(project.query_description, prices, horizon_days)
+
+    forecast_row = ResearchForecast(
+        project_id=project_id,
+        horizon_days=horizon_days,
+        price_series=_json.dumps(result.price_series),
+        forecast_series=_json.dumps(result.forecast_series),
+        confidence_low=_json.dumps(result.confidence_low),
+        confidence_high=_json.dumps(result.confidence_high),
+        trend_direction=result.trend_direction,
+        launch_window=result.launch_window,
+        recommendation=result.recommendation,
+        provider=result.provider,
+    )
+    session.add(forecast_row)
+    session.commit()
+    session.refresh(forecast_row)
+
+    return {
+        "status": "success",
+        "forecast_id": forecast_row.id,
+        "trend_direction": result.trend_direction,
+        "launch_window": result.launch_window,
+        "provider": result.provider,
+    }
+
+
+@router.get("/panel/forecast/{project_id}", response_class=HTMLResponse)
+def research_forecast_view(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    """Panel de visualización del forecast TimesFM."""
+    import json as _json
+    from sqlmodel import select
+    from database.models import ResearchForecast
+    from services.research_service import get_project_with_results
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    forecast_30 = session.exec(
+        select(ResearchForecast).where(
+            ResearchForecast.project_id == project_id,
+            ResearchForecast.horizon_days == 30,
+        )
+    ).first()
+    forecast_90 = session.exec(
+        select(ResearchForecast).where(
+            ResearchForecast.project_id == project_id,
+            ResearchForecast.horizon_days == 90,
+        )
+    ).first()
+
+    def parse_forecast(fc):
+        if not fc:
+            return None
+        return {
+            "id": fc.id,
+            "horizon_days": fc.horizon_days,
+            "price_series": _json.loads(fc.price_series or "[]"),
+            "forecast_series": _json.loads(fc.forecast_series or "[]"),
+            "confidence_low": _json.loads(fc.confidence_low or "[]"),
+            "confidence_high": _json.loads(fc.confidence_high or "[]"),
+            "trend_direction": fc.trend_direction,
+            "launch_window": fc.launch_window,
+            "recommendation": fc.recommendation,
+            "provider": fc.provider,
+        }
+
+    return _templates().TemplateResponse("panel_timesfm.html", {
+        "request": request,
+        "user": user,
+        "settings": settings,
+        "project": project,
+        "forecast_30": parse_forecast(forecast_30),
+        "forecast_90": parse_forecast(forecast_90),
+        "active_page": "research",
+    })

@@ -75,6 +75,7 @@
     </div>
     <div style="display: flex; gap: 10px; align-items: center;">
         {% if project.status == 'completed' %}
+        <a href="/panel/forecast/{{ project.id }}" class="btn btn-outline" style="border-color: var(--accent-color); color: var(--accent-color); font-weight: 600;">&#128200; Forecast TimesFM</a>
         <button type="button" class="btn btn-outline btn-re-search-trigger" data-project="{{ project.id }}">&#128260; Re-analizar con IA</button>
         {% endif %}
         <a href="/panel/research" class="btn btn-outline">Volver</a>
@@ -245,7 +246,8 @@
 </div>
 
 {% if project.status == 'completed' %}
-<div class="cta-center">
+<div class="cta-center" style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 24px;">
+    <a href="/panel/forecast/{{ project.id }}" class="btn btn-outline" style="padding: 12px 24px; font-size: 0.95rem; border-color: var(--accent-color); color: var(--accent-color);">&#128200; Forecast de Mercado (TimesFM)</a>
     <a href="/panel/oferta/{{ project.id }}/generar" class="btn btn-primary" id="btn-offer" style="padding: 12px 32px; font-size: 0.95rem;">Generar Oferta</a>
 </div>
 {% endif %}
