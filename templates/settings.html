@@ -18,7 +18,6 @@
         <button onclick="switchTab('backup')" id="tab-backup" class="tab-btn btn-secondary">Respaldo</button>
         <button onclick="switchTab('security')" id="tab-security" class="tab-btn btn-secondary">Seguridad</button>
         <button onclick="switchTab('ai')" id="tab-ai" class="tab-btn btn-secondary">IA</button>
-        <button onclick="switchTab('medusa')" id="tab-medusa" class="tab-btn btn-secondary">Tienda Online</button>
     </div>
 
     <!-- GENERAL SETTINGS -->
@@ -258,53 +257,6 @@
         <div id="backup-msg" style="margin-top:8px; color:#0f766e; font-weight:600;"></div>
     </div>
 
-    <!-- MEDUSA SYNC -->
-    <div id="content-medusa" class="tab-content" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h3>Sincronización B2B (Medusa)</h3>
-            <div id="medusa-status-badge" class="badge">Comprobando conexión...</div>
-        </div>
-        
-        <div class="glass-card" style="margin-bottom: 24px;">
-            <h4>Conector con el ERP</h4>
-            <p style="color: #6F6A65; margin-bottom: 16px;">
-                Prendido: la tienda online descuenta del mismo stock que el POS/ERP (un solo inventario compartido).
-                Apagado: la tienda online tiene su propio depósito, separado del ERP -- vos decidís cuánto stock le asignás.
-            </p>
-            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:600;">
-                <input type="checkbox" id="s-ecommerce-connected" onchange="toggleEcommerceConnector(this.checked)">
-                Conectar la tienda online al stock del ERP
-            </label>
-            <div id="ecommerce-connector-msg" style="margin-top: 10px; font-size: 0.85rem; color:#0f766e; font-weight:600;"></div>
-        </div>
-
-        <div class="glass-card" style="margin-bottom: 24px;">
-            <h4>Configuración B2B</h4>
-            <p style="color: #6F6A65; margin-bottom: 16px;">El descuento base para clientes mayoristas (por defecto 30%).</p>
-            <form id="medusa-config-form" style="max-width: 400px;">
-                <label>Descuento Mayorista (%)</label>
-                <input type="number" id="medusa-discount" name="medusa_b2b_discount" class="form-input" placeholder="30" value="30">
-                <button type="button" class="btn" style="margin-top: 12px;">Guardar Configuración</button>
-            </form>
-        </div>
-
-        <div class="glass-card">
-            <h4>Acciones de Sincronización</h4>
-            <p style="color: #6F6A65; margin-bottom: 16px;">Sincronizar el catálogo local hacia la Tienda Online.</p>
-            <button onclick="syncAllMedusa()" id="btn-sync-all" class="btn" style="background-color: #7950f2; color: white;">
-                Sincronizar Todo (Batch)
-            </button>
-            <button onclick="processMedusaQueue()" id="btn-process-queue" class="btn btn-secondary" style="margin-left: 8px;">
-                Procesar Cola Pendiente
-            </button>
-            
-            <h5 style="margin-top: 24px; margin-bottom: 8px;">Cola de Errores Recientes</h5>
-            <div id="sync-queue-table" style="font-size: 0.9rem; background: #FAF6F1; border: 1px solid #e8e0d6; border-radius: 8px; padding: 12px; max-height: 200px; overflow-y: auto;">
-                Cargando cola...
-            </div>
-        </div>
-    </div>
-
 </div>
 
 <!-- Add User Modal -->
@@ -375,10 +327,6 @@
         if (tab === 'backup') loadBackupFiles();
         if (tab === 'security') document.getElementById('security-msg').textContent = '';
         if (tab === 'ai') loadAIKey();
-        if (tab === 'medusa') {
-            checkMedusaStatus();
-            loadSyncQueue();
-        }
     }
 
     // --- Security ---
@@ -729,90 +677,6 @@
         return restoreSystem(e);
     }
 
-    // --- Medusa Sync ---
-    async function checkMedusaStatus() {
-        const badge = document.getElementById('medusa-status-badge');
-        try {
-            const res = await fetch('/health');
-            if (res.ok) {
-                badge.className = 'badge badge-success';
-                badge.textContent = 'Servicio Activo';
-            } else {
-                badge.className = 'badge badge-danger';
-                badge.textContent = 'Sin conexión';
-            }
-        } catch {
-            badge.className = 'badge badge-danger';
-            badge.textContent = 'Sin conexión';
-        }
-    }
-
-    async function loadSyncQueue() {
-        const box = document.getElementById('sync-queue-table');
-        try {
-            const res = await fetch('/api/v1/medusa/sync-status');
-            const data = await res.json();
-            if (data.items && data.items.length > 0) {
-                box.innerHTML = data.items.map(i => `
-                    <div style="border-bottom: 1px solid #e8e0d6; padding: 4px 0;">
-                        <strong>ID:</strong> ${i.entity_id} | <strong>Tipo:</strong> ${i.entity_type} | 
-                        <strong>Intentos:</strong> ${i.attempts} <br>
-                        <span style="color: #ef4444; font-size: 0.8rem;">${i.last_error}</span>
-                    </div>
-                `).join('');
-            } else {
-                box.innerHTML = '<span style="color: #10b981;">No hay elementos pendientes o fallidos. Todo sincronizado.</span>';
-            }
-        } catch {
-            box.innerHTML = 'Error al cargar la cola.';
-        }
-    }
-
-    async function syncAllMedusa() {
-        const btn = document.getElementById('btn-sync-all');
-        if (!confirm('Esto encolará todos los productos para sincronización masiva hacia Medusa. ¿Continuar?')) return;
-        
-        btn.disabled = true;
-        btn.textContent = 'Encolando...';
-        
-        try {
-            const res = await fetch('/api/v1/medusa/sync-all', { method: 'POST' });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`Sincronización masiva iniciada. Productos encolados: ${data.data.enqueued}/${data.data.total_products}`);
-                loadSyncQueue();
-            } else {
-                alert(`Error: ${data.detail || 'Fallo desconocido'}`);
-            }
-        } catch (e) {
-            alert('Error de conexión.');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Sincronizar Todo (Batch)';
-        }
-    }
-
-    async function processMedusaQueue() {
-        const btn = document.getElementById('btn-process-queue');
-        btn.disabled = true;
-        btn.textContent = 'Procesando...';
-        
-        try {
-            const res = await fetch('/api/v1/medusa/process-queue', { method: 'POST' });
-            const data = await res.json();
-            if (res.ok) {
-                alert(`Cola procesada: ${data.data.processed} items (${data.data.errors} errores). Total pendiente: ${data.data.total}`);
-                loadSyncQueue();
-            } else {
-                alert(`Error: ${data.detail || 'Fallo desconocido'}`);
-            }
-        } catch (e) {
-            alert('Error de conexión.');
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Procesar Cola Pendiente';
-        }
-    }
 </script>
 
 <style>
