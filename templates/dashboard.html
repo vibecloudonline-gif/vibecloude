@@ -5,6 +5,7 @@
 {% block content %}
 <!-- Stats Grid -->
 <div class="grid-dashboard animate-fade-in">
+    {% if "erp" in view %}
     <!-- Ventas de Hoy -->
     <div class="glass-card stat-card">
         <div class="stat-card-header">
@@ -58,7 +59,8 @@
         </div>
     </div>
 
-    {% set view = request.session.get('nav_view') or ['erp', 'ecommerce', 'landing'] %}
+    {% set view = request.session.get('nav_view') or ['ecommerce', 'landing', 'alexio'] %}
+    {% endif %}
     {% if "ecommerce" in view %}
     <!-- Ecommerce (storefront propio) -->
     <div class="glass-card stat-card">

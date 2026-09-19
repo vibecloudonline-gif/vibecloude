@@ -62,7 +62,7 @@ def offer_page(
             "project": project,
             "offer": offer,
             "differentiators": differentiators,
-            "view": "offer",
+            "active_page": "oferta",
         },
     )
 
@@ -170,6 +170,6 @@ def debate_detail(
             "offer": offer,
             "debate": debate,
             "objections": sorted(objections, key=lambda o: o.order_index),
-            "view": "debate",
+            "active_page": "debate",
         },
     )

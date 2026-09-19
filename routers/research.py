@@ -47,7 +47,7 @@ def research_dashboard(
             "user": user,
             "settings": settings,
             "projects": projects,
-            "view": "research",
+            "active_page": "research",
         },
     )
 
@@ -175,7 +175,7 @@ def research_detail(
             "projects": None,
             "price_range": price_range,
             "margin_pct": margin_pct,
-            "view": "research_detail",
+            "active_page": "research",
         },
     )
 

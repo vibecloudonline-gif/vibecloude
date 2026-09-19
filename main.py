@@ -52,6 +52,7 @@ from routers.payments import router as payments_router
 from routers.research import router as research_router
 from routers.offer import router as offer_router
 from routers.alex_agent_config import router as alex_agent_config_router
+from routers.forecast import router as forecast_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -130,6 +131,7 @@ app.include_router(payments_router)
 app.include_router(research_router)
 app.include_router(offer_router)
 app.include_router(alex_agent_config_router)
+app.include_router(forecast_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])
