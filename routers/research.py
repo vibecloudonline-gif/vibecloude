@@ -94,6 +94,11 @@ def research_create(
         reference_url=reference_url.strip() or None,
         factory_price=price,
     )
+    accept = request.headers.get("accept", "")
+    is_ajax = "application/json" in accept or request.headers.get("x-requested-with") == "XMLHttpRequest"
+    if "text/html" in accept and not is_ajax:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f"/panel/research/{project.id}", status_code=303)
     return {"status": "success", "project_id": project.id}
 
 

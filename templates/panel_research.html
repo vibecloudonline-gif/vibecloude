@@ -247,13 +247,13 @@
         <h1>Investigacion de mercado</h1>
         <p>Analiza tu mercado antes de lanzar con tecnologia de IA.</p>
     </div>
-    <button type="button" class="btn btn-primary" id="btn-new">Nuevo proyecto</button>
+    <button type="button" class="btn btn-primary" id="btn-new" onclick="document.getElementById('new-form-wrap').style.display='block'; this.style.display='none';">Nuevo proyecto</button>
 </div>
 
 <div id="new-form-wrap" style="display:none;">
     <div class="new-form">
         <h2>Nuevo proyecto de investigacion</h2>
-        <form id="create-form">
+        <form id="create-form" action="/panel/research/nuevo" method="POST">
             <div class="form-row">
                 <label for="project_type">Tipo de proyecto</label>
                 <select id="project_type" name="project_type">
@@ -274,8 +274,8 @@
                 <input type="number" id="factory_price" name="factory_price" step="0.01" min="0" placeholder="15.00">
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Crear proyecto</button>
-                <button type="button" class="btn" id="btn-cancel">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-project">Crear proyecto</button>
+                <button type="button" class="btn" id="btn-cancel" onclick="document.getElementById('new-form-wrap').style.display='none'; document.getElementById('btn-new').style.display='';">Cancelar</button>
             </div>
         </form>
     </div>

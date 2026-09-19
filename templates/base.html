@@ -177,6 +177,7 @@
         }
     </style>
     {% block head %}{% endblock %}
+    {% block extra_css %}{% endblock %}
 </head>
 <body class="theme-{{ settings.ui_theme }}">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -483,6 +484,7 @@
     </div>
 
     {% block scripts %}{% endblock %}
+    {% block extra_js %}{% endblock %}
 
     <script>
         /* --- Suite Switcher Persistence & Dropdown (Enterprise) --- */

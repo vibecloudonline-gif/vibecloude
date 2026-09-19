@@ -228,3 +228,74 @@ def test_nav_view_post_coexistence(client, test_db):
         assert resp_alex.json() == {"status": "success", "view": ["alexio"]}
     finally:
         app.dependency_overrides.pop(require_auth, None)
+
+
+def test_research_page_renders_scripts_and_creates_project(client, test_db):
+    """Verifica que /panel/research renderice los bloques extra_css y extra_js, y que el flujo de creacion funcione."""
+    tenant = Tenant(name="T5", subdomain="t5", has_erp=True, has_ecommerce=True, has_landing=True, has_alexio=True)
+    test_db.add(tenant)
+    test_db.commit()
+    test_db.refresh(tenant)
+
+    user = User(tenant_id=tenant.id, username="admin_t5", password_hash="hash", role="admin", is_active=True)
+    test_db.add(user)
+    settings = Settings(tenant_id=tenant.id, company_name="T5 Co")
+    test_db.add(settings)
+    test_db.commit()
+
+    def mock_auth(request: Request):
+        request.session["tenant_flags"] = {
+            "erp": tenant.has_erp,
+            "ecommerce": tenant.has_ecommerce,
+            "landing": tenant.has_landing,
+            "alexio": tenant.has_alexio,
+        }
+        return user
+
+    from fastapi import Request
+    app.dependency_overrides[require_auth] = mock_auth
+
+    try:
+        # 1. GET /panel/research debe contener los scripts y estilos de extra_js y extra_css
+        resp_get = client.get("/panel/research", headers={"x-tenant-subdomain": "t5"})
+        assert resp_get.status_code == 200
+        html = resp_get.text
+        assert "btn-new" in html
+        assert "create-form" in html
+        assert "new-form-wrap" in html
+        assert ".new-form" in html  # extra_css cargado
+        assert "addEventListener('submit'" in html  # extra_js cargado
+
+        # 2. POST /panel/research/nuevo crea el proyecto exitosamente
+        resp_create = client.post(
+            "/panel/research/nuevo",
+            data={
+                "project_type": "physical_product",
+                "query_description": "Smartwatch con pulsometro deportivo",
+                "reference_url": "https://example.com/watch",
+                "factory_price": "25.50",
+            },
+            headers={"x-tenant-subdomain": "t5", "Accept": "application/json"},
+        )
+        assert resp_create.status_code == 200
+        data = resp_create.json()
+        assert data["status"] == "success"
+        project_id = data["project_id"]
+
+        # 3. GET /panel/research/{project_id} muestra la vista de detalle
+        resp_detail = client.get(f"/panel/research/{project_id}", headers={"x-tenant-subdomain": "t5"})
+        assert resp_detail.status_code == 200
+        assert "Smartwatch con pulsometro deportivo" in resp_detail.text
+        assert "Iniciar busqueda" in resp_detail.text
+
+        # 4. POST /panel/research/{project_id}/buscar ejecuta la busqueda de mercado
+        resp_search = client.post(
+            f"/panel/research/{project_id}/buscar",
+            headers={"x-tenant-subdomain": "t5"},
+        )
+        assert resp_search.status_code == 200
+        search_data = resp_search.json()
+        assert search_data["status"] == "success"
+        assert search_data["listings_count"] > 0
+    finally:
+        app.dependency_overrides.pop(require_auth, None)
