@@ -3,7 +3,7 @@ import { useEffect } from "react";
 
 export default function Onboarding() {
   useEffect(() => {
-    window.location.href = "https://vibecloud-backend.onrender.com/login";
+    window.location.href = "https://alexio-backend.onrender.com/login";
   }, []);
 
   return (

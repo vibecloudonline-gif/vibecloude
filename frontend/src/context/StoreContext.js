@@ -5,7 +5,7 @@ const StoreContext = createContext();
 
 export const useStore = () => useContext(StoreContext);
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_ALEXIO_URL || "https://vibecloud-backend.onrender.com";
+const BACKEND_URL = process.env.NEXT_PUBLIC_ALEXIO_URL || "https://alexio-backend.onrender.com";
 
 export const StoreProvider = ({ children }) => {
   const [storeInfo, setStoreInfo] = useState({

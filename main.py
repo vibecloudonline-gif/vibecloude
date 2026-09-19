@@ -81,9 +81,9 @@ def _get_cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
     if not raw:
         if env == "production":
-            raw = "https://vibecloud-frontend.onrender.com,https://vibecloud.onrender.com"
+            raw = "https://alexio-frontend.onrender.com,https://alexio.onrender.com"
         else:
-            raw = "http://localhost,http://127.0.0.1,https://vibecloud-frontend.onrender.com"
+            raw = "http://localhost,http://127.0.0.1,https://alexio-frontend.onrender.com"
     origins = [o.strip() for o in raw.split(",") if o.strip()]
     if env == "production":
         unsafe = [o for o in origins if "localhost" in o or "127.0.0.1" in o]

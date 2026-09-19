@@ -6,7 +6,7 @@ export function middleware(request) {
 
   // 1. Resolve subdomain from Host header
   const hostname = request.headers.get('host') || '';
-  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'vibecloud-frontend.onrender.com';
+  const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'alexio-frontend.onrender.com';
   
   let subdomain = '';
   if (hostname && hostname.includes('.') && !hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1')) {

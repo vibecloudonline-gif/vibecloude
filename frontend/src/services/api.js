@@ -24,7 +24,7 @@ export async function apiRequest(path, options = {}) {
 
   if (typeof window !== 'undefined') {
     const hostname = window.location.host;
-    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'vibecloud-frontend.onrender.com';
+    const baseDomain = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'alexio-frontend.onrender.com';
     let subdomain = '';
     if (hostname && hostname.includes('.') && !hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1')) {
       if (hostname.endsWith(baseDomain)) {

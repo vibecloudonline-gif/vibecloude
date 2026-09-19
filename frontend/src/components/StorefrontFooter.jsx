@@ -42,7 +42,7 @@ export default function StorefrontFooter() {
             <li><a href="#inicio" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Inicio</a></li>
             <li><a href="#catalogo" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Catálogo</a></li>
             <li><a href="#ofertas" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Ofertas Mayoristas</a></li>
-            <li><a href="https://vibecloud-backend.onrender.com/login" target="_blank" rel="noreferrer" style={{ color: "var(--primary-color)", textDecoration: "none", fontWeight: "600" }}>🔒 Acceso Empleados (POS)</a></li>
+            <li><a href="https://alexio-backend.onrender.com/login" target="_blank" rel="noreferrer" style={{ color: "var(--primary-color)", textDecoration: "none", fontWeight: "600" }}>🔒 Acceso Empleados (POS)</a></li>
           </ul>
         </div>
 
