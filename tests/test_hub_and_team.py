@@ -164,7 +164,7 @@ def test_onboarding_accesible_sin_nav_view(client, session):
 
     resp = client.get("/panel/onboarding")
     assert resp.status_code == 200
-    assert "Onboarding guiado" in resp.text
+    assert "Configuremos tu plataforma" in resp.text
 
 
 # ---------------------------------------------------------------------------

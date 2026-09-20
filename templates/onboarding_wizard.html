@@ -3,198 +3,613 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Onboarding guiado - Alex IO</title>
+    <title>Onboarding - Alex IO</title>
     <link rel="stylesheet" href="/static/css/style.css?v=10">
     <style>
-        body {
-            min-height: 100vh;
-            background: var(--main-bg);
-            padding: 32px 16px;
+        body { min-height: 100vh; background: var(--main-bg); margin: 0; }
+
+        .ob-header {
+            background: var(--sidebar-bg);
+            padding: 32px 24px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
         }
-        .panel-topbar { max-width: 720px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
-        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
-        .panel-topbar a:hover { color: var(--text-main); }
-        .onboarding-wrap { max-width: 720px; margin: 0 auto; }
-        .onboarding-wrap h1 { color: var(--text-main); font-size: 1.4rem; margin-bottom: 4px; }
-        .onboarding-wrap > p.intro { color: var(--text-muted); margin-bottom: 24px; max-width: 640px; }
+        .ob-header::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+            background: linear-gradient(90deg, var(--primary-color), #ff9a44, var(--primary-color));
+        }
+        .ob-header-logo {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .ob-header h1 {
+            color: #fff;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+        .ob-header p {
+            color: #9a9590;
+            font-size: 0.9rem;
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        /* Stepper */
+        .ob-stepper {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+            max-width: 560px;
+            margin: -20px auto 0;
+            position: relative;
+            z-index: 2;
+            padding: 0 24px;
+        }
+        .ob-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+        .ob-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: calc(50% + 18px);
+            width: calc(100% - 36px);
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+        .ob-step.done:not(:last-child)::after { background: var(--primary-color); }
+        .ob-step-num {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: var(--surface-color);
+            border: 2px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem;
+            color: var(--text-muted);
+            position: relative; z-index: 1;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+        .ob-step.active .ob-step-num {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+            box-shadow: 0 2px 12px rgba(255,106,0,0.3);
+        }
+        .ob-step.done .ob-step-num {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: #fff;
+        }
+        .ob-step-label {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .ob-step.active .ob-step-label { color: var(--primary-color); }
+        .ob-step.done .ob-step-label { color: var(--success-color); }
+
+        /* Content */
+        .ob-content {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 32px 24px 48px;
+        }
+        .ob-section { display: none; }
+        .ob-section.active { display: block; animation: obFadeIn 0.3s ease; }
+        @keyframes obFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .ob-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            box-shadow: var(--shadow-sm);
+        }
+        .ob-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .ob-card-icon {
+            width: 44px; height: 44px;
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .ob-card-icon svg { width: 22px; height: 22px; }
+        .ob-card-icon.landing { background: var(--accent-light); color: var(--primary-color); }
+        .ob-card-icon.store { background: var(--info-bg); color: var(--info-color); }
+        .ob-card-header h2 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; }
+        .ob-card-header p { font-size: 0.82rem; color: var(--text-muted); margin: 2px 0 0; }
+
+        /* Form fields */
+        .ob-field { margin-bottom: 18px; }
+        .ob-field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .ob-field input[type="text"],
+        .ob-field input[type="file"] {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--surface-color);
+            color: var(--text-main);
+            transition: var(--transition);
+            font-family: var(--font-sans);
+            box-sizing: border-box;
+        }
+        .ob-field input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .ob-field .field-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .ob-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 540px) { .ob-row { grid-template-columns: 1fr; } }
+
+        /* Template cards */
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 540px) { .template-grid { grid-template-columns: 1fr; } }
+        .tpl-card {
+            position: relative;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--surface-color);
+        }
+        .tpl-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+        .tpl-card.selected { border-color: var(--primary-color); background: var(--primary-light); }
+        .tpl-card input[type="radio"] { display: none; }
+        .tpl-card-check {
+            position: absolute; top: 12px; right: 12px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center;
+            transition: var(--transition);
+        }
+        .tpl-card.selected .tpl-card-check {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        .tpl-card.selected .tpl-card-check::after {
+            content: '';
+            width: 6px; height: 10px;
+            border: solid #fff; border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-top: -2px;
+        }
+        .tpl-swatch {
+            display: flex; gap: 4px; margin-bottom: 10px;
+        }
+        .tpl-swatch span {
+            width: 18px; height: 18px; border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .tpl-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; color: var(--text-main); }
+        .tpl-card p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
+
+        /* Buttons */
+        .ob-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .ob-btn {
+            padding: 10px 24px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-sans);
+        }
+        .ob-btn-primary {
+            background: var(--primary-color);
+            color: #fff;
+        }
+        .ob-btn-primary:hover { background: var(--primary-hover); }
+        .ob-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ob-btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+        }
+        .ob-btn-ghost:hover { border-color: var(--border-strong); color: var(--text-main); }
+        .ob-btn-link {
+            background: none; border: none;
+            color: var(--text-muted); cursor: pointer;
+            font-size: 0.85rem; padding: 0;
+            text-decoration: underline;
+        }
+
+        /* Progress bar inside button */
+        .ob-btn-primary .spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: obSpin 0.6s linear infinite;
+            margin-right: 6px; vertical-align: middle;
+        }
+        @keyframes obSpin { to { transform: rotate(360deg); } }
+
+        /* Result card */
+        .ob-result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--success-border);
+            background: var(--success-bg);
+        }
+        .ob-result h3 {
+            font-size: 0.95rem; font-weight: 700;
+            color: var(--success-color); margin: 0 0 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .ob-result-field { margin-bottom: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+        .ob-result-field strong { color: var(--text-main); }
+        .ob-result-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+        /* Error */
+        .ob-error {
+            margin-top: 14px; padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--danger-border);
+            background: var(--danger-bg);
+            color: var(--danger-color);
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        /* Skip link */
+        .ob-skip {
+            text-align: center;
+            margin-top: 16px;
+        }
     </style>
 </head>
 <body>
-    <div class="panel-topbar">
-        <a href="/">&larr; Volver</a>
-        <a href="/settings">Configuración</a>
+    <!-- Header -->
+    <div class="ob-header">
+        <div class="ob-header-logo">ALEX IO</div>
+        <h1>Configuremos tu plataforma</h1>
+        <p>Personalizamos tu landing y tu tienda en minutos. Todo es editable despues desde el panel.</p>
     </div>
-    <div class="onboarding-wrap">
-        <h1>Onboarding guiado</h1>
-        <p class="intro">
-            Un par de preguntas para dejar tu {{ 'landing' if tenant.has_landing else '' }}{{ ' y tu tienda' if tenant.has_landing and tenant.has_ecommerce else ('tienda' if tenant.has_ecommerce else '') }}
-            con una base de diseño lista. Podés ajustar todo después desde sus propios paneles.
-        </p>
 
+    <!-- Stepper -->
+    <div class="ob-stepper">
         {% if tenant.has_landing %}
-        <div class="glass-card" style="margin-bottom: 24px;">
-            <h2 style="margin-bottom: 4px;">Landing con IA</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">
-                Contanos sobre tu negocio y, si querés, subí una imagen que capture el estilo que te gusta
-                (colores, ambiente) — nunca se copia literal, la IA la usa solo como referencia de humor visual.
-            </p>
-
-            <form id="wizard-landing-form" onsubmit="submitLandingWizard(event)">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Nombre del negocio</label>
-                        <input type="text" name="business_name" required placeholder="Mi Empresa" class="form-input" style="width:100%;">
-                    </div>
-                    <div>
-                        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Rubro</label>
-                        <input type="text" name="rubro" required placeholder="Indumentaria, gastronomía, tecnología..." class="form-input" style="width:100%;">
-                    </div>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">¿Qué estilo/tono buscás?</label>
-                    <input type="text" name="tono" required placeholder="Moderno y minimalista, cálido y familiar, juvenil y colorido..." class="form-input" style="width:100%;">
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Colores preferidos (opcional)</label>
-                    <input type="text" name="color_hint" placeholder="Ej: celeste y blanco" class="form-input" style="width:100%;">
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display:block; margin-bottom:6px; font-weight:600; font-size:0.9rem;">Imagen de referencia de estilo (opcional, PNG/JPEG/WEBP)</label>
-                    <input type="file" name="reference_image" accept="image/png,image/jpeg,image/webp" class="form-input" style="padding:8px;">
-                </div>
-                <button type="submit" class="btn" id="wizard-landing-btn">Generar mi landing</button>
-            </form>
-
-            <div id="wizard-landing-error" style="display: none; margin-top: 16px; color: var(--danger-color);"></div>
-            <div id="wizard-landing-result" style="display: none; margin-top: 20px;" class="glass-card"></div>
+        <div class="ob-step active" data-step="landing">
+            <div class="ob-step-num">1</div>
+            <span class="ob-step-label">Landing</span>
         </div>
         {% endif %}
-
         {% if tenant.has_ecommerce %}
-        <div class="glass-card">
-            <h2 style="margin-bottom: 4px;">Estilo de tu tienda online</h2>
-            <p style="color: var(--text-muted); margin-bottom: 20px;">Elegí la plantilla visual de tu tienda. Podés cambiarla cuando quieras desde Configuración.</p>
+        <div class="ob-step {% if not tenant.has_landing %}active{% endif %}" data-step="ecommerce">
+            <div class="ob-step-num">{{ 2 if tenant.has_landing else 1 }}</div>
+            <span class="ob-step-label">Tienda</span>
+        </div>
+        {% endif %}
+        <div class="ob-step" data-step="done">
+            <div class="ob-step-num">{{ (1 + (1 if tenant.has_landing else 0) + (1 if tenant.has_ecommerce else 0)) }}</div>
+            <span class="ob-step-label">Listo</span>
+        </div>
+    </div>
 
-            <form id="wizard-ecommerce-form" onsubmit="submitEcommerceWizard(event)">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
-                    <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
-                        <input type="radio" name="storefront_template" value="elegante" {% if settings.storefront_template == 'elegante' %}checked{% endif %} style="align-self:flex-start;">
-                        <span style="font-weight:700;">🩵 Elegante</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Celeste, blanco y naranja — default, comercio general</span>
-                    </label>
-                    <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
-                        <input type="radio" name="storefront_template" value="urbano" {% if settings and settings.storefront_template == 'urbano' %}checked{% endif %} style="align-self:flex-start;">
-                        <span style="font-weight:700;">🖤 Urbano</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Streetwear oscuro y dorado — moda urbana</span>
-                    </label>
-                    <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
-                        <input type="radio" name="storefront_template" value="natural" {% if settings and settings.storefront_template == 'natural' %}checked{% endif %} style="align-self:flex-start;">
-                        <span style="font-weight:700;">🌿 Natural</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Salvia, beige y orgánico — artesanal, eco</span>
-                    </label>
-                    <label class="template-option" style="display:flex; flex-direction:column; gap:6px; padding:16px; border:2px solid var(--border-color); border-radius:10px; cursor:pointer;">
-                        <input type="radio" name="storefront_template" value="tech" {% if settings and settings.storefront_template == 'tech' %}checked{% endif %} style="align-self:flex-start;">
-                        <span style="font-weight:700;">⚡ Tech</span>
-                        <span style="font-size:0.8rem; color:var(--text-muted);">Futurista, azul eléctrico — electrónica, gadgets</span>
-                    </label>
+    <div class="ob-content">
+        <!-- STEP: Landing -->
+        {% if tenant.has_landing %}
+        <div class="ob-section active" id="section-landing">
+            <div class="ob-card">
+                <div class="ob-card-header">
+                    <div class="ob-card-icon landing">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                    </div>
+                    <div>
+                        <h2>Landing con IA</h2>
+                        <p>Genera tu pagina de presentacion con inteligencia artificial</p>
+                    </div>
                 </div>
-                <button type="submit" class="btn" id="wizard-ecommerce-btn">Guardar estilo de tienda</button>
-                <a href="/tienda" target="_blank" class="btn" style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); margin-left: 8px;">Ver mi tienda</a>
-            </form>
 
-            <div id="wizard-ecommerce-error" style="display: none; margin-top: 16px; color: var(--danger-color);"></div>
+                <form id="wizard-landing-form" onsubmit="submitLanding(event)">
+                    <div class="ob-row">
+                        <div class="ob-field">
+                            <label>Nombre del negocio</label>
+                            <input type="text" name="business_name" required placeholder="Ej: Studio Creativo AR">
+                        </div>
+                        <div class="ob-field">
+                            <label>Rubro o industria</label>
+                            <input type="text" name="rubro" required placeholder="Ej: Indumentaria, SaaS, Gastronomia">
+                        </div>
+                    </div>
+                    <div class="ob-field">
+                        <label>Estilo y tono deseado</label>
+                        <input type="text" name="tono" required placeholder="Ej: Profesional y minimalista, Premium y exclusivo">
+                        <div class="field-hint">Define la personalidad visual de tu pagina</div>
+                    </div>
+                    <div class="ob-field">
+                        <label>Colores preferidos <span style="font-weight:400; text-transform:none;">(opcional)</span></label>
+                        <input type="text" name="color_hint" placeholder="Ej: Negro y dorado, Azul corporativo">
+                    </div>
+                    <div class="ob-field">
+                        <label>Imagen de referencia <span style="font-weight:400; text-transform:none;">(opcional, PNG / JPEG / WEBP)</span></label>
+                        <input type="file" name="reference_image" accept="image/png,image/jpeg,image/webp" style="padding: 8px 14px;">
+                        <div class="field-hint">Subi una imagen que capture la estetica que buscas. No se copia, solo se usa como referencia visual.</div>
+                    </div>
+
+                    <div class="ob-error" id="landing-error"></div>
+                    <div class="ob-result" id="landing-result" style="display:none;"></div>
+
+                    <div class="ob-actions">
+                        <a href="/" class="ob-btn-link">Saltar por ahora</a>
+                        <button type="submit" class="ob-btn ob-btn-primary" id="landing-btn">Generar landing con IA</button>
+                    </div>
+                </form>
+            </div>
         </div>
         {% endif %}
 
+        <!-- STEP: Ecommerce -->
+        {% if tenant.has_ecommerce %}
+        <div class="ob-section {% if not tenant.has_landing %}active{% endif %}" id="section-ecommerce">
+            <div class="ob-card">
+                <div class="ob-card-header">
+                    <div class="ob-card-icon store">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>
+                    </div>
+                    <div>
+                        <h2>Estilo de tu tienda online</h2>
+                        <p>Selecciona la plantilla visual para tu storefront</p>
+                    </div>
+                </div>
+
+                <form id="wizard-ecommerce-form" onsubmit="submitEcommerce(event)">
+                    <div class="template-grid">
+                        <label class="tpl-card {% if settings.storefront_template == 'elegante' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="elegante" {% if settings.storefront_template == 'elegante' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-swatch">
+                                <span style="background:#87CEEB;"></span>
+                                <span style="background:#ffffff;"></span>
+                                <span style="background:#FF6A00;"></span>
+                            </div>
+                            <h3>Elegante</h3>
+                            <p>Celeste, blanco y naranja. Ideal para comercio general, retail y servicios profesionales.</p>
+                        </label>
+                        <label class="tpl-card {% if settings.storefront_template == 'urbano' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="urbano" {% if settings and settings.storefront_template == 'urbano' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-swatch">
+                                <span style="background:#1a1a1a;"></span>
+                                <span style="background:#c9a93e;"></span>
+                                <span style="background:#333;"></span>
+                            </div>
+                            <h3>Urbano</h3>
+                            <p>Oscuro con acentos dorados. Perfecto para streetwear, moda urbana y lifestyle.</p>
+                        </label>
+                        <label class="tpl-card {% if settings.storefront_template == 'natural' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="natural" {% if settings and settings.storefront_template == 'natural' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-swatch">
+                                <span style="background:#8fbc8f;"></span>
+                                <span style="background:#f5f0e8;"></span>
+                                <span style="background:#6b8e6b;"></span>
+                            </div>
+                            <h3>Natural</h3>
+                            <p>Salvia, beige y tonos organicos. Para marcas artesanales, eco y bienestar.</p>
+                        </label>
+                        <label class="tpl-card {% if settings.storefront_template == 'tech' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="tech" {% if settings and settings.storefront_template == 'tech' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-swatch">
+                                <span style="background:#0c0c1e;"></span>
+                                <span style="background:#3b82f6;"></span>
+                                <span style="background:#06b6d4;"></span>
+                            </div>
+                            <h3>Tech</h3>
+                            <p>Futurista con azul electrico. Ideal para electronica, gadgets y software.</p>
+                        </label>
+                    </div>
+
+                    <div class="ob-error" id="ecommerce-error"></div>
+
+                    <div class="ob-actions">
+                        {% if tenant.has_landing %}
+                        <button type="button" class="ob-btn ob-btn-ghost" onclick="goToStep('landing')">Volver</button>
+                        {% else %}
+                        <a href="/" class="ob-btn-link">Saltar por ahora</a>
+                        {% endif %}
+                        <div style="display:flex; gap:8px;">
+                            <a href="/tienda" target="_blank" class="ob-btn ob-btn-ghost">Vista previa</a>
+                            <button type="submit" class="ob-btn ob-btn-primary" id="ecommerce-btn">Guardar y continuar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- STEP: Done -->
+        <div class="ob-section" id="section-done">
+            <div class="ob-card" style="text-align: center; padding: 48px 28px;">
+                <div style="width:56px; height:56px; border-radius:50%; background:var(--success-bg); border:2px solid var(--success-border); display:flex; align-items:center; justify-content:center; margin: 0 auto 20px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="var(--success-color)"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                </div>
+                <h2 style="font-size: 1.3rem; margin-bottom: 8px; color: var(--text-main);">Plataforma configurada</h2>
+                <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto 24px; line-height: 1.5;">
+                    Todo listo. Podes ajustar cualquier cosa desde Configuracion o volver a correr este wizard cuando quieras.
+                </p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <a href="/" class="ob-btn ob-btn-primary" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+                        Ir al panel
+                    </a>
+                    {% if tenant.has_landing %}
+                    <a href="/landing" target="_blank" class="ob-btn ob-btn-ghost" style="text-decoration:none;">Ver mi landing</a>
+                    {% endif %}
+                    {% if tenant.has_ecommerce %}
+                    <a href="/tienda" target="_blank" class="ob-btn ob-btn-ghost" style="text-decoration:none;">Ver mi tienda</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- No modules -->
         {% if not tenant.has_landing and not tenant.has_ecommerce %}
-        <div class="glass-card">
-            <p>Tu cuenta no tiene contratado Landing con IA ni Ecommerce, así que no hay nada que configurar acá.</p>
+        <div class="ob-card" style="text-align: center; padding: 40px;">
+            <p style="color: var(--text-muted);">Tu cuenta no tiene Landing con IA ni Ecommerce contratados. No hay nada que configurar aqui.</p>
+            <a href="/" class="ob-btn ob-btn-primary" style="text-decoration:none; margin-top: 16px; display: inline-block;">Volver al panel</a>
         </div>
         {% endif %}
     </div>
 
-    <script>
-async function submitLandingWizard(event) {
-    event.preventDefault();
-    const form = event.target;
-    const btn = document.getElementById('wizard-landing-btn');
-    const errorEl = document.getElementById('wizard-landing-error');
-    const resultEl = document.getElementById('wizard-landing-result');
-
-    btn.disabled = true;
-    btn.textContent = 'Generando...';
-    errorEl.style.display = 'none';
-    resultEl.style.display = 'none';
-
-    try {
-        const formData = new FormData(form);
-        const res = await fetch('/panel/onboarding/landing', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Error al generar la landing');
-
-        const c = data.content;
-        resultEl.innerHTML = '';
-        const title = document.createElement('h3');
-        title.textContent = '¡Landing generada!';
-        resultEl.appendChild(title);
-
-        const heroDiv = document.createElement('div');
-        heroDiv.style.marginTop = '8px';
-        const heroStrong = document.createElement('strong');
-        heroStrong.textContent = 'Título: ';
-        heroDiv.appendChild(heroStrong);
-        heroDiv.appendChild(document.createTextNode(c.hero_title));
-        resultEl.appendChild(heroDiv);
-
-        const subDiv = document.createElement('div');
-        subDiv.style.marginTop = '6px';
-        const subStrong = document.createElement('strong');
-        subStrong.textContent = 'Subtítulo: ';
-        subDiv.appendChild(subStrong);
-        subDiv.appendChild(document.createTextNode(c.hero_subtitle));
-        resultEl.appendChild(subDiv);
-
-        const linksDiv = document.createElement('div');
-        linksDiv.style.marginTop = '16px';
-        linksDiv.innerHTML = `<a href="${data.public_url}" target="_blank" class="btn">Ver mi landing</a> <a href="${data.editor_url}" class="btn" style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color);">Ajustar en el editor</a>`;
-        resultEl.appendChild(linksDiv);
-
-        resultEl.style.display = 'block';
-        Swal.fire('¡Listo!', 'Tu landing ya está generada.', 'success');
-    } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.style.display = 'block';
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Generar mi landing';
-    }
-}
-
-async function submitEcommerceWizard(event) {
-    event.preventDefault();
-    const form = event.target;
-    const btn = document.getElementById('wizard-ecommerce-btn');
-    const errorEl = document.getElementById('wizard-ecommerce-error');
-
-    btn.disabled = true;
-    btn.textContent = 'Guardando...';
-    errorEl.style.display = 'none';
-
-    try {
-        const formData = new FormData(form);
-        const res = await fetch('/panel/onboarding/ecommerce', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'Error al guardar el estilo');
-        Swal.fire('¡Listo!', 'Estilo de tienda guardado.', 'success');
-    } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.style.display = 'block';
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Guardar estilo de tienda';
-    }
-}
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+    const STEPS = [];
+    {% if tenant.has_landing %}STEPS.push('landing');{% endif %}
+    {% if tenant.has_ecommerce %}STEPS.push('ecommerce');{% endif %}
+    STEPS.push('done');
+    let currentStep = STEPS[0];
+
+    function goToStep(step) {
+        document.querySelectorAll('.ob-section').forEach(s => s.classList.remove('active'));
+        const el = document.getElementById('section-' + step);
+        if (el) el.classList.add('active');
+        currentStep = step;
+        updateStepper();
+    }
+
+    function updateStepper() {
+        const stepEls = document.querySelectorAll('.ob-step');
+        let found = false;
+        stepEls.forEach(el => {
+            const s = el.dataset.step;
+            if (s === currentStep) {
+                el.className = 'ob-step active';
+                found = true;
+            } else if (!found) {
+                el.className = 'ob-step done';
+            } else {
+                el.className = 'ob-step';
+            }
+        });
+    }
+
+    function nextStep() {
+        const idx = STEPS.indexOf(currentStep);
+        if (idx < STEPS.length - 1) goToStep(STEPS[idx + 1]);
+    }
+
+    function selectTemplate(card) {
+        document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        card.querySelector('input[type="radio"]').checked = true;
+    }
+
+    async function submitLanding(event) {
+        event.preventDefault();
+        const btn = document.getElementById('landing-btn');
+        const errEl = document.getElementById('landing-error');
+        const resEl = document.getElementById('landing-result');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Generando con IA...';
+        errEl.style.display = 'none';
+        resEl.style.display = 'none';
+
+        try {
+            const formData = new FormData(event.target);
+            const res = await fetch('/panel/onboarding/landing', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Error al generar la landing');
+
+            const c = data.content;
+            resEl.innerHTML = '<h3><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Landing generada</h3>'
+                + '<div class="ob-result-field"><strong>Titulo:</strong> ' + c.hero_title + '</div>'
+                + '<div class="ob-result-field"><strong>Subtitulo:</strong> ' + c.hero_subtitle + '</div>'
+                + '<div class="ob-result-actions">'
+                + '<a href="' + data.public_url + '" target="_blank" class="ob-btn ob-btn-primary" style="text-decoration:none; font-size:0.8rem; padding:8px 16px;">Ver landing</a>'
+                + '<a href="' + data.editor_url + '" class="ob-btn ob-btn-ghost" style="text-decoration:none; font-size:0.8rem; padding:8px 16px;">Editar en el studio</a>'
+                + '</div>';
+            resEl.style.display = 'block';
+
+            setTimeout(() => nextStep(), 1500);
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Generar landing con IA';
+        }
+    }
+
+    async function submitEcommerce(event) {
+        event.preventDefault();
+        const btn = document.getElementById('ecommerce-btn');
+        const errEl = document.getElementById('ecommerce-error');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Guardando...';
+        errEl.style.display = 'none';
+
+        try {
+            const formData = new FormData(event.target);
+            const res = await fetch('/panel/onboarding/ecommerce', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Error al guardar el estilo');
+            nextStep();
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar y continuar';
+        }
+    }
+
+    updateStepper();
+    </script>
 </body>
 </html>
