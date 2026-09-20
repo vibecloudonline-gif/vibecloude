@@ -20,6 +20,7 @@ gspread
 oauth2client
 alembic
 pytest
+pytest-asyncio
 pyjwt==2.11.0
 httpx
 python-json-logger

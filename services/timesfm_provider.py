@@ -160,6 +160,11 @@ async def generate_market_forecast(query: str, prices: list[float], horizon_days
     return _analytical_fallback(query, price_series, horizon_days)
 
 
+class TimesFMProvider:
+    async def generate_forecast(self, prices: list[float], query: str, horizon_days: int = 30) -> TimesFMForecastResult:
+        return await generate_market_forecast(query, prices, horizon_days)
+
+
 async def _huggingface_timesfm(query: str, price_series: list[float], horizon_days: int, api_key: str) -> TimesFMForecastResult:
     import httpx, statistics
     n_forecast = max(4, horizon_days // 7)

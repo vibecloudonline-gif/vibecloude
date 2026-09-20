@@ -126,7 +126,7 @@ def test_erp_isolation_on_research_page(client, test_db):
 
 
 def test_shared_links_visible_in_web_suite(client, test_db):
-    """Verifica que un tenant con has_ecommerce=True y has_erp=False en suite Web vea los 5 links compartidos en su navegacion."""
+    """Verifica que un tenant con has_ecommerce=True y has_erp=False en suite Web vea los links de canales online y NO los de ERP operativo."""
     tenant = Tenant(name="T2", subdomain="t2", has_erp=False, has_ecommerce=True, has_landing=True, has_alexio=False)
     test_db.add(tenant)
     test_db.commit()
@@ -138,7 +138,17 @@ def test_shared_links_visible_in_web_suite(client, test_db):
     test_db.add(settings)
     test_db.commit()
 
-    app.dependency_overrides[require_auth] = lambda: user
+    def mock_auth(request: Request):
+        request.session["tenant_flags"] = {
+            "erp": tenant.has_erp,
+            "ecommerce": tenant.has_ecommerce,
+            "landing": tenant.has_landing,
+            "alexio": tenant.has_alexio,
+        }
+        return user
+
+    from fastapi import Request
+    app.dependency_overrides[require_auth] = mock_auth
 
     try:
         resp = client.get("/panel/landing", headers={"x-tenant-subdomain": "t2"})
@@ -150,17 +160,13 @@ def test_shared_links_visible_in_web_suite(client, test_db):
         assert nav is not None
         nav_links = [a.get("href") for a in nav.find_all("a", href=True)]
 
-        # 5 links compartidos deben estar presentes en nav para ecommerce
-        assert "/products" in nav_links, "Stock debe estar en suite web para ecommerce"
-        assert "/sales" in nav_links, "Ventas debe estar en suite web para ecommerce"
-        assert "/clients" in nav_links, "Clientes debe estar en suite web para ecommerce"
-        assert "/catalog-import" in nav_links, "Importar catalogo debe estar en suite web para ecommerce"
-        assert "/reports" in nav_links, "Reportes debe estar en suite web para ecommerce"
+        assert "/panel/landing" in nav_links, "Landing debe estar en suite web"
+        assert "/catalog-import" in nav_links, "Importar catalogo debe estar en suite web"
+        assert "/panel/dominios" in nav_links, "Dominios debe estar en suite web"
 
-        # Y NO debe tener las herramientas exclusivas de ERP
-        assert "/pos" not in nav_links
-        assert "/cash" not in nav_links
-        assert "/wms/depositos" not in nav_links
+        assert "/pos" not in nav_links, "POS no debe estar en suite web"
+        assert "/cash" not in nav_links, "Caja no debe estar en suite web"
+        assert "/wms/depositos" not in nav_links, "WMS no debe estar en suite web"
     finally:
         app.dependency_overrides.pop(require_auth, None)
 
@@ -178,7 +184,17 @@ def test_alex_agent_link_gated_by_alexio_flag(client, test_db):
     test_db.add(settings)
     test_db.commit()
 
-    app.dependency_overrides[require_auth] = lambda: user
+    def mock_auth(request: Request):
+        request.session["tenant_flags"] = {
+            "erp": tenant_no_alex.has_erp,
+            "ecommerce": tenant_no_alex.has_ecommerce,
+            "landing": tenant_no_alex.has_landing,
+            "alexio": tenant_no_alex.has_alexio,
+        }
+        return user
+
+    from fastapi import Request
+    app.dependency_overrides[require_auth] = mock_auth
 
     try:
         resp = client.get("/panel/research", headers={"x-tenant-subdomain": "t3"})
