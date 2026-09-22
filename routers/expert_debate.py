@@ -55,6 +55,18 @@ EXPERT_PROFILES = [
         "title": "Diseñadora UX/CX",
         "bio": "Especialista en experiencia de usuario y customer journey para ecommerce.",
     },
+    {
+        "name": "Martín Solano",
+        "role": "skeptic",
+        "title": "Consumidor Escéptico",
+        "bio": "Desconfia de las promesas de marketing. Compara todo, busca letra chica, lee reseñas negativas antes de comprar. Si lo convences a él, convences a cualquiera.",
+    },
+    {
+        "name": "Sofía Delgado",
+        "role": "compulsive_buyer",
+        "title": "Compradora Compulsiva",
+        "bio": "Compra por impulso, se engancha con ofertas y novedad. Representa al cliente emocional que decide en segundos. Si ella no se engancha, tu hook no funciona.",
+    },
 ]
 
 

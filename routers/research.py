@@ -60,10 +60,15 @@ def research_create(
     query_description: str = Form(...),
     reference_url: str = Form(""),
     factory_price: str = Form(""),
+    no_competitors: str = Form(""),
+    competitor_url_1: str = Form(""),
+    competitor_url_2: str = Form(""),
+    competitor_url_3: str = Form(""),
     user: User = Depends(require_auth),
     session: Session = Depends(get_session),
     tenant_id: int = Depends(get_tenant),
 ):
+    from database.models import CompetitorAnalysis
     from services.research_service import create_project
 
     tenant = session.get(Tenant, tenant_id)
@@ -96,6 +101,18 @@ def research_create(
         reference_url=reference_url.strip() or None,
         factory_price=price,
     )
+
+    if not no_competitors:
+        for url in [competitor_url_1, competitor_url_2, competitor_url_3]:
+            url = url.strip()
+            if url:
+                comp = CompetitorAnalysis(
+                    project_id=project.id,
+                    url=url,
+                )
+                session.add(comp)
+        session.commit()
+
     accept = request.headers.get("accept", "")
     is_ajax = "application/json" in accept or request.headers.get("x-requested-with") == "XMLHttpRequest"
     if "text/html" in accept and not is_ajax:

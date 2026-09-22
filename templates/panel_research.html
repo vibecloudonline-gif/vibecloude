@@ -285,6 +285,24 @@
                 <label for="factory_price">Precio de fabrica / costo (opcional)</label>
                 <input type="number" id="factory_price" name="factory_price" step="0.01" min="0" placeholder="15.00">
             </div>
+
+            <div class="form-row" style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border-color);">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:400; font-size:0.88rem;">
+                    <input type="checkbox" id="no_competitors" name="no_competitors" value="1" style="width:auto; accent-color:var(--accent-color);">
+                    Producto/servicio nuevo (sin competencia directa conocida)
+                </label>
+            </div>
+
+            <div id="competitors-fields">
+                <div class="form-row" style="margin-top:12px;">
+                    <label>URLs de competencia (hasta 3)</label>
+                    <input type="url" name="competitor_url_1" placeholder="https://competidor1.com" style="margin-bottom:8px;">
+                    <input type="url" name="competitor_url_2" placeholder="https://competidor2.com" style="margin-bottom:8px;">
+                    <input type="url" name="competitor_url_3" placeholder="https://competidor3.com">
+                    <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;">La IA analizara automaticamente cada competidor al crear el proyecto.</div>
+                </div>
+            </div>
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary" id="btn-submit-project">Crear proyecto</button>
                 <button type="button" class="btn" id="btn-cancel" onclick="document.getElementById('new-form-wrap').style.display='none'; document.getElementById('btn-new').style.display='';">Cancelar</button>
@@ -330,13 +348,24 @@
     if (btnCancel) {
         btnCancel.addEventListener('click', () => { formWrap.style.display = 'none'; btnNew.style.display = ''; });
     }
+    const noCompCheck = document.getElementById('no_competitors');
+    const compFields = document.getElementById('competitors-fields');
+    if (noCompCheck && compFields) {
+        noCompCheck.addEventListener('change', () => {
+            compFields.style.display = noCompCheck.checked ? 'none' : '';
+        });
+    }
+
     if (createForm) {
         createForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const fd = new FormData(createForm);
+            const btn = document.getElementById('btn-submit-project');
+            btn.disabled = true;
+            btn.textContent = 'Creando proyecto...';
             const res = await fetch('/panel/research/nuevo', { method: 'POST', body: fd });
             const data = await res.json();
-            if (!res.ok) { alert(data.detail || 'Error al crear el proyecto'); return; }
+            if (!res.ok) { alert(data.detail || 'Error al crear el proyecto'); btn.disabled = false; btn.textContent = 'Crear proyecto'; return; }
             window.location.href = '/panel/research/' + data.project_id;
         });
     }
