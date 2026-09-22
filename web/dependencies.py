@@ -182,14 +182,19 @@ def get_public_tenant(
         if host_tenant and host_tenant.is_active:
             return host_tenant.id
 
-    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
-    if is_production:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
+    user_id = request.session.get("user_id")
+    if user_id:
+        user = session.get(User, user_id)
+        if user and user.tenant_id:
+            tenant = session.get(Tenant, user.tenant_id)
+            if tenant and tenant.is_active:
+                return tenant.id
 
-    # Solo en desarrollo, para poder probar sin configurar BASE_DOMAIN/subdominios.
-    fallback_tenant = session.exec(select(Tenant).order_by(Tenant.id)).first()
-    if fallback_tenant and fallback_tenant.is_active:
-        return fallback_tenant.id
+    is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    if not is_production:
+        fallback_tenant = session.exec(select(Tenant).order_by(Tenant.id)).first()
+        if fallback_tenant and fallback_tenant.is_active:
+            return fallback_tenant.id
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")
 
