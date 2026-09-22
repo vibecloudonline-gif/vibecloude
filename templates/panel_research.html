@@ -295,14 +295,17 @@
 
 {% if projects %}
 {% for p in projects %}
-<a href="/panel/research/{{ p.id }}" class="project-card">
-    <div class="pc-icon">&#128270;</div>
-    <div class="pc-body">
-        <div class="pc-query">{{ p.query_description[:60] }}{% if p.query_description|length > 60 %}...{% endif %}</div>
-        <div class="pc-meta">{{ p.project_type|replace('_', ' ')|title }} &middot; {{ p.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
-    </div>
-    <span class="pill pill-{{ p.status }}">{{ p.status }}</span>
-</a>
+<div class="project-card" style="position:relative;">
+    <a href="/panel/research/{{ p.id }}" style="display:flex;align-items:center;gap:16px;flex:1;text-decoration:none;color:inherit;">
+        <div class="pc-icon">&#128270;</div>
+        <div class="pc-body">
+            <div class="pc-query">{{ p.query_description[:60] }}{% if p.query_description|length > 60 %}...{% endif %}</div>
+            <div class="pc-meta">{{ p.project_type|replace('_', ' ')|title }} &middot; {{ p.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+        </div>
+        <span class="pill pill-{{ p.status }}">{{ p.status }}</span>
+    </a>
+    <button type="button" class="btn-delete-project" data-id="{{ p.id }}" title="Eliminar proyecto" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--danger-color,#e53e3e);padding:6px 10px;margin-left:8px;">&#128465;</button>
+</div>
 {% endfor %}
 {% else %}
 <div class="empty-state">
@@ -337,6 +340,17 @@
             window.location.href = '/panel/research/' + data.project_id;
         });
     }
+
+    document.querySelectorAll('.btn-delete-project').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            if (!confirm('¿Eliminar este proyecto y todos sus datos (ofertas, debates, forecasts)?')) return;
+            const res = await fetch('/panel/research/' + id + '/eliminar', { method: 'POST' });
+            if (res.ok) { window.location.reload(); }
+            else { const d = await res.json(); alert(d.detail || 'Error al eliminar'); }
+        });
+    });
 
     async function triggerSearch(projectId, triggerBtn) {
         if (!projectId) return;

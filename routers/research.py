@@ -9,6 +9,7 @@ from sqlmodel import Session
 
 from database.models import Settings, Tenant, User
 from database.session import get_session
+from sqlmodel import select
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
 
@@ -178,6 +179,58 @@ def research_detail(
             "active_page": "research",
         },
     )
+
+
+@router.post("/panel/research/{project_id}/eliminar")
+def research_delete_project(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from database.models import (
+        CompetitorAnalysis, DebateObjection, ExpertDebate, ExpertOpinion,
+        Offer, ResearchDemand, ResearchForecast, ResearchListing,
+        ResearchProject, ValidationDebate,
+    )
+
+    project = session.exec(
+        select(ResearchProject).where(
+            ResearchProject.id == project_id,
+            ResearchProject.tenant_id == tenant_id,
+        )
+    ).first()
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    offers = session.exec(select(Offer).where(Offer.project_id == project_id)).all()
+    for offer in offers:
+        debates = session.exec(select(ValidationDebate).where(ValidationDebate.offer_id == offer.id)).all()
+        for d in debates:
+            for obj in session.exec(select(DebateObjection).where(DebateObjection.debate_id == d.id)).all():
+                session.delete(obj)
+            session.delete(d)
+        expert_debates = session.exec(select(ExpertDebate).where(ExpertDebate.offer_id == offer.id)).all()
+        for ed in expert_debates:
+            for op in session.exec(select(ExpertOpinion).where(ExpertOpinion.debate_id == ed.id)).all():
+                session.delete(op)
+            session.delete(ed)
+        session.delete(offer)
+
+    for listing in session.exec(select(ResearchListing).where(ResearchListing.project_id == project_id)).all():
+        session.delete(listing)
+    for demand in session.exec(select(ResearchDemand).where(ResearchDemand.project_id == project_id)).all():
+        session.delete(demand)
+    for comp in session.exec(select(CompetitorAnalysis).where(CompetitorAnalysis.project_id == project_id)).all():
+        session.delete(comp)
+    for fc in session.exec(select(ResearchForecast).where(ResearchForecast.project_id == project_id)).all():
+        session.delete(fc)
+
+    session.delete(project)
+    session.commit()
+
+    return {"status": "success", "message": "Proyecto eliminado"}
 
 
 @router.post("/panel/research/{project_id}/competencia")
