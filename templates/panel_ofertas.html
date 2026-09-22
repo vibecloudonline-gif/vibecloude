@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Ofertas & Debates - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">Inicio / <strong>Ofertas & Debate IA</strong></div>
+    <h1>Tus Ofertas & Debates</h1>
+    <p style="color: var(--text-muted); margin-top: 4px;">Gestiona las ofertas generadas y los debates de validación con agentes IA.</p>
+</div>
+
+{% if not items %}
+<div class="glass-card" style="text-align: center; padding: 48px 24px;">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--text-muted)" width="48" height="48" style="margin-bottom: 16px;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+    </svg>
+    <h3 style="margin-bottom: 8px;">No tenés investigaciones todavía</h3>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Primero hacé una investigación de mercado para luego generar tu oferta y validarla con debates IA.</p>
+    <a href="/panel/research" class="btn btn-primary">Ir a Investigación de Mercado</a>
+</div>
+{% else %}
+
+{% for item in items %}
+<div class="glass-card" style="margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: start; gap: 16px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <h3 style="margin: 0 0 4px;">{{ item.project.query_description[:80] }}</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                {% if item.offer %}
+                <span class="status-badge status-badge-success">Oferta generada</span>
+                {% else %}
+                <span class="status-badge status-badge-warning">Sin oferta</span>
+                {% endif %}
+
+                {% if item.debate %}
+                    {% if item.debate.status == 'completed' %}
+                        {% if item.debate.final_verdict == 'approved' %}
+                        <span class="status-badge status-badge-success">Debate: Aprobada</span>
+                        {% else %}
+                        <span class="status-badge status-badge-warning">Debate: Necesita revisión</span>
+                        {% endif %}
+                    {% else %}
+                    <span class="status-badge">Debate en progreso...</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% if item.offer %}
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 8px 0 0;">
+                <strong>{{ item.offer.title }}</strong> — {{ item.offer.value_proposition[:100] }}{% if item.offer.value_proposition|length > 100 %}...{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
+            {% if not item.offer %}
+            <a href="/panel/oferta/{{ item.project.id }}" class="btn btn-primary" style="font-size: 0.85rem;">Generar Oferta</a>
+            {% elif item.debate and item.debate.status == 'completed' %}
+            <a href="/panel/oferta/{{ item.offer.id }}/debate" class="btn btn-outline" style="font-size: 0.85rem;">Debate IA</a>
+            <a href="/panel/oferta/{{ item.offer.id }}/debate-personas" class="btn btn-primary" style="font-size: 0.85rem;">Debate Personas</a>
+            {% elif not item.debate %}
+            <a href="/panel/oferta/{{ item.project.id }}" class="btn btn-primary" style="font-size: 0.85rem;">Iniciar Debate</a>
+            {% else %}
+            <a href="/panel/oferta/{{ item.offer.id }}/debate" class="btn btn-outline" style="font-size: 0.85rem;">Debate IA</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+{% endblock %}

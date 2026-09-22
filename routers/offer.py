@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session
 
-from database.models import Offer, Settings, Tenant, User
+from database.models import Offer, ResearchProject, Settings, Tenant, User, ValidationDebate
+from sqlmodel import select
 from database.session import get_session
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
@@ -21,6 +22,46 @@ def _templates():
 def _require_access(tenant: Tenant):
     if not (tenant.has_landing or tenant.has_ecommerce):
         raise HTTPException(403, "Tu cuenta no tiene acceso a este modulo")
+
+
+@router.get("/panel/ofertas", response_class=HTMLResponse)
+def offers_listing(
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    tenant = session.get(Tenant, tenant_id)
+    _require_access(tenant)
+
+    projects = session.exec(
+        select(ResearchProject).where(ResearchProject.tenant_id == tenant_id)
+        .order_by(ResearchProject.id.desc())
+    ).all()
+
+    items = []
+    for p in projects:
+        offer = session.exec(
+            select(Offer).where(Offer.project_id == p.id)
+        ).first()
+        debate = None
+        if offer:
+            debate = session.exec(
+                select(ValidationDebate).where(ValidationDebate.offer_id == offer.id)
+            ).first()
+        items.append({"project": p, "offer": offer, "debate": debate})
+
+    return _templates().TemplateResponse(
+        "panel_ofertas.html",
+        {
+            "request": request,
+            "user": user,
+            "settings": settings,
+            "items": items,
+            "active_page": "offer",
+        },
+    )
 
 
 @router.get("/panel/oferta/{project_id}", response_class=HTMLResponse)

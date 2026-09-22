@@ -927,6 +927,50 @@ class DebateObjection(SQLModel, table=True):
 
 
 # ===========================================================================
+# DEBATE DE PERSONAS — Expertos humanos validan ofertas
+# ===========================================================================
+
+class ExpertDebate(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_expertdebate_offer_tenant", "offer_id", "tenant_id"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    offer_id: int = Field(foreign_key="offer.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+
+    status: str = Field(default="open")  # open, closed
+    created_at: datetime = Field(default_factory=_utcnow)
+    closed_at: Optional[datetime] = None
+    summary: Optional[str] = None
+
+    opinions: List["ExpertOpinion"] = Relationship(
+        sa_relationship=relationship("ExpertOpinion", back_populates="debate", order_by="ExpertOpinion.created_at")
+    )
+
+
+class ExpertOpinion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    debate_id: int = Field(foreign_key="expertdebate.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+
+    expert_name: str
+    expert_role: str  # marketing, finance, operations, industry, ux
+    expert_email: Optional[str] = None
+
+    opinion_text: str
+    verdict: str = Field(default="neutral")  # approve, reject, neutral
+    suggestions: Optional[str] = None
+    source: str = Field(default="ai_generated")  # ai_generated, manual
+
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    debate: Optional[ExpertDebate] = Relationship(
+        sa_relationship=relationship("ExpertDebate", back_populates="opinions")
+    )
+
+
+# ===========================================================================
 # TIMESFM — PREDICCION DE MERCADO (Google TimesFM 2.5, Apache-2.0)
 # ===========================================================================
 

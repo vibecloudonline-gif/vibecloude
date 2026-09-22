@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Contenido para Redes - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">Inicio / <strong>Contenido para Redes</strong></div>
+    <h1>Sugerencias de Contenido para Redes Sociales</h1>
+    <p style="color: var(--text-muted); margin-top: 4px;">Genera contenido listo para publicar basado en tu investigación y oferta validada.</p>
+</div>
+
+{% if not completed_projects %}
+<div class="glass-card" style="text-align: center; padding: 48px 24px;">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--text-muted)" width="48" height="48" style="margin-bottom: 16px;">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+    </svg>
+    <h3 style="margin-bottom: 8px;">Primero completá tu investigación</h3>
+    <p style="color: var(--text-muted); margin-bottom: 20px;">Para generar contenido relevante necesitamos que hayas hecho una investigación de mercado y validado tu oferta con el debate de agentes.</p>
+    <a href="/panel/research" class="btn btn-primary">Ir a Investigación de Mercado</a>
+</div>
+{% else %}
+
+{% for item in completed_projects %}
+<div class="glass-card" style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div>
+            <h3 style="margin: 0;">{{ item.offer.title or item.project.query }}</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin: 4px 0 0;">
+                Debate: <span class="status-badge {% if item.debate.final_verdict == 'approved' %}status-badge-success{% else %}status-badge-warning{% endif %}">{{ item.debate.final_verdict }}</span>
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary btn-generate-content" data-offer-id="{{ item.offer.id }}">
+            Generar Contenido
+        </button>
+    </div>
+
+    <div class="content-result" id="content-result-{{ item.offer.id }}" style="display: none;">
+        <div class="content-loading" style="text-align: center; padding: 24px; display: none;">
+            <div class="typing-indicator" style="display: inline-flex; gap: 4px; align-items: center;">
+                <span style="width: 8px; height: 8px; background: var(--accent-color); border-radius: 50%; animation: bounce 0.6s infinite alternate;"></span>
+                <span style="width: 8px; height: 8px; background: var(--accent-color); border-radius: 50%; animation: bounce 0.6s infinite alternate 0.2s;"></span>
+                <span style="width: 8px; height: 8px; background: var(--accent-color); border-radius: 50%; animation: bounce 0.6s infinite alternate 0.4s;"></span>
+            </div>
+            <p style="color: var(--text-muted); margin-top: 8px;">Generando contenido con IA...</p>
+        </div>
+        <div class="content-data" style="display: none;"></div>
+    </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+<style>
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+}
+.social-section { margin-bottom: 24px; }
+.social-section h4 {
+    font-size: 0.95rem; font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+}
+.social-card {
+    background: var(--surface-color); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 16px; margin-bottom: 12px;
+}
+.social-card .caption { font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap; }
+.social-card .visual-hint {
+    font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid var(--border-color);
+}
+.calendar-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;
+}
+.calendar-item {
+    background: var(--surface-color); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 14px;
+}
+.calendar-item .day { font-weight: 700; font-size: 0.95rem; }
+.calendar-item .platform { font-size: 0.8rem; color: var(--accent-color); margin: 4px 0; }
+.calendar-item .topic { font-size: 0.85rem; color: var(--text-muted); }
+.copy-btn {
+    background: none; border: 1px solid var(--border-color); border-radius: 6px;
+    padding: 4px 10px; font-size: 0.75rem; cursor: pointer; color: var(--text-muted);
+    transition: var(--transition);
+}
+.copy-btn:hover { border-color: var(--accent-color); color: var(--accent-color); }
+</style>
+
+<script>
+document.querySelectorAll('.btn-generate-content').forEach(btn => {
+    btn.addEventListener('click', async function() {
+        const offerId = this.dataset.offerId;
+        const container = document.getElementById('content-result-' + offerId);
+        const loading = container.querySelector('.content-loading');
+        const dataDiv = container.querySelector('.content-data');
+
+        container.style.display = 'block';
+        loading.style.display = 'block';
+        dataDiv.style.display = 'none';
+        this.disabled = true;
+        this.textContent = 'Generando...';
+
+        try {
+            const res = await fetch('/panel/contenido-redes/' + offerId + '/generar', {method: 'POST'});
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.detail || 'Error');
+
+            const c = json.content;
+            let html = '';
+
+            if (c.instagram_posts && c.instagram_posts.length) {
+                html += '<div class="social-section"><h4>📸 Instagram</h4>';
+                c.instagram_posts.forEach((p, i) => {
+                    html += `<div class="social-card">
+                        <div style="display:flex;justify-content:space-between;align-items:start;">
+                            <div class="caption">${esc(p.caption)}</div>
+                            <button class="copy-btn" onclick="copyText(this, '${escAttr(p.caption)}')">Copiar</button>
+                        </div>
+                        ${p.visual_idea ? '<div class="visual-hint">💡 ' + esc(p.visual_idea) + '</div>' : ''}
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            if (c.tiktok_ideas && c.tiktok_ideas.length) {
+                html += '<div class="social-section"><h4>🎵 TikTok</h4>';
+                c.tiktok_ideas.forEach(t => {
+                    html += `<div class="social-card">
+                        <div style="font-weight:600;margin-bottom:6px;">Hook: "${esc(t.hook)}"</div>
+                        <div class="caption">${esc(t.script)}</div>
+                        <div class="visual-hint">${esc(t.hashtags || '')}</div>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+
+            if (c.twitter_threads && c.twitter_threads.length) {
+                html += '<div class="social-section"><h4>🐦 Twitter/X</h4>';
+                c.twitter_threads.forEach(th => {
+                    html += '<div class="social-card">';
+                    (th.tweets || []).forEach((tw, i) => {
+                        html += `<div style="padding:8px 0;${i > 0 ? 'border-top:1px solid var(--border-color);' : ''}">
+                            <span style="color:var(--text-muted);font-size:0.8rem;">${i+1}/</span> ${esc(tw)}
+                        </div>`;
+                    });
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            if (c.content_calendar && c.content_calendar.length) {
+                html += '<div class="social-section"><h4>📅 Calendario Semanal</h4><div class="calendar-grid">';
+                c.content_calendar.forEach(cal => {
+                    html += `<div class="calendar-item">
+                        <div class="day">${esc(cal.day)}</div>
+                        <div class="platform">${esc(cal.platform)} — ${esc(cal.type)}</div>
+                        <div class="topic">${esc(cal.topic)}</div>
+                    </div>`;
+                });
+                html += '</div></div>';
+            }
+
+            dataDiv.innerHTML = html;
+            loading.style.display = 'none';
+            dataDiv.style.display = 'block';
+        } catch (err) {
+            loading.innerHTML = '<p style="color:var(--danger-color);">Error: ' + err.message + '</p>';
+        }
+        this.disabled = false;
+        this.textContent = 'Regenerar Contenido';
+    });
+});
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function escAttr(s) { return (s || '').replace(/'/g, "\\'").replace(/\n/g, "\\n"); }
+function copyText(btn, text) {
+    navigator.clipboard.writeText(text.replace(/\\n/g, '\n'));
+    btn.textContent = '✓ Copiado';
+    setTimeout(() => btn.textContent = 'Copiar', 1500);
+}
+</script>
+{% endblock %}

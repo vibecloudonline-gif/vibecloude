@@ -616,6 +616,7 @@
     {% elif offer.status == 'rejected' %}
     <a href="/panel/oferta/{{ offer.project_id }}/generar" class="btn btn-primary" onclick="event.preventDefault(); fetch(this.href, {method:'POST'}).then(r=>r.json()).then(d=>{if(d.status==='success')location.href='/panel/oferta/'+{{ offer.project_id }};else alert(d.detail||'Error')})">Regenerar oferta</a>
     {% endif %}
+    <a href="/panel/oferta/{{ offer.id }}/debate-personas" class="btn btn-outline">Debate de Personas</a>
     <a href="/panel/research/{{ offer.project_id }}" class="btn btn-outline">Volver a investigación</a>
 </div>
 

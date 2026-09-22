@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Debate de Personas - VibeCloud{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="breadcrumb">
+        <a href="/panel/ofertas" style="color: var(--text-muted);">Ofertas</a> /
+        <a href="/panel/oferta/{{ offer.project_id }}" style="color: var(--text-muted);">{{ offer.title[:40] }}</a> /
+        <strong>Debate de Personas</strong>
+    </div>
+    <h1>Debate de Personas Calificadas</h1>
+    <p style="color: var(--text-muted); margin-top: 4px;">Opiniones de expertos reales sobre tu oferta: <strong>{{ offer.title }}</strong></p>
+</div>
+
+<div class="glass-card" style="margin-bottom: 20px; padding: 16px 20px;">
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Propuesta de Valor</div>
+            <div style="margin-top: 4px;">{{ offer.value_proposition[:200] }}</div>
+        </div>
+        <div style="min-width: 150px;">
+            <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Precio</div>
+            <div style="margin-top: 4px; font-weight: 600;">{{ offer.price_structure[:80] }}</div>
+        </div>
+    </div>
+</div>
+
+{% if not debate %}
+<div id="expert-panel-intro">
+    <div class="glass-card" style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 16px;">Panel de Expertos</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">
+            5 profesionales de diferentes áreas evaluarán tu oferta y darán su opinión calificada con sugerencias concretas.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            {% for ep in expert_profiles %}
+            <div class="expert-preview-card">
+                <div class="expert-avatar" data-role="{{ ep.role }}">{{ ep.name[0] }}</div>
+                <div class="expert-name">{{ ep.name }}</div>
+                <div class="expert-title">{{ ep.title }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" id="btn-start-debate" class="btn btn-primary" style="width: 100%;">
+            Iniciar Debate de Personas
+        </button>
+    </div>
+</div>
+
+<div id="debate-loading" style="display: none; text-align: center; padding: 48px 24px;">
+    <div style="display: inline-flex; gap: 6px; align-items: center; margin-bottom: 16px;">
+        <span class="dot-pulse"></span>
+        <span class="dot-pulse" style="animation-delay: 0.2s;"></span>
+        <span class="dot-pulse" style="animation-delay: 0.4s;"></span>
+    </div>
+    <p style="color: var(--text-muted);">Los expertos están analizando tu oferta...</p>
+    <p style="color: var(--text-muted); font-size: 0.85rem;">Esto puede tardar 30-60 segundos</p>
+</div>
+{% endif %}
+
+<div id="debate-results" {% if not debate %}style="display:none;"{% endif %}>
+    {% if debate %}
+    {% for op in debate.opinions %}
+    <div class="glass-card opinion-card" style="margin-bottom: 16px;">
+        <div style="display: flex; gap: 14px; align-items: start;">
+            <div class="expert-avatar" data-role="{{ op.expert_role }}">{{ op.expert_name[0] }}</div>
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <strong>{{ op.expert_name }}</strong>
+                        <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 6px;">
+                            {% if op.expert_role == 'marketing' %}Directora de Marketing Digital
+                            {% elif op.expert_role == 'finance' %}Analista Financiero Senior
+                            {% elif op.expert_role == 'operations' %}Consultora de Operaciones
+                            {% elif op.expert_role == 'industry' %}Experto en el Sector
+                            {% elif op.expert_role == 'ux' %}Diseñadora UX/CX
+                            {% else %}{{ op.expert_role }}{% endif %}
+                        </span>
+                        {% if op.source == 'manual' %}
+                        <span class="status-badge" style="font-size: 0.7rem; margin-left: 6px;">Manual</span>
+                        {% endif %}
+                    </div>
+                    <span class="verdict-badge verdict-{{ op.verdict }}">
+                        {% if op.verdict == 'approve' %}Aprueba
+                        {% elif op.verdict == 'reject' %}Rechaza
+                        {% else %}Neutral{% endif %}
+                    </span>
+                </div>
+                <p style="margin: 0 0 10px; line-height: 1.6;">{{ op.opinion_text }}</p>
+                {% if op.suggestions %}
+                <div style="background: var(--surface-color); border-radius: 8px; padding: 12px; border-left: 3px solid var(--accent-color);">
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Sugerencias</div>
+                    <div style="font-size: 0.9rem; line-height: 1.5;">{{ op.suggestions }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="glass-card" style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 16px;">Agregar Opinión Manual</h3>
+        <form id="form-manual-opinion">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Nombre del experto</label>
+                    <input type="text" name="expert_name" class="form-input" required placeholder="Nombre completo">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Área</label>
+                    <select name="expert_role" class="form-input">
+                        <option value="marketing">Marketing</option>
+                        <option value="finance">Finanzas</option>
+                        <option value="operations">Operaciones</option>
+                        <option value="industry">Industria</option>
+                        <option value="ux">UX / Experiencia</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label">Opinión</label>
+                <textarea name="opinion_text" class="form-input" rows="3" required placeholder="Opinión profesional..."></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div class="form-group">
+                    <label class="form-label">Veredicto</label>
+                    <select name="verdict" class="form-input">
+                        <option value="approve">Aprueba</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="reject">Rechaza</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sugerencias</label>
+                    <input type="text" name="suggestions" class="form-input" placeholder="Opcional">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Agregar Opinión</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.expert-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1.1rem; color: #fff; flex-shrink: 0;
+}
+.expert-avatar[data-role="marketing"] { background: #E63946; }
+.expert-avatar[data-role="finance"] { background: #457B9D; }
+.expert-avatar[data-role="operations"] { background: #2A9D8F; }
+.expert-avatar[data-role="industry"] { background: #E76F51; }
+.expert-avatar[data-role="ux"] { background: #7B2D8E; }
+
+.expert-preview-card {
+    background: var(--surface-color); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 14px; text-align: center;
+}
+.expert-preview-card .expert-avatar { margin: 0 auto 8px; }
+.expert-name { font-weight: 600; font-size: 0.9rem; }
+.expert-title { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+.verdict-badge {
+    font-size: 0.75rem; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.verdict-approve { background: #d4edda; color: #155724; }
+.verdict-reject { background: #f8d7da; color: #721c24; }
+.verdict-neutral { background: #fff3cd; color: #856404; }
+
+@media (prefers-color-scheme: dark) {
+    .verdict-approve { background: rgba(40, 167, 69, 0.2); color: #81c784; }
+    .verdict-reject { background: rgba(220, 53, 69, 0.2); color: #ef9a9a; }
+    .verdict-neutral { background: rgba(255, 193, 7, 0.2); color: #ffe082; }
+}
+
+.dot-pulse {
+    width: 10px; height: 10px; background: var(--accent-color);
+    border-radius: 50%; display: inline-block;
+    animation: bounce 0.6s infinite alternate;
+}
+@keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+}
+
+.opinion-card { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<script>
+{% if not debate %}
+document.getElementById('btn-start-debate')?.addEventListener('click', async function() {
+    this.disabled = true;
+    document.getElementById('expert-panel-intro').style.display = 'none';
+    document.getElementById('debate-loading').style.display = 'block';
+
+    try {
+        const res = await fetch('/panel/oferta/{{ offer.id }}/debate-personas/iniciar', {method: 'POST'});
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Error');
+        window.location.reload();
+    } catch (err) {
+        document.getElementById('debate-loading').innerHTML =
+            '<p style="color:var(--danger-color);">Error: ' + err.message + '</p>' +
+            '<button class="btn btn-primary" onclick="window.location.reload()">Reintentar</button>';
+    }
+});
+{% endif %}
+
+document.getElementById('form-manual-opinion')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    try {
+        const res = await fetch('/panel/oferta/{{ offer.id }}/debate-personas/opinion', {
+            method: 'POST', body: fd
+        });
+        if (!res.ok) {
+            const json = await res.json();
+            throw new Error(json.detail || 'Error');
+        }
+        window.location.reload();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+});
+</script>
+{% endblock %}
