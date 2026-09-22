@@ -38,6 +38,7 @@ def _repair_schema(eng):
             "researchproject", "researchlisting", "researchdemand",
             "competitoranalysis", "offer", "validationdebate",
             "debateobjection", "expertdebate", "expertopinion",
+            "forecastprofile",
         ]:
             if tbl not in existing_tables:
                 create_db_and_tables()

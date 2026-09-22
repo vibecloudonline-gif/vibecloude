@@ -97,22 +97,37 @@ def _gemini_forecast_sync(query: str, price_series: list[float], horizon_days: i
     context_block = ""
     if business_context:
         parts = []
-        if business_context.get("offer_title"):
-            parts.append(f"Oferta del emprendedor: \"{business_context['offer_title']}\"")
-        if business_context.get("value_proposition"):
-            parts.append(f"Propuesta de valor: {business_context['value_proposition']}")
-        if business_context.get("price_structure"):
-            parts.append(f"Estructura de precios del emprendedor: {business_context['price_structure']}")
-        if business_context.get("competitors"):
-            parts.append(f"Competidores identificados: {business_context['competitors']}")
-        if business_context.get("demand_info"):
-            parts.append(f"Demanda estimada: {business_context['demand_info']}")
-        if business_context.get("debate_verdict"):
-            parts.append(f"Resultado del debate de agentes: {business_context['debate_verdict']}")
-        if business_context.get("debate_objections"):
-            parts.append(f"Objeciones clave del debate: {business_context['debate_objections']}")
+        field_map = {
+            "offer_title": "Oferta del emprendedor",
+            "value_proposition": "Propuesta de valor",
+            "price_structure": "Estructura de precios",
+            "competitors": "Competidores identificados",
+            "demand_info": "Demanda estimada",
+            "debate_verdict": "Resultado del debate de agentes",
+            "debate_objections": "Objeciones clave del debate",
+            "business_type": "Tipo de negocio",
+            "business_stage": "Etapa del negocio",
+            "product_category": "Categoria de producto",
+            "target_market": "Mercado objetivo",
+            "target_audience": "Audiencia/cliente ideal",
+            "unit_cost": "Costo unitario USD",
+            "desired_margin_pct": "Margen deseado",
+            "pricing_strategy": "Estrategia de precios",
+            "geography": "Geografia de venta",
+            "seasonality_notes": "Estacionalidad conocida",
+            "competition_level": "Nivel de competencia",
+            "differentiator": "Diferenciador principal",
+            "launch_target_date": "Fecha objetivo de lanzamiento",
+            "monthly_revenue_target": "Meta de facturacion mensual USD",
+            "growth_expectation": "Expectativa de crecimiento",
+            "known_competitor_prices": "Precios de competidores conocidos",
+        }
+        for key, label in field_map.items():
+            val = business_context.get(key)
+            if val:
+                parts.append(f"- {label}: {val}")
         if parts:
-            context_block = "\n\nCONTEXTO DEL EMPRENDIMIENTO:\n" + "\n".join(parts)
+            context_block = "\n\nPERFIL ENTERPRISE DEL EMPRENDEDOR:\n" + "\n".join(parts)
 
     prompt = f"""Actua como analista cuantitativo de forecasting de precios e-commerce.
 Producto/nicho: "{query}"
@@ -178,8 +193,8 @@ No agregues markdown ni texto fuera del JSON."""
         return _analytical_fallback(query, price_series, horizon_days)
 
 
-async def generate_market_forecast(query: str, prices: list[float], horizon_days: int = 30) -> TimesFMForecastResult:
-    """Entry point: TimesFM API (si hay HF key) -> Gemini -> regresion analitica."""
+async def generate_market_forecast(query: str, prices: list[float], horizon_days: int = 30,
+                                    business_context: dict | None = None) -> TimesFMForecastResult:
     if not prices:
         prices = [10.0]
     price_series = _build_price_series(prices, n_points=16)
@@ -193,7 +208,8 @@ async def generate_market_forecast(query: str, prices: list[float], horizon_days
 
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
-        return _gemini_forecast_sync(query, price_series, horizon_days, gemini_key)
+        return _gemini_forecast_sync(query, price_series, horizon_days, gemini_key,
+                                      business_context=business_context)
 
     return _analytical_fallback(query, price_series, horizon_days)
 

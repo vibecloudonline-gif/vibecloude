@@ -191,8 +191,8 @@ def research_delete_project(
 ):
     from database.models import (
         CompetitorAnalysis, DebateObjection, ExpertDebate, ExpertOpinion,
-        Offer, ResearchDemand, ResearchForecast, ResearchListing,
-        ResearchProject, ValidationDebate,
+        ForecastProfile, Offer, ResearchDemand, ResearchForecast,
+        ResearchListing, ResearchProject, ValidationDebate,
     )
 
     project = session.exec(
@@ -226,6 +226,8 @@ def research_delete_project(
         session.delete(comp)
     for fc in session.exec(select(ResearchForecast).where(ResearchForecast.project_id == project_id)).all():
         session.delete(fc)
+    for fp in session.exec(select(ForecastProfile).where(ForecastProfile.project_id == project_id)).all():
+        session.delete(fp)
 
     session.delete(project)
     session.commit()
@@ -421,10 +423,9 @@ async def research_generate_forecast(
     if not prices:
         raise HTTPException(400, "No hay precios disponibles en los listings para generar el forecast.")
 
-    if horizon_days not in (30, 90):
+    if horizon_days not in (7, 14, 30, 60, 90, 180):
         horizon_days = 30
 
-    # Limpiar forecast previo con mismo horizonte
     existing = session.exec(
         select(ResearchForecast).where(
             ResearchForecast.project_id == project_id,
@@ -435,7 +436,32 @@ async def research_generate_forecast(
         session.delete(existing)
         session.flush()
 
-    result = await generate_market_forecast(project.query_description, prices, horizon_days)
+    from database.models import ForecastProfile
+    profile = session.exec(
+        select(ForecastProfile).where(ForecastProfile.project_id == project_id)
+    ).first()
+    biz_ctx = None
+    if profile:
+        biz_ctx = {
+            "business_type": profile.business_type,
+            "business_stage": profile.business_stage,
+            "product_category": profile.product_category,
+            "target_market": profile.target_market,
+            "target_audience": profile.target_audience,
+            "unit_cost": str(profile.unit_cost) if profile.unit_cost else None,
+            "desired_margin_pct": profile.desired_margin_pct,
+            "pricing_strategy": profile.pricing_strategy,
+            "geography": profile.geography,
+            "seasonality_notes": profile.seasonality_notes,
+            "competition_level": profile.competition_level,
+            "differentiator": profile.differentiator,
+            "launch_target_date": profile.launch_target_date,
+            "monthly_revenue_target": str(profile.monthly_revenue_target) if profile.monthly_revenue_target else None,
+            "growth_expectation": profile.growth_expectation,
+            "known_competitor_prices": profile.known_competitor_prices,
+        }
+
+    result = await generate_market_forecast(project.query_description, prices, horizon_days, business_context=biz_ctx)
 
     forecast_row = ResearchForecast(
         project_id=project_id,
@@ -462,6 +488,104 @@ async def research_generate_forecast(
     }
 
 
+def _parse_forecast(fc):
+    import json as _json
+    if not fc:
+        return None
+    return {
+        "id": fc.id,
+        "horizon_days": fc.horizon_days,
+        "price_series": _json.loads(fc.price_series or "[]"),
+        "forecast_series": _json.loads(fc.forecast_series or "[]"),
+        "confidence_low": _json.loads(fc.confidence_low or "[]"),
+        "confidence_high": _json.loads(fc.confidence_high or "[]"),
+        "trend_direction": fc.trend_direction,
+        "launch_window": fc.launch_window,
+        "recommendation": fc.recommendation,
+        "provider": fc.provider,
+        "created_at": fc.created_at,
+    }
+
+
+def _build_alerts(profile, active_fc):
+    alerts = []
+    if not active_fc:
+        return alerts
+    trend = active_fc.get("trend_direction", "estable")
+    if trend == "alcista":
+        alerts.append({"type": "opportunity", "icon": "&#128200;", "title": "Tendencia alcista detectada",
+                        "message": "Los precios del mercado muestran tendencia al alza. Es un buen momento para entrar antes de que los precios suban mas."})
+    elif trend == "bajista":
+        alerts.append({"type": "warning", "icon": "&#128201;", "title": "Tendencia bajista",
+                        "message": "Los precios estan cayendo. Considera ajustar tu precio o esperar a que el mercado se estabilice."})
+    if profile and profile.unit_cost and active_fc.get("forecast_series"):
+        market_price = active_fc["forecast_series"][-1]
+        margin_pct = (market_price - float(profile.unit_cost)) / float(profile.unit_cost) * 100
+        if margin_pct < 10:
+            alerts.append({"type": "danger", "icon": "&#9888;&#65039;", "title": "Margen muy ajustado",
+                            "message": f"Tu costo (${profile.unit_cost:.2f}) deja solo {margin_pct:.0f}% de margen vs el precio de mercado (${market_price:.2f}). Revisa tu estructura de costos."})
+        elif margin_pct > 100:
+            alerts.append({"type": "opportunity", "icon": "&#128176;", "title": "Alto margen potencial",
+                            "message": f"El mercado paga ${market_price:.2f} y tu costo es ${profile.unit_cost:.2f} ({margin_pct:.0f}% margen). Oportunidad de alta rentabilidad."})
+    if profile and profile.competition_level == "saturated":
+        alerts.append({"type": "warning", "icon": "&#9940;", "title": "Mercado saturado",
+                        "message": "Indicaste competencia saturada. Asegurate de tener un diferenciador claro antes de lanzar."})
+    return alerts
+
+
+def _build_demand_forecast(profile, active_fc):
+    if not active_fc or not active_fc.get("forecast_series"):
+        return None
+    import math
+    fc = active_fc["forecast_series"]
+    base_demand = 100
+    if profile:
+        if profile.growth_expectation == "aggressive":
+            base_demand = 200
+        elif profile.growth_expectation == "conservative":
+            base_demand = 50
+        if profile.competition_level == "low":
+            base_demand = int(base_demand * 1.3)
+        elif profile.competition_level == "saturated":
+            base_demand = int(base_demand * 0.5)
+    values = []
+    for i, price in enumerate(fc):
+        factor = 1 + 0.05 * i
+        noise = math.sin(i * 1.3) * 0.1
+        values.append(max(1, int(base_demand * factor * (1 + noise))))
+    labels = [f"+S{i+1}" for i in range(len(fc))]
+    avg = sum(values) / len(values) if values else 0
+    return {"labels": labels, "values": values,
+            "summary": f"Demanda estimada promedio: {avg:.0f} unidades/semana para tu perfil de negocio ({profile.growth_expectation if profile else 'moderado'})."}
+
+
+def _build_seasonality(profile):
+    if not profile or not profile.seasonality_notes:
+        return None
+    notes = profile.seasonality_notes.lower()
+    index = [1.0] * 12
+    season_map = {
+        "navidad": {10: 1.2, 11: 1.5, 0: 1.3},
+        "diciembre": {11: 1.5},
+        "verano": {5: 1.3, 6: 1.4, 7: 1.3},
+        "invierno": {11: 1.2, 0: 1.3, 1: 1.2},
+        "black friday": {10: 1.6},
+        "vuelta a clases": {1: 1.3, 7: 1.3},
+        "san valentin": {1: 1.4},
+        "dia de la madre": {4: 1.4},
+        "temporada baja": {},
+    }
+    for keyword, months in season_map.items():
+        if keyword in notes:
+            for m, val in months.items():
+                index[m] = max(index[m], val)
+    has_peaks = any(v > 1.0 for v in index)
+    if not has_peaks:
+        index = [0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.05, 1.0, 1.1, 1.2, 1.3]
+    analysis = f"Basado en tus notas de estacionalidad. Meses pico: {', '.join(['Ene Feb Mar Abr May Jun Jul Ago Sep Oct Nov Dic'.split()[i] for i, v in enumerate(index) if v > 1.1])}." if any(v > 1.1 for v in index) else "Estacionalidad moderada detectada."
+    return {"monthly_index": index, "analysis": analysis}
+
+
 def _render_forecast_view(
     request: Request,
     project_id: int | None,
@@ -470,10 +594,8 @@ def _render_forecast_view(
     session: Session,
     tenant_id: int,
 ):
-    """Renderiza el panel de visualización del forecast Google TimesFM."""
     import json as _json
-    from sqlmodel import select
-    from database.models import ResearchForecast, ResearchProject
+    from database.models import ForecastProfile, ResearchForecast, ResearchProject
     from services.research_service import get_project_with_results, list_projects
 
     tenant = session.get(Tenant, tenant_id)
@@ -490,51 +612,56 @@ def _render_forecast_view(
             if p.listings:
                 project = get_project_with_results(session, p.id, tenant_id)
                 break
-        if not project:
+        if not project and all_projects:
             project = get_project_with_results(session, all_projects[0].id, tenant_id)
 
-    forecast_30 = None
-    forecast_90 = None
-    if project:
-        forecast_30 = session.exec(
-            select(ResearchForecast).where(
-                ResearchForecast.project_id == project.id,
-                ResearchForecast.horizon_days == 30,
-            )
-        ).first()
-        forecast_90 = session.exec(
-            select(ResearchForecast).where(
-                ResearchForecast.project_id == project.id,
-                ResearchForecast.horizon_days == 90,
-            )
-        ).first()
+    if not project:
+        return _templates().TemplateResponse("panel_timesfm.html", {
+            "request": request, "user": user, "settings": settings,
+            "project": None, "all_projects": all_projects,
+            "forecast_30": None, "forecast_90": None, "active_page": "forecast",
+        })
 
-    def parse_forecast(fc):
-        if not fc:
-            return None
-        return {
-            "id": fc.id,
-            "horizon_days": fc.horizon_days,
-            "price_series": _json.loads(fc.price_series or "[]"),
-            "forecast_series": _json.loads(fc.forecast_series or "[]"),
-            "confidence_low": _json.loads(fc.confidence_low or "[]"),
-            "confidence_high": _json.loads(fc.confidence_high or "[]"),
-            "trend_direction": fc.trend_direction,
-            "launch_window": fc.launch_window,
-            "recommendation": fc.recommendation,
-            "provider": fc.provider,
-        }
+    profile = session.exec(
+        select(ForecastProfile).where(ForecastProfile.project_id == project.id)
+    ).first()
 
-    return _templates().TemplateResponse("panel_timesfm.html", {
-        "request": request,
-        "user": user,
-        "settings": settings,
-        "project": project,
-        "all_projects": all_projects,
-        "forecast_30": parse_forecast(forecast_30),
-        "forecast_90": parse_forecast(forecast_90),
-        "active_page": "forecast",
-    })
+    if profile:
+        all_fc = session.exec(
+            select(ResearchForecast).where(ResearchForecast.project_id == project.id)
+        ).all()
+
+        forecasts = {}
+        forecasts_json = {}
+        for fc in all_fc:
+            parsed = _parse_forecast(fc)
+            forecasts[fc.horizon_days] = parsed
+            forecasts_json[fc.horizon_days] = {k: v for k, v in parsed.items() if k != "created_at"}
+
+        active_horizon = 30
+        for h in [30, 90, 60, 14, 7, 180]:
+            if h in forecasts:
+                active_horizon = h
+                break
+
+        active_fc = forecasts.get(active_horizon)
+        other_projects = [p for p in all_projects if p.id != project.id]
+
+        return _templates().TemplateResponse("panel_forecast_enterprise.html", {
+            "request": request, "user": user, "settings": settings,
+            "project": project, "profile": profile,
+            "forecasts": forecasts, "forecasts_json": _json.dumps(forecasts_json),
+            "active_forecast": active_fc, "active_horizon": active_horizon,
+            "all_forecasts": sorted(all_fc, key=lambda f: f.created_at, reverse=True),
+            "alerts": _build_alerts(profile, active_fc),
+            "demand_forecast": _build_demand_forecast(profile, active_fc),
+            "seasonality": _build_seasonality(profile),
+            "other_projects": other_projects,
+            "active_page": "forecast",
+        })
+
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(f"/panel/forecast/{project.id}/onboarding", status_code=303)
 
 
 @router.get("/panel/forecast", response_class=HTMLResponse)
@@ -558,6 +685,147 @@ def research_forecast_detail(
     tenant_id: int = Depends(get_tenant),
 ):
     return _render_forecast_view(request, project_id, user, settings, session, tenant_id)
+
+
+@router.get("/panel/forecast/{project_id}/onboarding", response_class=HTMLResponse)
+def forecast_onboarding_page(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from database.models import ForecastProfile
+    from services.research_service import get_project_with_results
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    profile = session.exec(
+        select(ForecastProfile).where(ForecastProfile.project_id == project_id)
+    ).first()
+
+    return _templates().TemplateResponse("panel_forecast_onboarding.html", {
+        "request": request, "user": user, "settings": settings,
+        "project": project, "profile": profile, "active_page": "forecast",
+    })
+
+
+@router.post("/panel/forecast/onboarding")
+def forecast_onboarding_save(
+    request: Request,
+    project_id: int = Form(...),
+    business_type: str = Form("physical_product"),
+    business_stage: str = Form("idea"),
+    product_category: str = Form(""),
+    target_audience: str = Form(""),
+    target_market: str = Form("national"),
+    differentiator: str = Form(""),
+    unit_cost: str = Form(""),
+    desired_margin_pct: str = Form(""),
+    known_competitor_prices: str = Form(""),
+    pricing_strategy: str = Form("competitive"),
+    geography: str = Form(""),
+    seasonality_notes: str = Form(""),
+    competition_level: str = Form("medium"),
+    launch_target_date: str = Form(""),
+    monthly_revenue_target: str = Form(""),
+    growth_expectation: str = Form("moderate"),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from decimal import Decimal, InvalidOperation
+    from database.models import ForecastProfile
+    from services.research_service import get_project_with_results
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    profile = session.exec(
+        select(ForecastProfile).where(ForecastProfile.project_id == project_id)
+    ).first()
+
+    cost_val = None
+    if unit_cost.strip():
+        try:
+            cost_val = Decimal(unit_cost.strip())
+        except InvalidOperation:
+            pass
+
+    margin_val = None
+    if desired_margin_pct.strip():
+        try:
+            margin_val = int(desired_margin_pct.strip())
+        except ValueError:
+            pass
+
+    revenue_val = None
+    if monthly_revenue_target.strip():
+        try:
+            revenue_val = Decimal(monthly_revenue_target.strip())
+        except InvalidOperation:
+            pass
+
+    from datetime import datetime as _dt
+
+    if profile:
+        profile.business_type = business_type
+        profile.business_stage = business_stage
+        profile.product_category = product_category.strip() or None
+        profile.target_audience = target_audience.strip() or None
+        profile.target_market = target_market
+        profile.differentiator = differentiator.strip() or None
+        profile.unit_cost = cost_val
+        profile.desired_margin_pct = margin_val
+        profile.known_competitor_prices = known_competitor_prices.strip() or None
+        profile.pricing_strategy = pricing_strategy
+        profile.geography = geography.strip() or None
+        profile.seasonality_notes = seasonality_notes.strip() or None
+        profile.competition_level = competition_level
+        profile.launch_target_date = launch_target_date.strip() or None
+        profile.monthly_revenue_target = revenue_val
+        profile.growth_expectation = growth_expectation
+        profile.updated_at = _dt.utcnow()
+        session.add(profile)
+    else:
+        profile = ForecastProfile(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            business_type=business_type,
+            business_stage=business_stage,
+            product_category=product_category.strip() or None,
+            target_audience=target_audience.strip() or None,
+            target_market=target_market,
+            differentiator=differentiator.strip() or None,
+            unit_cost=cost_val,
+            desired_margin_pct=margin_val,
+            known_competitor_prices=known_competitor_prices.strip() or None,
+            pricing_strategy=pricing_strategy,
+            geography=geography.strip() or None,
+            seasonality_notes=seasonality_notes.strip() or None,
+            competition_level=competition_level,
+            launch_target_date=launch_target_date.strip() or None,
+            monthly_revenue_target=revenue_val,
+            growth_expectation=growth_expectation,
+        )
+        session.add(profile)
+
+    session.commit()
+    return {"status": "success", "project_id": project_id}
 
 
 @router.post("/panel/forecast/instant")

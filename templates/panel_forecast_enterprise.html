@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block title %}Forecast Enterprise - {{ project.query_description[:40] }} - VibeCloud{% endblock %}
+{% block header_title %}Forecast Enterprise{% endblock %}
+{% block breadcrumb %}
+<a href="/panel/research">Investigacion</a> / <a href="/panel/forecast">Forecast</a> / <span class="breadcrumb-current">{{ project.query_description[:30] }}{% if project.query_description|length > 30 %}...{% endif %}</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.fe-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+@media (max-width: 900px) { .fe-grid { grid-template-columns: 1fr; } }
+.fe-sidebar .section-card { margin-bottom: 14px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px; }
+.kpi .kl { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; }
+.kpi .kv { font-size: 1.3rem; font-weight: 700; }
+.kpi .kv.alcista { color: var(--success-color, #16a34a); }
+.kpi .kv.bajista { color: var(--danger-color, #dc2626); }
+.kpi .kv.estable { color: #2563eb; }
+.chart-wrap { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; min-height: 280px; }
+.chart-wrap canvas { max-width: 100%; }
+.horizon-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.htab { padding: 6px 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--surface-color); cursor: pointer; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); transition: all 0.15s; }
+.htab.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
+.htab.generating { opacity: 0.6; pointer-events: none; }
+.reco-box { background: rgba(37,99,235,0.06); border-left: 3px solid var(--accent-color); border-radius: var(--radius-md); padding: 14px 16px; font-size: 0.86rem; line-height: 1.6; margin-bottom: 14px; }
+.alert-card { padding: 12px 16px; border-radius: var(--radius-md); margin-bottom: 10px; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 10px; }
+.alert-card.opportunity { background: rgba(22,163,106,0.08); border: 1px solid rgba(22,163,106,0.2); }
+.alert-card.warning { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); }
+.alert-card.danger { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.2); }
+.alert-icon { font-size: 1.2rem; flex-shrink: 0; }
+.profile-summary { font-size: 0.82rem; line-height: 1.6; }
+.profile-summary dt { font-weight: 600; color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 8px; }
+.profile-summary dd { margin: 2px 0 0 0; color: var(--text-color); }
+.history-list { list-style: none; padding: 0; margin: 0; }
+.history-list li { padding: 8px 0; border-bottom: 1px solid var(--border-color); font-size: 0.82rem; display: flex; justify-content: space-between; align-items: center; }
+.history-list li:last-child { border: none; }
+.provider-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; background: var(--surface-alt, #f1f5f9); color: var(--text-muted); border: 1px solid var(--border-color); }
+.compare-bar { display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 0.7rem; }
+.compare-bar .seg { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; white-space: nowrap; padding: 0 6px; }
+.export-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar" style="margin-bottom: 20px;">
+    <div>
+        <h1 style="font-size: 1.2rem; margin: 0;">{{ project.query_description }}</h1>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin: 4px 0 0;">Forecast con datos enterprise &middot; <span class="provider-badge">{{ profile.business_type|replace('_',' ')|title }}</span> <span class="provider-badge">{{ profile.business_stage|title }}</span></p>
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <a href="/panel/forecast/{{ project.id }}/onboarding" class="btn btn-outline" style="font-size: 0.82rem;">Editar perfil</a>
+        <a href="/panel/research/{{ project.id }}" class="btn btn-outline" style="font-size: 0.82rem;">Volver al proyecto</a>
+    </div>
+</div>
+
+<!-- ALERTAS DE OPORTUNIDAD -->
+{% if alerts %}
+<div style="margin-bottom: 16px;">
+{% for alert in alerts %}
+    <div class="alert-card {{ alert.type }}">
+        <span class="alert-icon">{{ alert.icon }}</span>
+        <div><strong>{{ alert.title }}</strong><br>{{ alert.message }}</div>
+    </div>
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- KPIs -->
+{% if active_forecast %}
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="kl">Tendencia</div>
+        <div class="kv {{ active_forecast.trend_direction }}">
+            {% if active_forecast.trend_direction == 'alcista' %}&#8599; Alcista
+            {% elif active_forecast.trend_direction == 'bajista' %}&#8600; Bajista
+            {% else %}&#10145; Estable{% endif %}
+        </div>
+    </div>
+    <div class="kpi">
+        <div class="kl">Precio proyectado</div>
+        <div class="kv">${{ "%.2f"|format(active_forecast.forecast_series[-1]) }}</div>
+    </div>
+    <div class="kpi">
+        <div class="kl">Rango de confianza</div>
+        <div class="kv" style="font-size:0.95rem;">${{ "%.2f"|format(active_forecast.confidence_low[-1]) }} &ndash; ${{ "%.2f"|format(active_forecast.confidence_high[-1]) }}</div>
+    </div>
+    <div class="kpi">
+        <div class="kl">Ventana de lanzamiento</div>
+        <div class="kv" style="font-size:0.85rem;">{{ active_forecast.launch_window }}</div>
+    </div>
+    {% if profile.unit_cost %}
+    <div class="kpi">
+        <div class="kl">Tu costo vs mercado</div>
+        <div class="kv" style="font-size:0.85rem;">
+            ${{ "%.2f"|format(profile.unit_cost) }} &#8594; ${{ "%.2f"|format(active_forecast.forecast_series[-1]) }}
+            {% set margin_est = ((active_forecast.forecast_series[-1] - profile.unit_cost|float) / profile.unit_cost|float * 100)|round(0) %}
+            <span style="font-size:0.75rem; color:{% if margin_est > 0 %}var(--success-color){% else %}var(--danger-color){% endif %};">({{ margin_est }}% margen)</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="fe-grid">
+    <div class="fe-main">
+        <!-- HORIZONS -->
+        <div class="horizon-tabs">
+            {% for h in [7, 14, 30, 60, 90, 180] %}
+            <button class="htab {% if forecasts.get(h) %}{% if h == active_horizon %}active{% endif %}{% endif %}" data-horizon="{{ h }}" onclick="selectHorizon({{ h }}, this)">
+                {{ h }}d
+                {% if not forecasts.get(h) %}<span style="font-size:0.7rem; opacity:0.7;">+</span>{% endif %}
+            </button>
+            {% endfor %}
+        </div>
+
+        <!-- CHART -->
+        <div class="chart-wrap">
+            <canvas id="mainChart" height="280"></canvas>
+            <div id="chartLoading" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
+                <div style="font-size:1.5rem;">&#9889;</div>
+                <div style="font-size:0.85rem; color:var(--text-muted);" id="loadingText">Generando forecast...</div>
+            </div>
+        </div>
+
+        <!-- RECOMMENDATION -->
+        {% if active_forecast %}
+        <div class="reco-box" id="recoBox">
+            <strong>Analisis de oportunidad ({{ active_horizon }}d):</strong><br>
+            {{ active_forecast.recommendation }}
+        </div>
+        {% endif %}
+
+        <!-- DEMAND FORECAST -->
+        {% if demand_forecast %}
+        <div class="section-card" style="margin-bottom: 16px;">
+            <h3 style="font-size: 0.95rem; margin: 0 0 10px;">Forecast de Demanda</h3>
+            <div class="chart-wrap" style="min-height: 200px;">
+                <canvas id="demandChart" height="200"></canvas>
+            </div>
+            <div class="reco-box">
+                <strong>Volumen estimado:</strong> {{ demand_forecast.summary }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- SEASONALITY -->
+        {% if seasonality %}
+        <div class="section-card" style="margin-bottom: 16px;">
+            <h3 style="font-size: 0.95rem; margin: 0 0 10px;">Estacionalidad Detectada</h3>
+            <div class="chart-wrap" style="min-height: 200px;">
+                <canvas id="seasonChart" height="200"></canvas>
+            </div>
+            <div class="reco-box">{{ seasonality.analysis }}</div>
+        </div>
+        {% endif %}
+
+        <!-- EXPORT -->
+        <div class="export-row">
+            <button class="btn btn-outline" style="font-size:0.82rem;" onclick="exportCSV()">&#128190; Exportar CSV</button>
+            <button class="btn btn-outline" style="font-size:0.82rem;" onclick="exportJSON()">&#128196; Exportar JSON</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="fe-sidebar">
+        <!-- PROFILE SUMMARY -->
+        <div class="section-card">
+            <h3 style="font-size: 0.88rem; margin: 0 0 10px;">Perfil del Negocio</h3>
+            <dl class="profile-summary">
+                <dt>Tipo</dt><dd>{{ profile.business_type|replace('_',' ')|title }}</dd>
+                <dt>Etapa</dt><dd>{{ profile.business_stage|title }}</dd>
+                {% if profile.product_category %}<dt>Categoria</dt><dd>{{ profile.product_category }}</dd>{% endif %}
+                <dt>Mercado</dt><dd>{{ profile.target_market|title }}</dd>
+                {% if profile.geography %}<dt>Geografia</dt><dd>{{ profile.geography }}</dd>{% endif %}
+                <dt>Competencia</dt><dd>{{ profile.competition_level|title }}</dd>
+                <dt>Estrategia</dt><dd>{{ profile.pricing_strategy|title }}</dd>
+                {% if profile.unit_cost %}<dt>Costo unitario</dt><dd>${{ "%.2f"|format(profile.unit_cost) }}</dd>{% endif %}
+                {% if profile.desired_margin_pct %}<dt>Margen deseado</dt><dd>{{ profile.desired_margin_pct }}%</dd>{% endif %}
+                {% if profile.monthly_revenue_target %}<dt>Meta mensual</dt><dd>${{ "%.0f"|format(profile.monthly_revenue_target) }}</dd>{% endif %}
+                {% if profile.growth_expectation %}<dt>Crecimiento</dt><dd>{{ profile.growth_expectation|title }}</dd>{% endif %}
+            </dl>
+        </div>
+
+        <!-- PRICE COMPARISON -->
+        {% if active_forecast and profile.unit_cost %}
+        <div class="section-card">
+            <h3 style="font-size: 0.88rem; margin: 0 0 10px;">Tu Precio vs Mercado</h3>
+            {% set market_avg = active_forecast.forecast_series[-1] %}
+            {% set cost = profile.unit_cost|float %}
+            {% set suggested = cost * (1 + (profile.desired_margin_pct or 40) / 100) %}
+            <div class="compare-bar">
+                <div class="seg" style="flex:{{ cost }}; background:#ef4444;" title="Tu costo">${{ "%.0f"|format(cost) }}</div>
+                <div class="seg" style="flex:{{ suggested - cost }}; background:#f59e0b;" title="Tu margen">+{{ profile.desired_margin_pct or 40 }}%</div>
+                {% if market_avg > suggested %}
+                <div class="seg" style="flex:{{ market_avg - suggested }}; background:#22c55e;" title="Espacio de mercado">Mkt</div>
+                {% endif %}
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;">
+                Tu precio sugerido: <strong>${{ "%.2f"|format(suggested) }}</strong> &middot;
+                Mercado: <strong>${{ "%.2f"|format(market_avg) }}</strong>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- FORECAST HISTORY -->
+        <div class="section-card">
+            <h3 style="font-size: 0.88rem; margin: 0 0 10px;">Historial de Forecasts</h3>
+            {% if all_forecasts %}
+            <ul class="history-list">
+                {% for fc in all_forecasts %}
+                <li>
+                    <span>{{ fc.horizon_days }}d &middot; {{ fc.trend_direction }}</span>
+                    <span style="color:var(--text-muted);">{{ fc.created_at.strftime('%d/%m %H:%M') }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="font-size:0.82rem; color:var(--text-muted);">Sin forecasts aun. Selecciona un horizonte arriba.</p>
+            {% endif %}
+        </div>
+
+        <!-- MULTI PRODUCT COMPARE -->
+        {% if other_projects %}
+        <div class="section-card">
+            <h3 style="font-size: 0.88rem; margin: 0 0 10px;">Comparar con otro producto</h3>
+            <select id="compareProject" style="width:100%; padding:8px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--surface-color); font-size:0.82rem; color:var(--text-color);">
+                <option value="">Seleccionar...</option>
+                {% for op in other_projects %}
+                <option value="{{ op.id }}">{{ op.query_description[:35] }}{% if op.query_description|length > 35 %}...{% endif %}</option>
+                {% endfor %}
+            </select>
+            <button class="btn btn-outline" style="width:100%; margin-top:8px; font-size:0.82rem;" onclick="compareProducts()">Comparar forecasts</button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const projectId = {{ project.id }};
+const allForecasts = {{ forecasts_json|safe }};
+let currentChart = null;
+let activeHorizon = {{ active_horizon }};
+
+function buildChart(data) {
+    const ctx = document.getElementById('mainChart');
+    if (currentChart) currentChart.destroy();
+    if (!data) return;
+    const nHist = data.price_series.length;
+    const lHist = Array.from({length: nHist}, (_, i) => 'S' + (i + 1 - nHist));
+    const lFc = Array.from({length: data.forecast_series.length}, (_, i) => '+S' + (i + 1));
+    const labels = [...lHist, ...lFc];
+    const hist = [...data.price_series, ...Array(data.forecast_series.length).fill(null)];
+    const fc = [...Array(nHist - 1).fill(null), data.price_series[nHist-1], ...data.forecast_series];
+    const low = [...Array(nHist).fill(null), ...data.confidence_low];
+    const high = [...Array(nHist).fill(null), ...data.confidence_high];
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const grid = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const txt = isDark ? '#94a3b8' : '#64748b';
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [
+            { label:'Precio observado', data:hist, borderColor:'#2563eb', backgroundColor:'transparent', pointRadius:3, borderWidth:2, tension:0.35, spanGaps:false },
+            { label:'Forecast', data:fc, borderColor:'#f59e0b', backgroundColor:'transparent', borderDash:[6,3], pointRadius:4, borderWidth:2, tension:0.35, spanGaps:true },
+            { label:'Banda superior', data:high, borderColor:'rgba(245,158,11,0.3)', backgroundColor:'rgba(245,158,11,0.08)', pointRadius:0, borderWidth:1, tension:0.35, fill:'+1', spanGaps:true },
+            { label:'Banda inferior', data:low, borderColor:'rgba(245,158,11,0.3)', backgroundColor:'transparent', pointRadius:0, borderWidth:1, tension:0.35, spanGaps:true },
+        ]},
+        options: {
+            responsive:true, interaction:{mode:'index',intersect:false},
+            plugins:{legend:{labels:{color:txt,font:{size:11}}}, tooltip:{callbacks:{label:c=>c.dataset.label+': $'+(c.raw!==null?c.raw.toFixed(2):'-')}}},
+            scales:{x:{ticks:{color:txt,font:{size:10}},grid:{color:grid}},y:{ticks:{color:txt,font:{size:11},callback:v=>'$'+v.toFixed(2)},grid:{color:grid}}}
+        }
+    });
+}
+
+async function selectHorizon(h, btn) {
+    if (allForecasts[h]) {
+        activeHorizon = h;
+        document.querySelectorAll('.htab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        buildChart(allForecasts[h]);
+        const reco = document.getElementById('recoBox');
+        if (reco) reco.innerHTML = '<strong>Analisis de oportunidad (' + h + 'd):</strong><br>' + allForecasts[h].recommendation;
+        return;
+    }
+    btn.classList.add('generating');
+    btn.textContent = h + 'd...';
+    document.getElementById('chartLoading').style.display = 'block';
+    document.getElementById('loadingText').textContent = 'Generando forecast de ' + h + ' dias con IA...';
+    try {
+        const fd = new FormData();
+        fd.append('horizon_days', h);
+        const res = await fetch('/panel/research/' + projectId + '/forecast', { method:'POST', body:fd });
+        if (!res.ok) { const d = await res.json(); alert(d.detail || 'Error'); return; }
+        window.location.reload();
+    } catch (e) { alert('Error de conexion'); }
+    finally { btn.classList.remove('generating'); btn.textContent = h + 'd+'; document.getElementById('chartLoading').style.display = 'none'; }
+}
+
+function exportCSV() {
+    const data = allForecasts[activeHorizon];
+    if (!data) { alert('Genera un forecast primero'); return; }
+    let csv = 'Semana,Precio Observado,Forecast,Confianza Baja,Confianza Alta\n';
+    const n = data.price_series.length;
+    for (let i = 0; i < n; i++) csv += 'S'+(i+1-n)+','+data.price_series[i]+',,,\n';
+    for (let i = 0; i < data.forecast_series.length; i++) csv += '+S'+(i+1)+',,'+data.forecast_series[i]+','+data.confidence_low[i]+','+data.confidence_high[i]+'\n';
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'forecast_'+activeHorizon+'d.csv'; a.click();
+}
+
+function exportJSON() {
+    const data = allForecasts[activeHorizon];
+    if (!data) { alert('Genera un forecast primero'); return; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'forecast_'+activeHorizon+'d.json'; a.click();
+}
+
+function compareProducts() {
+    const sel = document.getElementById('compareProject');
+    if (!sel || !sel.value) return;
+    window.location.href = '/panel/forecast/' + sel.value;
+}
+
+{% if active_forecast %}
+buildChart(allForecasts[{{ active_horizon }}]);
+{% endif %}
+
+{% if demand_forecast %}
+(function() {
+    const ctx = document.getElementById('demandChart');
+    if (!ctx) return;
+    const df = {{ demand_forecast|tojson }};
+    new Chart(ctx, {
+        type: 'bar',
+        data: { labels: df.labels, datasets: [{ label:'Demanda estimada (unidades)', data:df.values, backgroundColor:'rgba(37,99,235,0.5)', borderRadius:4 }] },
+        options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+})();
+{% endif %}
+
+{% if seasonality %}
+(function() {
+    const ctx = document.getElementById('seasonChart');
+    if (!ctx) return;
+    const sd = {{ seasonality|tojson }};
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+            datasets: [{ label:'Indice estacional', data:sd.monthly_index, backgroundColor:'rgba(249,115,22,0.15)', borderColor:'#f97316', pointBackgroundColor:'#f97316' }]
+        },
+        options: { responsive:true, scales:{r:{min:0}} }
+    });
+})();
+{% endif %}
+</script>
+{% endblock %}

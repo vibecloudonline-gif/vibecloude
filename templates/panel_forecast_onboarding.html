@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Configurar Forecast Enterprise - VibeCloud{% endblock %}
+{% block header_title %}Forecast Enterprise{% endblock %}
+{% block breadcrumb %}
+<a href="/panel/research">Investigacion</a> / <a href="/panel/forecast">Forecast</a> / <span class="breadcrumb-current">Configurar</span>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.wizard-container { max-width: 680px; margin: 0 auto; }
+.wizard-steps { display: flex; gap: 4px; margin-bottom: 28px; }
+.wizard-step { flex: 1; height: 4px; border-radius: 2px; background: var(--border-color); transition: background 0.3s; }
+.wizard-step.done { background: var(--success-color, #16a34a); }
+.wizard-step.active { background: var(--accent-color); }
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+.step-header { margin-bottom: 20px; }
+.step-header h2 { font-size: 1.2rem; margin: 0 0 6px; }
+.step-header p { font-size: 0.88rem; color: var(--text-muted); margin: 0; }
+.field-group { margin-bottom: 18px; }
+.field-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; color: var(--text-color); }
+.field-group .hint { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.field-group input, .field-group select, .field-group textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md);
+    background: var(--surface-color); color: var(--text-color); font-size: 0.88rem; font-family: inherit;
+}
+.field-group textarea { min-height: 80px; resize: vertical; }
+.radio-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.radio-card { position: relative; }
+.radio-card input { position: absolute; opacity: 0; }
+.radio-card label {
+    display: block; padding: 14px 16px; border: 2px solid var(--border-color); border-radius: var(--radius-md);
+    cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.radio-card label .rc-icon { font-size: 1.4rem; display: block; margin-bottom: 6px; }
+.radio-card label .rc-title { font-weight: 600; font-size: 0.85rem; display: block; }
+.radio-card label .rc-desc { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 3px; }
+.radio-card input:checked + label { border-color: var(--accent-color); background: rgba(249,115,22,0.06); }
+.wizard-nav { display: flex; justify-content: space-between; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border-color); }
+.step-counter { font-size: 0.82rem; color: var(--text-muted); text-align: center; margin-bottom: 12px; }
+@media (max-width: 600px) { .radio-cards { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div class="step-counter" id="stepCounter">Paso 1 de 5</div>
+    <div class="wizard-steps">
+        <div class="wizard-step active" id="ws-1"></div>
+        <div class="wizard-step" id="ws-2"></div>
+        <div class="wizard-step" id="ws-3"></div>
+        <div class="wizard-step" id="ws-4"></div>
+        <div class="wizard-step" id="ws-5"></div>
+    </div>
+
+    <form id="onboardingForm">
+        <input type="hidden" name="project_id" value="{{ project.id }}">
+
+        <!-- STEP 1: Tu Negocio -->
+        <div class="step-panel active" id="step-1">
+            <div class="step-header">
+                <h2>Tu Negocio</h2>
+                <p>Necesitamos entender tu tipo de negocio para calibrar el modelo de forecast correctamente.</p>
+            </div>
+            <div class="field-group">
+                <label>Tipo de negocio</label>
+                <div class="radio-cards">
+                    <div class="radio-card">
+                        <input type="radio" name="business_type" value="physical_product" id="bt1" {% if not profile or profile.business_type == 'physical_product' %}checked{% endif %}>
+                        <label for="bt1"><span class="rc-icon">&#128230;</span><span class="rc-title">Producto fisico</span><span class="rc-desc">Articulos tangibles, manufactura, importacion</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="business_type" value="digital_service" id="bt2" {% if profile and profile.business_type == 'digital_service' %}checked{% endif %}>
+                        <label for="bt2"><span class="rc-icon">&#128187;</span><span class="rc-title">Servicio digital</span><span class="rc-desc">Consultoria, freelance, agencia, SaaS</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="business_type" value="saas" id="bt3" {% if profile and profile.business_type == 'saas' %}checked{% endif %}>
+                        <label for="bt3"><span class="rc-icon">&#9729;&#65039;</span><span class="rc-title">SaaS / Suscripcion</span><span class="rc-desc">Software, membresías, recurrente</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="business_type" value="marketplace" id="bt4" {% if profile and profile.business_type == 'marketplace' %}checked{% endif %}>
+                        <label for="bt4"><span class="rc-icon">&#127970;</span><span class="rc-title">Marketplace / Reventa</span><span class="rc-desc">Dropshipping, reventa, arbitraje</span></label>
+                    </div>
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Etapa actual del negocio</label>
+                <select name="business_stage">
+                    <option value="idea" {% if not profile or profile.business_stage == 'idea' %}selected{% endif %}>Idea / Investigando</option>
+                    <option value="prototype" {% if profile and profile.business_stage == 'prototype' %}selected{% endif %}>Prototipo / MVP</option>
+                    <option value="launched" {% if profile and profile.business_stage == 'launched' %}selected{% endif %}>Lanzado (primeras ventas)</option>
+                    <option value="scaling" {% if profile and profile.business_stage == 'scaling' %}selected{% endif %}>En crecimiento / Escalando</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Categoria del producto o servicio</label>
+                <input type="text" name="product_category" placeholder="Ej: tecnologia, moda, alimentos, educacion online..." value="{{ profile.product_category or '' if profile else '' }}">
+                <div class="hint">Esto ayuda al modelo a buscar datos de estacionalidad del sector.</div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Tu Producto -->
+        <div class="step-panel" id="step-2">
+            <div class="step-header">
+                <h2>Tu Producto o Servicio</h2>
+                <p>Mientras mas detalle nos des, mejor sera la prediccion de demanda y precio.</p>
+            </div>
+            <div class="field-group">
+                <label>Descripcion detallada</label>
+                <textarea name="target_audience" placeholder="Describe tu cliente ideal: edad, genero, poder adquisitivo, que problema le resuelves, por que te elegirian...">{{ profile.target_audience or '' if profile else '' }}</textarea>
+                <div class="hint">El forecast analiza la demanda del segmento que describes.</div>
+            </div>
+            <div class="field-group">
+                <label>Mercado objetivo</label>
+                <div class="radio-cards">
+                    <div class="radio-card">
+                        <input type="radio" name="target_market" value="local" id="tm1" {% if profile and profile.target_market == 'local' %}checked{% endif %}>
+                        <label for="tm1"><span class="rc-icon">&#128205;</span><span class="rc-title">Local</span><span class="rc-desc">Ciudad o zona especifica</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="target_market" value="national" id="tm2" {% if not profile or profile.target_market == 'national' %}checked{% endif %}>
+                        <label for="tm2"><span class="rc-icon">&#127988;</span><span class="rc-title">Nacional</span><span class="rc-desc">Todo el pais</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="target_market" value="regional" id="tm3" {% if profile and profile.target_market == 'regional' %}checked{% endif %}>
+                        <label for="tm3"><span class="rc-icon">&#127758;</span><span class="rc-title">Regional</span><span class="rc-desc">LATAM, Europa, etc.</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="target_market" value="international" id="tm4" {% if profile and profile.target_market == 'international' %}checked{% endif %}>
+                        <label for="tm4"><span class="rc-icon">&#127757;</span><span class="rc-title">Internacional</span><span class="rc-desc">Global / multiple regiones</span></label>
+                    </div>
+                </div>
+            </div>
+            <div class="field-group">
+                <label>Diferenciador principal</label>
+                <input type="text" name="differentiator" placeholder="Que te hace unico vs la competencia? Ej: envio en 24h, garantia de por vida, precio 30% menor..." value="{{ profile.differentiator or '' if profile else '' }}">
+            </div>
+        </div>
+
+        <!-- STEP 3: Precios y Costos -->
+        <div class="step-panel" id="step-3">
+            <div class="step-header">
+                <h2>Precios y Costos</h2>
+                <p>Con estos datos el modelo compara tu precio contra el mercado y sugiere ajustes.</p>
+            </div>
+            <div class="field-group">
+                <label>Costo unitario / costo de produccion (USD)</label>
+                <input type="number" name="unit_cost" step="0.01" min="0" placeholder="15.00" value="{{ profile.unit_cost or '' if profile else '' }}">
+                <div class="hint">Si es servicio, estima tu costo por hora o por entrega.</div>
+            </div>
+            <div class="field-group">
+                <label>Margen deseado (%)</label>
+                <input type="number" name="desired_margin_pct" min="0" max="500" placeholder="40" value="{{ profile.desired_margin_pct or '' if profile else '' }}">
+            </div>
+            <div class="field-group">
+                <label>Precios de competidores que conozcas (separados por coma)</label>
+                <input type="text" name="known_competitor_prices" placeholder="29.99, 34.50, 45.00" value="{{ profile.known_competitor_prices or '' if profile else '' }}">
+                <div class="hint">Si no los tenes, el sistema los busca automaticamente del estudio de mercado.</div>
+            </div>
+            <div class="field-group">
+                <label>Estrategia de precios</label>
+                <select name="pricing_strategy">
+                    <option value="penetration" {% if profile and profile.pricing_strategy == 'penetration' %}selected{% endif %}>Penetracion (precio bajo para ganar mercado)</option>
+                    <option value="competitive" {% if not profile or profile.pricing_strategy == 'competitive' %}selected{% endif %}>Competitivo (alineado al mercado)</option>
+                    <option value="premium" {% if profile and profile.pricing_strategy == 'premium' %}selected{% endif %}>Premium (calidad superior, precio alto)</option>
+                    <option value="skimming" {% if profile and profile.pricing_strategy == 'skimming' %}selected{% endif %}>Descreme (arrancar alto, bajar gradual)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- STEP 4: Contexto de Mercado -->
+        <div class="step-panel" id="step-4">
+            <div class="step-header">
+                <h2>Contexto de Mercado</h2>
+                <p>Esto permite al modelo detectar patrones estacionales y oportunidades regionales.</p>
+            </div>
+            <div class="field-group">
+                <label>Pais o region principal de venta</label>
+                <input type="text" name="geography" placeholder="Argentina, Mexico, LATAM, USA..." value="{{ profile.geography or '' if profile else '' }}">
+            </div>
+            <div class="field-group">
+                <label>Notas de estacionalidad</label>
+                <textarea name="seasonality_notes" placeholder="Tu producto vende mas en alguna epoca? Ej: 'Pico en diciembre por navidad', 'Verano es temporada baja', 'Black Friday es clave'...">{{ profile.seasonality_notes or '' if profile else '' }}</textarea>
+                <div class="hint">El modelo usa esta info para ajustar la curva de demanda proyectada.</div>
+            </div>
+            <div class="field-group">
+                <label>Nivel de competencia en tu nicho</label>
+                <div class="radio-cards">
+                    <div class="radio-card">
+                        <input type="radio" name="competition_level" value="low" id="cl1" {% if profile and profile.competition_level == 'low' %}checked{% endif %}>
+                        <label for="cl1"><span class="rc-icon">&#128994;</span><span class="rc-title">Baja</span><span class="rc-desc">Pocos competidores directos</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="competition_level" value="medium" id="cl2" {% if not profile or profile.competition_level == 'medium' %}checked{% endif %}>
+                        <label for="cl2"><span class="rc-icon">&#128992;</span><span class="rc-title">Media</span><span class="rc-desc">Mercado con jugadores establecidos</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="competition_level" value="high" id="cl3" {% if profile and profile.competition_level == 'high' %}checked{% endif %}>
+                        <label for="cl3"><span class="rc-icon">&#128308;</span><span class="rc-title">Alta</span><span class="rc-desc">Muchos competidores, guerra de precios</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="competition_level" value="saturated" id="cl4" {% if profile and profile.competition_level == 'saturated' %}checked{% endif %}>
+                        <label for="cl4"><span class="rc-icon">&#9940;</span><span class="rc-title">Saturado</span><span class="rc-desc">Mercado lleno, dificil diferenciarse</span></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 5: Objetivos -->
+        <div class="step-panel" id="step-5">
+            <div class="step-header">
+                <h2>Tus Objetivos</h2>
+                <p>Definir metas concretas permite que el forecast te diga si son alcanzables y en que plazo.</p>
+            </div>
+            <div class="field-group">
+                <label>Fecha objetivo de lanzamiento</label>
+                <input type="date" name="launch_target_date" value="{{ profile.launch_target_date or '' if profile else '' }}">
+                <div class="hint">Si ya lanzaste, pon la fecha en que empezaste.</div>
+            </div>
+            <div class="field-group">
+                <label>Meta de facturacion mensual (USD)</label>
+                <input type="number" name="monthly_revenue_target" step="0.01" min="0" placeholder="5000" value="{{ profile.monthly_revenue_target or '' if profile else '' }}">
+            </div>
+            <div class="field-group">
+                <label>Expectativa de crecimiento</label>
+                <div class="radio-cards" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="radio-card">
+                        <input type="radio" name="growth_expectation" value="conservative" id="ge1" {% if profile and profile.growth_expectation == 'conservative' %}checked{% endif %}>
+                        <label for="ge1"><span class="rc-icon">&#128034;</span><span class="rc-title">Conservador</span><span class="rc-desc">Crecimiento lento y seguro</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="growth_expectation" value="moderate" id="ge2" {% if not profile or profile.growth_expectation == 'moderate' %}checked{% endif %}>
+                        <label for="ge2"><span class="rc-icon">&#128640;</span><span class="rc-title">Moderado</span><span class="rc-desc">Crecimiento constante</span></label>
+                    </div>
+                    <div class="radio-card">
+                        <input type="radio" name="growth_expectation" value="aggressive" id="ge3" {% if profile and profile.growth_expectation == 'aggressive' %}checked{% endif %}>
+                        <label for="ge3"><span class="rc-icon">&#9889;</span><span class="rc-title">Agresivo</span><span class="rc-desc">Escalar rapido, alto riesgo</span></label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-nav">
+            <button type="button" class="btn btn-outline" id="btnPrev" style="display:none;">Anterior</button>
+            <div></div>
+            <button type="button" class="btn btn-primary" id="btnNext">Siguiente</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmit" style="display:none;">Generar Forecast Enterprise</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const totalSteps = 5;
+    let current = 1;
+
+    function showStep(n) {
+        current = n;
+        document.querySelectorAll('.step-panel').forEach(el => el.classList.remove('active'));
+        document.getElementById('step-' + n).classList.add('active');
+        for (let i = 1; i <= totalSteps; i++) {
+            const ws = document.getElementById('ws-' + i);
+            ws.className = 'wizard-step';
+            if (i < n) ws.classList.add('done');
+            else if (i === n) ws.classList.add('active');
+        }
+        document.getElementById('stepCounter').textContent = 'Paso ' + n + ' de ' + totalSteps;
+        document.getElementById('btnPrev').style.display = n > 1 ? '' : 'none';
+        document.getElementById('btnNext').style.display = n < totalSteps ? '' : 'none';
+        document.getElementById('btnSubmit').style.display = n === totalSteps ? '' : 'none';
+    }
+
+    document.getElementById('btnNext').addEventListener('click', () => { if (current < totalSteps) showStep(current + 1); });
+    document.getElementById('btnPrev').addEventListener('click', () => { if (current > 1) showStep(current - 1); });
+
+    document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true;
+        btn.textContent = 'Configurando forecast...';
+        const fd = new FormData(e.target);
+        try {
+            const res = await fetch('/panel/forecast/onboarding', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (!res.ok) { alert(data.detail || 'Error al guardar'); btn.disabled = false; btn.textContent = 'Generar Forecast Enterprise'; return; }
+            window.location.href = '/panel/forecast/' + fd.get('project_id');
+        } catch (err) {
+            alert('Error de conexion');
+            btn.disabled = false;
+            btn.textContent = 'Generar Forecast Enterprise';
+        }
+    });
+})();
+</script>
+{% endblock %}

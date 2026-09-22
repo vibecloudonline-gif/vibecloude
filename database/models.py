@@ -1007,3 +1007,37 @@ class ResearchForecast(SQLModel, table=True):
     project: Optional["ResearchProject"] = Relationship(
         sa_relationship=relationship("ResearchProject", back_populates="forecasts")
     )
+
+
+class ForecastProfile(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_forecastprofile_project"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    project_id: int = Field(foreign_key="researchproject.id", index=True)
+
+    business_type: str = Field(default="physical_product")
+    business_stage: str = Field(default="idea")
+    product_category: Optional[str] = None
+    target_market: str = Field(default="national")
+    target_audience: Optional[str] = None
+    unit_cost: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
+    desired_margin_pct: Optional[int] = None
+    known_competitor_prices: Optional[str] = None
+    pricing_strategy: str = Field(default="competitive")
+    geography: Optional[str] = None
+    seasonality_notes: Optional[str] = None
+    competition_level: str = Field(default="medium")
+    differentiator: Optional[str] = None
+    launch_target_date: Optional[str] = None
+    monthly_revenue_target: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
+    growth_expectation: str = Field(default="moderate")
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: Optional[datetime] = None
+
+    project: Optional["ResearchProject"] = Relationship(
+        sa_relationship=relationship("ResearchProject", backref="forecast_profile")
+    )
