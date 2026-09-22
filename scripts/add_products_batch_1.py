@@ -9,7 +9,7 @@ from database.models import Product
 from services.stock_service import StockService
 
 # Connect to DB
-sqlite_file_name = "alexio.db"
+sqlite_file_name = "vibecloud.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)
 stock_service = StockService()

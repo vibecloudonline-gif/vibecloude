@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Panel de Validación de Agentes - Alex IO Studio{% endblock %}
+{% block title %}Panel de Validación de Agentes - VibeCloud Studio{% endblock %}
 {% block header_title %}Validación Adversarial de Agentes{% endblock %}
 {% block breadcrumb %}
-    <a href="/panel/research">Alex IO Studio</a>
+    <a href="/panel/research">VibeCloud Studio</a>
     <span class="breadcrumb-sep">/</span>
     <span class="breadcrumb-current">Debate de Agentes</span>
 {% endblock %}
@@ -161,6 +161,100 @@
         40% { transform: scale(1); opacity: 1; }
     }
 
+    /* Roster card "speaking" highlight */
+    .roster-card.speaking {
+        border-color: rgba(255, 255, 255, 0.32);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+        transform: translateY(-3px) scale(1.02);
+    }
+    .roster-card.persona-devil_advocate.speaking { box-shadow: 0 4px 24px rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.4); }
+    .roster-card.persona-price_skeptic.speaking { box-shadow: 0 4px 24px rgba(245, 158, 11, 0.25); border-color: rgba(245, 158, 11, 0.4); }
+    .roster-card.persona-market_analyst.speaking { box-shadow: 0 4px 24px rgba(59, 130, 246, 0.25); border-color: rgba(59, 130, 246, 0.4); }
+    .roster-card.persona-customer_sim.speaking { box-shadow: 0 4px 24px rgba(16, 185, 129, 0.25); border-color: rgba(16, 185, 129, 0.4); }
+
+    .roster-card.speaking .roster-icon-wrap {
+        animation: iconPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes iconPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+    }
+
+    /* Checkmark draw animation */
+    .roster-status.done .check-draw {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+    }
+    .roster-status.done .check-draw svg {
+        stroke-dasharray: 20;
+        stroke-dashoffset: 20;
+        animation: drawCheck 0.4s ease-out forwards;
+    }
+    @keyframes drawCheck {
+        to { stroke-dashoffset: 0; }
+    }
+
+    /* Typing indicator before objection reveal */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        margin-bottom: 14px;
+        border-left: 4px solid var(--border-color);
+        opacity: 0;
+        animation: typingFadeIn 0.25s ease forwards;
+    }
+    .typing-indicator.persona-devil_advocate { border-left-color: var(--danger-color); }
+    .typing-indicator.persona-price_skeptic { border-left-color: var(--warning-color); }
+    .typing-indicator.persona-market_analyst { border-left-color: var(--info-color); }
+    .typing-indicator.persona-customer_sim { border-left-color: var(--success-color); }
+
+    @keyframes typingFadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .typing-indicator .typing-name { font-weight: 700; font-size: 0.82rem; color: var(--text-secondary); }
+    .typing-indicator .typing-dots {
+        display: inline-flex;
+        gap: 4px;
+    }
+    .typing-indicator .typing-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        animation: typingBounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator .typing-dots span:nth-child(1) { animation-delay: 0s; }
+    .typing-indicator .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+        40% { transform: translateY(-8px); opacity: 1; }
+    }
+
+    /* Debate progress bar */
+    .debate-progress {
+        width: 100%;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-color);
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .debate-progress-fill {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--accent-color);
+        width: 0%;
+        transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
     /* 4.2 Reveal secuencial de objeciones */
     .objections-header {
         font-size: 1rem;
@@ -215,6 +309,24 @@
 
     .obj-text { font-size: 0.92rem; line-height: 1.6; margin-bottom: 14px; color: var(--text-main); }
 
+    /* Staggered internal reveal: source → text → resolution */
+    .obj-card .obj-top {
+        opacity: 0;
+        transform: translateX(-8px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    .obj-card.revealed .obj-top {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    .obj-card .obj-text {
+        opacity: 0;
+        transition: opacity 0.3s ease 0.2s;
+    }
+    .obj-card.revealed .obj-text {
+        opacity: 1;
+    }
+
     /* 4.4 Resolución del árbitro diferida (no oculta) */
     .resolution-box {
         padding: 14px 18px;
@@ -223,7 +335,7 @@
         line-height: 1.6;
         opacity: 0;
         transform: translateY(6px);
-        transition: opacity 0.35s ease 0.35s, transform 0.35s ease 0.35s;
+        transition: opacity 0.35s ease 0.45s, transform 0.35s ease 0.45s;
     }
     .obj-card.revealed .resolution-box {
         opacity: 1;
@@ -256,6 +368,17 @@
     .verdict-banner.revealed {
         opacity: 1;
         transform: scale(1);
+        animation: verdictStamp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                   verdictGlow 2s ease-in-out 0.6s 1;
+    }
+    @keyframes verdictStamp {
+        0% { opacity: 0; transform: scale(1.3) rotate(-3deg); }
+        60% { transform: scale(0.95) rotate(0.5deg); }
+        100% { opacity: 1; transform: scale(1) rotate(0deg); }
+    }
+    @keyframes verdictGlow {
+        0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); }
+        50% { box-shadow: 0 10px 50px rgba(0, 0, 0, 0.25), 0 0 60px rgba(255, 106, 0, 0.08); }
     }
     .verdict-banner::before {
         content: '';
@@ -415,6 +538,11 @@
         </div>
     </div>
 
+    <!-- Progress bar -->
+    <div class="debate-progress" id="debate-progress">
+        <div class="debate-progress-fill" id="debate-progress-fill"></div>
+    </div>
+
     <!-- 4.2 Lista de objeciones con reveal escalonado -->
     {% if objections %}
     <div class="objections-header">
@@ -484,7 +612,7 @@
 
 <div class="actions-bar">
     {% if offer.status == 'validated' %}
-    <a href="/panel/landing" class="btn btn-primary">Crear sitio desde esta oferta</a>
+    <button type="button" class="btn btn-primary" onclick="crearSitioDesdeOferta({{ offer.id }})">Crear sitio desde esta oferta</button>
     {% elif offer.status == 'rejected' %}
     <a href="/panel/oferta/{{ offer.project_id }}/generar" class="btn btn-primary" onclick="event.preventDefault(); fetch(this.href, {method:'POST'}).then(r=>r.json()).then(d=>{if(d.status==='success')location.href='/panel/oferta/'+{{ offer.project_id }};else alert(d.detail||'Error')})">Regenerar oferta</a>
     {% endif %}
@@ -502,60 +630,118 @@
 {% block extra_js %}
 <script>
 (function() {
-    // 4.2 Reveal secuencial de las objeciones y sincronización con el roster
     const cards = Array.from(document.querySelectorAll('.obj-card'));
     const verdictBanner = document.getElementById('verdict-banner');
+    const progressFill = document.getElementById('debate-progress-fill');
+    const container = document.getElementById('objections-container');
+    const PERSONA_NAMES = {
+        devil_advocate: 'Abogado del diablo',
+        price_skeptic: 'Escéptico de precio',
+        market_analyst: 'Analista de mercado',
+        customer_sim: 'Cliente simulado'
+    };
 
-    function updateRosterPersona(source) {
+    function completedCheckmark() {
+        return '<span class="check-draw"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5 7.5 5.5 10.5 11.5 4"/></svg></span>';
+    }
+
+    function markRosterDone(source, label) {
         const statusEl = document.getElementById('roster-status-' + source);
         if (statusEl) {
             statusEl.className = 'roster-status done';
-            statusEl.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Completado</span>';
+            statusEl.innerHTML = completedCheckmark() + ' <span>' + (label || 'Completado') + '</span>';
         }
+        const cardEl = document.getElementById('roster-card-' + source);
+        if (cardEl) cardEl.classList.remove('speaking');
+    }
+
+    function markRosterSpeaking(source) {
+        document.querySelectorAll('.roster-card.speaking').forEach(c => c.classList.remove('speaking'));
+        const cardEl = document.getElementById('roster-card-' + source);
+        if (cardEl) cardEl.classList.add('speaking');
+    }
+
+    function updateProgress(current, total) {
+        if (progressFill) {
+            const pct = Math.min(100, Math.round((current / total) * 100));
+            progressFill.style.width = pct + '%';
+        }
+    }
+
+    function createTypingIndicator(source) {
+        const el = document.createElement('div');
+        el.className = 'typing-indicator persona-' + source;
+        el.innerHTML = '<span class="typing-name">' + (PERSONA_NAMES[source] || source) + '</span>'
+            + '<span class="typing-dots"><span></span><span></span><span></span></span>';
+        return el;
     }
 
     if (cards.length === 0) {
-        // Si no hay objeciones, marcar todos como listos y revelar veredicto
         document.querySelectorAll('.roster-status').forEach(st => {
             st.className = 'roster-status done';
-            st.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Sin objeciones</span>';
+            st.innerHTML = completedCheckmark() + ' <span>Sin objeciones</span>';
         });
-        if (verdictBanner) {
-            verdictBanner.classList.add('revealed');
-        }
+        updateProgress(1, 1);
+        if (verdictBanner) verdictBanner.classList.add('revealed');
         return;
     }
 
-    // Ordenar por data-index por si vienen en orden diferente
     cards.sort((a, b) => parseInt(a.dataset.index || '0', 10) - parseInt(b.dataset.index || '0', 10));
 
-    let delay = 350;
-    const step = 700; // ~700ms entre cada una
+    const totalSteps = cards.length + 1;
+    let currentStep = 0;
 
-    cards.forEach((card, idx) => {
+    function revealSequence(idx) {
+        if (idx >= cards.length) {
+            document.querySelectorAll('.roster-status.waiting').forEach(st => {
+                st.className = 'roster-status done';
+                st.innerHTML = completedCheckmark() + ' <span>Completado</span>';
+            });
+            document.querySelectorAll('.roster-card.speaking').forEach(c => c.classList.remove('speaking'));
+            currentStep = totalSteps;
+            updateProgress(currentStep, totalSteps);
+            if (verdictBanner) {
+                setTimeout(() => verdictBanner.classList.add('revealed'), 300);
+            }
+            return;
+        }
+
+        const card = cards[idx];
+        const source = card.dataset.source;
+
+        markRosterSpeaking(source);
+
+        const typingEl = createTypingIndicator(source);
+        if (container) container.insertBefore(typingEl, card);
+
         setTimeout(() => {
+            if (typingEl.parentNode) typingEl.remove();
             card.classList.add('revealed');
-            const source = card.dataset.source;
-            if (source) {
-                updateRosterPersona(source);
-            }
+            markRosterDone(source);
+            currentStep = idx + 1;
+            updateProgress(currentStep, totalSteps);
 
-            // Si es la última card, revelar el veredicto con efecto de sello
-            if (idx === cards.length - 1) {
-                setTimeout(() => {
-                    // Asegurar que cualquier persona sin objeción directa también quede marcada
-                    document.querySelectorAll('.roster-status.waiting').forEach(st => {
-                        st.className = 'roster-status done';
-                        st.innerHTML = '<span style="font-weight:700;">&#10003;</span> <span>Completado</span>';
-                    });
-                    if (verdictBanner) {
-                        verdictBanner.classList.add('revealed');
-                    }
-                }, 500);
-            }
-        }, delay);
-        delay += step;
-    });
+            setTimeout(() => revealSequence(idx + 1), 900);
+        }, 1200);
+    }
+
+    setTimeout(() => revealSequence(0), 500);
 })();
+
+async function crearSitioDesdeOferta(offerId) {
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Generando landing con IA...';
+    try {
+        const res = await fetch('/panel/landing/desde-oferta/' + offerId, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) { alert(data.detail || 'Error al generar'); btn.disabled = false; btn.textContent = 'Crear sitio desde esta oferta'; return; }
+        window.location.href = '/panel/landing';
+    } catch (err) {
+        alert('Error de conexion');
+        btn.disabled = false;
+        btn.textContent = 'Crear sitio desde esta oferta';
+    }
+}
 </script>
 {% endblock %}

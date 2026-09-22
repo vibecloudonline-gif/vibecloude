@@ -3,11 +3,11 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: alexio-postgres
+    container_name: vibecloud-postgres
     restart: always
     environment:
-      POSTGRES_DB: alexio_db
-      POSTGRES_USER: alexio_user
+      POSTGRES_DB: vibecloud_db
+      POSTGRES_USER: vibecloud_user
       POSTGRES_PASSWORD: securepassword123
     ports:
       - "5432:5432"
@@ -16,7 +16,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: alexio-redis
+    container_name: vibecloud-redis
     restart: always
     ports:
       - "6379:6379"
@@ -25,7 +25,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: alexio-backend
+    container_name: vibecloud-backend
     restart: always
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
@@ -34,11 +34,11 @@ services:
       - postgres
       - redis
     environment:
-      - DATABASE_URL=postgresql://alexio_user:securepassword123@postgres:5432/alexio_db
+      - DATABASE_URL=postgresql://vibecloud_user:securepassword123@postgres:5432/vibecloud_db
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=default-secret-key-change-in-prod
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - BASE_DOMAIN=alexio.local
+      - BASE_DOMAIN=vibecloud.local
 
 volumes:
   postgres_data:

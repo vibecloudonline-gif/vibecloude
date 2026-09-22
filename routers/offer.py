@@ -19,7 +19,7 @@ def _templates():
 
 
 def _require_access(tenant: Tenant):
-    if not (tenant.has_landing or tenant.has_ecommerce or tenant.has_alexio):
+    if not (tenant.has_landing or tenant.has_ecommerce):
         raise HTTPException(403, "Tu cuenta no tiene acceso a este modulo")
 
 

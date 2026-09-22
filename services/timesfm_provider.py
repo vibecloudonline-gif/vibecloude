@@ -12,7 +12,8 @@ logger = logging.getLogger("timesfm_provider")
 
 class TimesFMForecastResult:
     def __init__(self, price_series, forecast_series, confidence_low, confidence_high,
-                 trend_direction, launch_window, recommendation, provider):
+                 trend_direction, launch_window, recommendation, provider,
+                 price_comparison=None, pricing_verdict=None):
         self.price_series = price_series
         self.forecast_series = forecast_series
         self.confidence_low = confidence_low
@@ -21,6 +22,8 @@ class TimesFMForecastResult:
         self.launch_window = launch_window
         self.recommendation = recommendation
         self.provider = provider
+        self.price_comparison = price_comparison or {}
+        self.pricing_verdict = pricing_verdict or ""
 
 
 def _build_price_series(prices: list[float], n_points: int = 16) -> list[float]:
@@ -82,27 +85,58 @@ def _analytical_fallback(query: str, price_series: list[float], horizon_days: in
     )
 
 
-def _gemini_forecast_sync(query: str, price_series: list[float], horizon_days: int, api_key: str) -> TimesFMForecastResult:
+def _gemini_forecast_sync(query: str, price_series: list[float], horizon_days: int, api_key: str,
+                          business_context: dict | None = None) -> TimesFMForecastResult:
     import asyncio
     from services.gemini_service import GeminiService
     avg_price = round(statistics.mean(price_series), 2)
     min_price = round(min(price_series), 2)
     max_price = round(max(price_series), 2)
     n_forecast = max(4, horizon_days // 7)
+
+    context_block = ""
+    if business_context:
+        parts = []
+        if business_context.get("offer_title"):
+            parts.append(f"Oferta del emprendedor: \"{business_context['offer_title']}\"")
+        if business_context.get("value_proposition"):
+            parts.append(f"Propuesta de valor: {business_context['value_proposition']}")
+        if business_context.get("price_structure"):
+            parts.append(f"Estructura de precios del emprendedor: {business_context['price_structure']}")
+        if business_context.get("competitors"):
+            parts.append(f"Competidores identificados: {business_context['competitors']}")
+        if business_context.get("demand_info"):
+            parts.append(f"Demanda estimada: {business_context['demand_info']}")
+        if business_context.get("debate_verdict"):
+            parts.append(f"Resultado del debate de agentes: {business_context['debate_verdict']}")
+        if business_context.get("debate_objections"):
+            parts.append(f"Objeciones clave del debate: {business_context['debate_objections']}")
+        if parts:
+            context_block = "\n\nCONTEXTO DEL EMPRENDIMIENTO:\n" + "\n".join(parts)
+
     prompt = f"""Actua como analista cuantitativo de forecasting de precios e-commerce.
 Producto/nicho: "{query}"
-Serie de precios observados (ultimas {len(price_series)} semanas, USD): {price_series}
-Estadisticas: min={min_price}, max={max_price}, promedio={avg_price}
+Serie de precios de competidores observados (ultimas {len(price_series)} semanas, USD): {price_series}
+Estadisticas del mercado: min={min_price}, max={max_price}, promedio={avg_price}{context_block}
 
 Genera prediccion para las proximas {n_forecast} semanas ({horizon_days} dias).
 Responde EXCLUSIVAMENTE este JSON valido:
 {{
-  "forecast_series": [lista de {n_forecast} floats],
+  "forecast_series": [lista de {n_forecast} floats — precio promedio de mercado proyectado],
   "confidence_low": [lista de {n_forecast} floats, banda inferior 80%],
   "confidence_high": [lista de {n_forecast} floats, banda superior 80%],
   "trend_direction": "alcista" o "bajista" o "estable",
-  "launch_window": "mes/trimestre optimo para lanzar, ej: Q4 2026",
-  "recommendation": "parrafo 2-3 oraciones con analisis de oportunidad"
+  "launch_window": "mes/trimestre optimo para lanzar basado en el contexto del emprendedor",
+  "recommendation": "parrafo 3-4 oraciones con analisis de oportunidad PERSONALIZADO al emprendimiento, no generico",
+  "price_comparison": {{
+    "entrepreneur_price": precio numerico que cobra el emprendedor (extraido de price_structure) o null,
+    "market_avg": {avg_price},
+    "market_min": {min_price},
+    "market_max": {max_price},
+    "position": "por_debajo" o "competitivo" o "premium" o "por_encima",
+    "adjustment_suggestion": "recomendacion concreta de ajuste de precio en 1-2 oraciones, o 'Precio bien posicionado' si no hace falta ajustar"
+  }},
+  "pricing_verdict": "parrafo de 2-3 oraciones evaluando si el precio del emprendedor es viable vs el mercado"
 }}
 No agregues markdown ni texto fuera del JSON."""
     try:
@@ -125,6 +159,8 @@ No agregues markdown ni texto fuera del JSON."""
             low = [max(0.01, p * 0.88) for p in forecast]
         if len(high) != len(forecast):
             high = [p * 1.12 for p in forecast]
+        price_comp = data.get("price_comparison", {})
+        pricing_verdict = data.get("pricing_verdict", "")
         return TimesFMForecastResult(
             price_series=price_series,
             forecast_series=[round(x, 2) for x in forecast],
@@ -134,6 +170,8 @@ No agregues markdown ni texto fuera del JSON."""
             launch_window=launch,
             recommendation=reco,
             provider="gemini_forecast",
+            price_comparison=price_comp if isinstance(price_comp, dict) else {},
+            pricing_verdict=pricing_verdict if isinstance(pricing_verdict, str) else "",
         )
     except Exception as exc:
         logger.warning(f"Gemini forecast fallback triggered: {exc}")

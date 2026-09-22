@@ -1,6 +1,6 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["ALEXIO_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 
 import pytest
 from fastapi.testclient import TestClient
@@ -92,7 +92,6 @@ def test_signup_solo_erp(client, session):
     assert tenant.has_erp is True
     assert tenant.has_ecommerce is False
     assert tenant.has_landing is False
-    assert tenant.has_alexio is False
     assert FakeGoDaddyClient.register_domain_calls == []
 
 

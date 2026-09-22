@@ -122,7 +122,7 @@ class GeminiMarketProvider(ProductDataProvider):
         {{
           "confidence_level": "alto", // opciones: "alto", "medio", "bajo"
           "estimated_monthly_volume": 3500, // número entero estimado
-          "source_description": "Inteligencia de Mercado Alex.io AI (Benchmarks Amazon / MercadoLibre)",
+          "source_description": "Inteligencia de Mercado VibeCloud AI (Benchmarks Amazon / MercadoLibre)",
           "notes": "Análisis de oportunidad: descripción concisa de demanda, estacionalidad y competencia."
         }}
         No agregues markdown ni texto adicional fuera del JSON.
@@ -155,7 +155,7 @@ class GeminiMarketProvider(ProductDataProvider):
                 ),
                 source_description=data.get(
                     "source_description",
-                    "Inteligencia de Mercado Alex.io AI (Benchmarks Amazon / MercadoLibre)",
+                    "Inteligencia de Mercado VibeCloud AI (Benchmarks Amazon / MercadoLibre)",
                 ),
                 notes=data.get(
                     "notes", "Análisis de mercado y demanda generado por IA."

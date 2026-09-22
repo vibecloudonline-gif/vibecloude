@@ -1,8 +1,8 @@
 """routers/signup.py — Alta self-service de tenant (Fase 3 del roadmap,
-sección 7 de CLAUDE.md/ALEXIO_ROADMAP_V2.md).
+sección 7 de CLAUDE.md/VIBECLOUD_ROADMAP_V2.md).
 
 Cualquier visitante puede crearse una cuenta y elegir qué producto(s)
-contrata (ERP, ecommerce, landing con IA, AlexIO) sin intervención manual
+contrata (ERP, ecommerce, landing con IA, VibeCloud) sin intervención manual
 del SuperAdmin. Sin billing/pagos -- fuera de alcance, según ya definido.
 
 Regla 1.1 aplicada: el tenant_id del tenant recién creado se resuelve acá
@@ -139,7 +139,6 @@ def signup_submit(
     has_erp: bool = Form(False),
     has_ecommerce: bool = Form(False),
     has_landing: bool = Form(False),
-    has_alexio: bool = Form(False),
     domain_choice: str = Form("subdominio"),
     desired_domain: Optional[str] = Form(None),
     ecommerce_connected_to_erp: bool = Form(False),
@@ -161,7 +160,7 @@ def signup_submit(
             "registro.html", {"request": request, "error": "Ese subdominio ya está en uso"}, status_code=400
         )
 
-    if not (has_erp or has_ecommerce or has_landing or has_alexio):
+    if not (has_erp or has_ecommerce or has_landing):
         return _templates().TemplateResponse(
             "registro.html", {"request": request, "error": "Elegí al menos un producto"}, status_code=400
         )
@@ -191,7 +190,6 @@ def signup_submit(
         has_erp=has_erp,
         has_ecommerce=has_ecommerce,
         has_landing=has_landing,
-        has_alexio=has_alexio,
     )
     session.add(tenant)
     try:
@@ -248,7 +246,7 @@ def signup_submit(
     # Solicitud de dominio propio -- nunca se compra en el acto (nunca se
     # llama a GoDaddyClient.register_domain acá). Queda pendiente para que
     # el SuperAdmin la confirme y compre a mano desde /tenants/{id}/domains.
-    if domain_choice == "comprar" and desired_domain and (has_landing or has_ecommerce or has_alexio):
+    if domain_choice == "comprar" and desired_domain and (has_landing or has_ecommerce):
         domain_clean = desired_domain.strip().lower()
         if domain_clean and not session.exec(select(TenantDomain).where(TenantDomain.domain == domain_clean)).first():
             pending_domain = TenantDomain(
@@ -277,7 +275,7 @@ def signup_submit(
         )
 
     request.session["user_id"] = admin_user.id
-    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing, "alexio": tenant.has_alexio}
+    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
     request.session["tenant_flags"] = tenant_flags
     # nav_view NO se setea acá a propósito -- "/" muestra el hub de entrada
     # hasta que el tenant elige un módulo (ver main.py::get_dashboard). Se
@@ -314,7 +312,6 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
         "erp": tenant.has_erp if tenant else True,
         "ecommerce": tenant.has_ecommerce if tenant else True,
         "landing": tenant.has_landing if tenant else True,
-        "alexio": tenant.has_alexio if tenant else False,
     }
     request.session["tenant_flags"] = tenant_flags
     request.session.pop("nav_view", None)

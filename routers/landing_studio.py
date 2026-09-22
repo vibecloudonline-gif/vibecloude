@@ -78,6 +78,61 @@ async def landing_studio_generate(
     }
 
 
+@router.post("/panel/landing/desde-oferta/{offer_id}")
+async def landing_from_offer(
+    offer_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    import json as _json
+
+    from database.models import Offer
+    from sqlmodel import select
+
+    SettingsService.ensure_admin(user)
+
+    offer = session.exec(
+        select(Offer).where(Offer.id == offer_id, Offer.tenant_id == tenant_id)
+    ).first()
+    if not offer:
+        raise HTTPException(404, "Oferta no encontrada")
+    if offer.status != "validated":
+        raise HTTPException(400, "La oferta debe estar validada antes de crear un sitio")
+
+    differentiators = []
+    if offer.differentiators_json:
+        try:
+            differentiators = _json.loads(offer.differentiators_json)
+        except _json.JSONDecodeError:
+            pass
+
+    idea = (
+        f"{offer.title}\n\n"
+        f"Propuesta de valor: {offer.value_proposition}\n"
+        f"Estructura de precio: {offer.price_structure}\n"
+        f"CTA: {offer.cta_text}\n"
+    )
+    if differentiators:
+        idea += "Diferenciadores: " + ", ".join(differentiators) + "\n"
+
+    try:
+        content, provider_used = await ai_gateway_service.generate_landing_content_cascade(idea)
+    except LandingGenerationError as exc:
+        raise HTTPException(422, str(exc))
+
+    landing = save_landing(session, tenant_id, idea, content)
+
+    return {
+        "status": "success",
+        "landing_id": landing.id,
+        "content": content.model_dump(),
+        "provider_used": provider_used,
+        "public_url": "/landing",
+    }
+
+
 @router.get("/landing", response_class=HTMLResponse)
 def storefront_landing_page(
     request: Request,

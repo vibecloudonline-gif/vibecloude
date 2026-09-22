@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Alex IO{% endblock %}
+{% block title %}Dashboard - VibeCloud{% endblock %}
 
 {% block content %}
 <!-- Stats Grid -->
@@ -59,7 +59,7 @@
         </div>
     </div>
 
-    {% set view = request.session.get('nav_view') or ['ecommerce', 'landing', 'alexio'] %}
+    {% set view = request.session.get('nav_view') or ['ecommerce', 'landing'] %}
     {% endif %}
     {% if "ecommerce" in view %}
     <!-- Ecommerce (storefront propio) -->
@@ -71,9 +71,9 @@
         </div>
         <div class="stat-label">Tienda Online</div>
         <div class="stat-card-body">
-            <div class="stat-value" style="color: var(--accent-color);">Ecommerce</div>
+            <div class="stat-value" style="color: var(--accent-color);">Activa</div>
         </div>
-        <a href="/tienda" target="_blank" style="font-size: 0.85rem; color: var(--accent-color); text-decoration: none; margin-top: 4px;">Ver tienda →</a>
+        <a href="/tienda" target="_blank" class="stat-link">Ver tienda →</a>
     </div>
     {% endif %}
 </div>
@@ -125,7 +125,7 @@
 {% if "erp" in view or "ecommerce" in view %}
 <!-- Actividad Reciente -->
 <div class="glass-card">
-    <h2 style="margin-bottom: 16px;">Actividad Reciente</h2>
+    <h2 class="section-title">Actividad Reciente</h2>
 
     <div class="table-container">
         <table>
@@ -145,11 +145,11 @@
                     <td>{{ sale.timestamp.strftime('%H:%M') }}</td>
                     <td>Contado</td>
                     <td>${{ sale.total_amount }}</td>
-                    <td><span style="color: green;">Completado</span></td>
+                    <td><span class="status-badge status-badge-success">Completado</span></td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted);">No hay ventas recientes</td>
+                    <td colspan="5" class="empty-state">No hay ventas recientes</td>
                 </tr>
                 {% endfor %}
             </tbody>

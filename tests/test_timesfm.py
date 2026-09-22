@@ -45,7 +45,7 @@ def _create_user(session: Session, username: str, password: str, tenant_id: int,
 
 
 def _make_tenant_with_admin(session):
-    tenant = Tenant(name="TestTenant", subdomain="test-timesfm", has_alexio=True, has_landing=True, has_ecommerce=True)
+    tenant = Tenant(name="TestTenant", subdomain="test-timesfm", has_landing=True, has_ecommerce=True)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

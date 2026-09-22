@@ -15,7 +15,7 @@ class ThemeUpdateRequest(BaseModel):
 async def update_store_theme(req: ThemeUpdateRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
     settings = db.exec(select(Settings).where(Settings.tenant_id == current_user.tenant_id)).first()
     if not settings:
-        settings = Settings(tenant_id=current_user.tenant_id, company_name="Alex IO", ui_theme=req.theme_id)
+        settings = Settings(tenant_id=current_user.tenant_id, company_name="VibeCloud", ui_theme=req.theme_id)
         db.add(settings)
     else:
         settings.ui_theme = req.theme_id
@@ -31,7 +31,7 @@ class OnboardingProgressRequest(BaseModel):
 async def update_onboarding_progress(req: OnboardingProgressRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
     settings = db.exec(select(Settings).where(Settings.tenant_id == current_user.tenant_id)).first()
     if not settings:
-        settings = Settings(tenant_id=current_user.tenant_id, company_name=req.company_name or "Alex IO", onboarding_step=req.step)
+        settings = Settings(tenant_id=current_user.tenant_id, company_name=req.company_name or "VibeCloud", onboarding_step=req.step)
         db.add(settings)
     else:
         settings.onboarding_step = req.step
@@ -85,7 +85,7 @@ async def get_public_store_info(db: Session = Depends(get_session), tenant_id: i
     settings = db.exec(select(Settings).where(Settings.tenant_id == tenant_id)).first()
     if not settings:
         return {
-            "company_name": "Alex IO",
+            "company_name": "VibeCloud",
             "logo_url": "/static/images/logo.png",
             "storefront_template": "elegante",
             "ui_theme": "standard"

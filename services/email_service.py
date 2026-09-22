@@ -23,7 +23,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from core.config import settings as app_settings
 
-EMAIL_CONFIRM_SALT = "alexio-email-confirm"
+EMAIL_CONFIRM_SALT = "vibecloud-email-confirm"
 EMAIL_CONFIRM_MAX_AGE = 60 * 60 * 24  # 24 horas
 
 
@@ -58,16 +58,16 @@ def send_confirmation_email(to_email: str, confirm_url: str, empresa: str) -> No
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER", "")
     password = os.getenv("SMTP_PASSWORD", "")
-    from_addr = os.getenv("EMAIL_FROM", user or "no-reply@alexio.online")
+    from_addr = os.getenv("EMAIL_FROM", user or "no-reply@vibecloud.com")
 
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Confirmá tu cuenta de {empresa} en Alex IO"
+    msg["Subject"] = f"Confirmá tu cuenta de {empresa} en VibeCloud"
     msg["From"] = from_addr
     msg["To"] = to_email
 
     text = f"Confirmá tu cuenta entrando a este link (vence en 24hs):\n{confirm_url}"
     html = f"""
-    <p>Confirmá tu cuenta de <strong>{empresa}</strong> en Alex IO entrando a este link:</p>
+    <p>Confirmá tu cuenta de <strong>{empresa}</strong> en VibeCloud entrando a este link:</p>
     <p><a href="{confirm_url}">{confirm_url}</a></p>
     <p style="color:#6b7280; font-size:0.85em;">Este link vence en 24 horas.</p>
     """

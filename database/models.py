@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-database/models.py — Alex IO SaaS
+database/models.py — VibeCloud SaaS
 =================================
 CORRECCIONES APLICADAS:
   1. ui_theme default unificado → "standard" (igual que la migración DB)
@@ -28,15 +28,15 @@ import os
 # ---------------------------------------------------------------------------
 # Cifrado de credenciales (FIX #7)
 # Requiere: pip install cryptography
-# Configurar variable de entorno: ALEXIO_FERNET_KEY=<fernet_key>
+# Configurar variable de entorno: VIBECLOUD_FERNET_KEY=<fernet_key>
 # Generar una vez con: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 # ---------------------------------------------------------------------------
 
 def _get_fernet() -> Fernet:
-    key = os.environ.get("ALEXIO_FERNET_KEY")
+    key = os.environ.get("VIBECLOUD_FERNET_KEY")
     if not key:
         raise RuntimeError(
-            "ALEXIO_FERNET_KEY no está configurada. "
+            "VIBECLOUD_FERNET_KEY no está configurada. "
             "Generá una clave con Fernet.generate_key() y agrégala como variable de entorno."
         )
     return Fernet(key.encode())
@@ -80,8 +80,6 @@ class Tenant(SQLModel, table=True):
     has_erp: bool = Field(default=False)
     has_ecommerce: bool = Field(default=True)
     has_landing: bool = Field(default=True)
-    has_alexio: bool = Field(default=True)
-
     users: List["User"] = Relationship(sa_relationship=relationship("User", back_populates="tenant"))
     settings: List["Settings"] = Relationship(sa_relationship=relationship("Settings", back_populates="tenant"))
 
@@ -112,7 +110,7 @@ class TenantDomain(SQLModel, table=True):
 
 class SupportTicket(SQLModel, table=True):
     """
-    Ticket de soporte de un tenant hacia Alex IO (centro de ayuda,
+    Ticket de soporte de un tenant hacia VibeCloud (centro de ayuda,
     /panel/ayuda). Cualquier usuario del tenant puede crearlo, no solo el
     admin; SuperAdmin los ve todos y responde -- ver routers/superadmin.py.
     """
@@ -141,7 +139,7 @@ class Settings(SQLModel, table=True):
     tenant_id: Optional[int] = Field(default=None, foreign_key="tenant.id")
     tenant: Optional[Tenant] = Relationship(sa_relationship=relationship("Tenant", back_populates="settings"))
 
-    company_name: str = Field(default="Alex IO")
+    company_name: str = Field(default="VibeCloud")
     logo_url: str = Field(default="/static/images/logo.png")
     tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), sa_column=Column(Numeric(5, 4), nullable=True))
     printer_name: Optional[str] = Field(default=None)
@@ -792,7 +790,7 @@ class UIConfig(SQLModel, table=True):
 
 
 # ===========================================================================
-# ALEX IO — VALIDATION PIPELINE
+# VIBECLOUD — VALIDATION PIPELINE
 # ===========================================================================
 
 class ResearchProject(SQLModel, table=True):
@@ -926,24 +924,6 @@ class DebateObjection(SQLModel, table=True):
     order_index: int = Field(default=0)
 
     debate: Optional[ValidationDebate] = Relationship(sa_relationship=relationship("ValidationDebate", back_populates="objections"))
-
-
-class AlexAgentContext(SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("tenant_id", name="uq_alexagentcontext_tenant"),
-    )
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenant.id", index=True)
-
-    personality_tone: str = Field(default="profesional_cercano")
-    business_description: Optional[str] = None
-    validated_offer_id: Optional[int] = Field(default=None, foreign_key="offer.id")
-    custom_instructions: Optional[str] = None
-    faq_entries_json: Optional[str] = None
-
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
 
 
 # ===========================================================================

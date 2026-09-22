@@ -20,60 +20,7 @@ class GeminiUnavailableError(ValueError):
 class AIBrainService:
     @staticmethod
     def build_dynamic_prompt(session: Session, tenant_id: int) -> str | None:
-        from database.models import AlexAgentContext, DebateObjection, Offer, ValidationDebate
-        ctx = session.exec(
-            select(AlexAgentContext).where(AlexAgentContext.tenant_id == tenant_id)
-        ).first()
-        if not ctx:
-            return None
-
-        parts = []
-        tone_map = {
-            "profesional_cercano": "profesional pero cercano y amigable",
-            "formal": "formal y corporativo",
-            "casual": "casual y relajado",
-            "tecnico": "tecnico y preciso",
-        }
-        parts.append(f"Tu tono de comunicacion es {tone_map.get(ctx.personality_tone, ctx.personality_tone)}.")
-
-        if ctx.business_description:
-            parts.append(f"El negocio se dedica a: {ctx.business_description}")
-
-        if ctx.validated_offer_id:
-            offer = session.exec(
-                select(Offer).where(Offer.id == ctx.validated_offer_id, Offer.tenant_id == tenant_id)
-            ).first()
-            if offer and offer.status == "validated":
-                parts.append(
-                    f"La oferta validada del negocio es: {offer.title}. "
-                    f"Propuesta de valor: {offer.value_proposition}. "
-                    f"Precio: {offer.price_structure}."
-                )
-                if offer.debate and offer.debate.objections:
-                    resolved = [
-                        o for o in offer.debate.objections
-                        if o.resolution_status == "resolved" and o.resolved_text
-                    ]
-                    if resolved:
-                        parts.append("Objeciones resueltas que debes saber responder:")
-                        for o in resolved:
-                            parts.append(f"- {o.objection_text} -> {o.resolved_text}")
-
-        if ctx.custom_instructions:
-            parts.append(f"Instrucciones adicionales del duenio: {ctx.custom_instructions}")
-
-        if ctx.faq_entries_json:
-            import json
-            try:
-                faqs = json.loads(ctx.faq_entries_json)
-                if faqs:
-                    parts.append("Preguntas frecuentes configuradas:")
-                    for faq in faqs:
-                        parts.append(f"P: {faq.get('q', '')} R: {faq.get('a', '')}")
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-        return "\n".join(parts)
+        return None
 
     @staticmethod
     def _get_api_key(session: Session, tenant_id: int) -> str:

@@ -46,9 +46,6 @@ class ThemeTokens(BaseModel):
     shadow_sm: str = "0 1px 2px rgba(0,0,0,0.05)"
     shadow_md: str = "0 4px 12px rgba(0,0,0,0.08)"
     shadow_lg: str = "0 8px 24px rgba(0,0,0,0.12)"
-    # AlexIO bubble
-    alexio_bg: str = "#0f172a"
-    alexio_text: str = "#ffffff"
 
 
 # ── Section Config ────────────────────────────────────────────────────────
@@ -67,7 +64,7 @@ class NavigationConfig(BaseModel):
     header_style: str = "standard"
     show_search: bool = True
     show_cart: bool = True
-    show_alexio: bool = True
+    show_chat: bool = True
     footer_columns: int = 1
 
 class CommerceConfig(BaseModel):
@@ -112,8 +109,6 @@ THEME_PRESETS: dict[str, dict] = {
         "shadow_sm": "0 1px 2px rgba(0,0,0,0.04)",
         "shadow_md": "0 4px 12px rgba(0,0,0,0.06)",
         "shadow_lg": "0 8px 24px rgba(0,0,0,0.1)",
-        "alexio_bg": "#0f172a",
-        "alexio_text": "#ffffff",
     },
     "urbano": {
         "preset": "urbano",
@@ -137,8 +132,6 @@ THEME_PRESETS: dict[str, dict] = {
         "shadow_sm": "0 1px 3px rgba(0,0,0,0.3)",
         "shadow_md": "0 4px 16px rgba(0,0,0,0.4)",
         "shadow_lg": "0 8px 32px rgba(0,0,0,0.5)",
-        "alexio_bg": "#f97316",
-        "alexio_text": "#ffffff",
     },
     "natural": {
         "preset": "natural",
@@ -162,8 +155,6 @@ THEME_PRESETS: dict[str, dict] = {
         "shadow_sm": "0 1px 3px rgba(0,0,0,0.04)",
         "shadow_md": "0 4px 12px rgba(22,101,52,0.08)",
         "shadow_lg": "0 8px 24px rgba(22,101,52,0.12)",
-        "alexio_bg": "#166534",
-        "alexio_text": "#ffffff",
     },
     "tech": {
         "preset": "tech",
@@ -187,8 +178,6 @@ THEME_PRESETS: dict[str, dict] = {
         "shadow_sm": "0 1px 3px rgba(0,0,0,0.4)",
         "shadow_md": "0 4px 16px rgba(6,182,212,0.1)",
         "shadow_lg": "0 8px 32px rgba(129,140,248,0.15)",
-        "alexio_bg": "#818cf8",
-        "alexio_text": "#ffffff",
     },
 }
 
@@ -318,8 +307,6 @@ def render_theme_css(theme: ThemeTokens) -> str:
     --sf-shadow-sm: {theme.shadow_sm};
     --sf-shadow-md: {theme.shadow_md};
     --sf-shadow-lg: {theme.shadow_lg};
-    --sf-alexio-bg: {theme.alexio_bg};
-    --sf-alexio-text: {theme.alexio_text};
 }}"""
 
 

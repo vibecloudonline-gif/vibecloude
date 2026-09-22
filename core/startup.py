@@ -37,7 +37,7 @@ def _repair_schema(eng):
         for tbl in [
             "researchproject", "researchlisting", "researchdemand",
             "competitoranalysis", "offer", "validationdebate",
-            "debateobjection", "alexagentcontext",
+            "debateobjection",
         ]:
             if tbl not in existing_tables:
                 create_db_and_tables()

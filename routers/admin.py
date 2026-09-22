@@ -30,7 +30,7 @@ import requests
 router = APIRouter()
 
 SUPPORT_CONSTITUTION = """
-Eres el asistente oficial de soporte del sistema Alex IO.
+Eres el asistente oficial de soporte del sistema VibeCloud.
 Reglas:
 - Responde en español, tono breve, claro y amable.
 - No inventes datos: usa solo la información suministrada por el backend (KPIs y contexto).
@@ -46,7 +46,7 @@ def _templates():
     return CompatTemplates(directory="templates")
 
 
-_NAV_MODULES = ("erp", "ecommerce", "landing", "alexio")
+_NAV_MODULES = ("erp", "ecommerce", "landing")
 
 
 @router.post("/panel/nav-view")

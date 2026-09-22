@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Onboarding - Alex IO</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=10">
+    <title>Onboarding - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=11">
     <style>
         body { min-height: 100vh; background: var(--main-bg); margin: 0; }
 
@@ -182,26 +182,28 @@
         .template-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 16px;
         }
         @media (max-width: 540px) { .template-grid { grid-template-columns: 1fr; } }
         .tpl-card {
             position: relative;
             border: 2px solid var(--border-color);
             border-radius: var(--radius-md);
-            padding: 18px;
+            padding: 0;
             cursor: pointer;
             transition: var(--transition);
             background: var(--surface-color);
+            overflow: hidden;
         }
-        .tpl-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
-        .tpl-card.selected { border-color: var(--primary-color); background: var(--primary-light); }
+        .tpl-card:hover { border-color: var(--border-strong); box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+        .tpl-card.selected { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(249,115,22,0.2); }
         .tpl-card input[type="radio"] { display: none; }
         .tpl-card-check {
-            position: absolute; top: 12px; right: 12px;
+            position: absolute; top: 12px; right: 12px; z-index: 2;
             width: 22px; height: 22px;
             border-radius: 50%;
-            border: 2px solid var(--border-color);
+            border: 2px solid rgba(255,255,255,0.6);
+            background: rgba(255,255,255,0.3);
             display: flex; align-items: center; justify-content: center;
             transition: var(--transition);
         }
@@ -216,15 +218,114 @@
             transform: rotate(45deg);
             margin-top: -2px;
         }
+
+        /* Mini storefront preview */
+        .tpl-preview {
+            width: 100%;
+            height: 160px;
+            overflow: hidden;
+            position: relative;
+        }
+        .tpl-preview-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .tpl-preview-nav-links {
+            display: flex;
+            gap: 8px;
+            font-size: 6px;
+            font-weight: 400;
+            opacity: 0.7;
+        }
+        .tpl-preview-hero {
+            padding: 12px 10px 8px;
+            text-align: center;
+        }
+        .tpl-preview-hero h4 {
+            font-size: 10px;
+            margin: 0 0 3px;
+            line-height: 1.2;
+        }
+        .tpl-preview-hero p {
+            font-size: 6px;
+            margin: 0 0 6px;
+            opacity: 0.6;
+        }
+        .tpl-preview-hero .tpl-btn {
+            display: inline-block;
+            padding: 3px 10px;
+            font-size: 6px;
+            font-weight: 600;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .tpl-preview-products {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            padding: 6px 10px 10px;
+        }
+        .tpl-preview-product {
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .tpl-preview-product-img {
+            width: 100%;
+            height: 28px;
+            opacity: 0.15;
+        }
+        .tpl-preview-product-info {
+            padding: 3px 4px;
+        }
+        .tpl-preview-product-info .name {
+            height: 3px;
+            width: 70%;
+            border-radius: 1px;
+            margin-bottom: 2px;
+            opacity: 0.3;
+        }
+        .tpl-preview-product-info .price {
+            height: 3px;
+            width: 35%;
+            border-radius: 1px;
+            opacity: 0.5;
+        }
+
+        /* Card info area */
+        .tpl-info {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-color);
+        }
+        .tpl-info-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .tpl-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--text-main); }
+        .tpl-card p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
         .tpl-swatch {
-            display: flex; gap: 4px; margin-bottom: 10px;
+            display: flex; gap: 3px;
         }
         .tpl-swatch span {
-            width: 18px; height: 18px; border-radius: 50%;
+            width: 14px; height: 14px; border-radius: 50%;
             border: 1px solid rgba(0,0,0,0.08);
         }
-        .tpl-card h3 { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; color: var(--text-main); }
-        .tpl-card p { font-size: 0.78rem; color: var(--text-muted); margin: 0; line-height: 1.4; }
+        .tpl-font-tag {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            background: var(--bg-main);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 6px;
+            display: inline-block;
+        }
 
         /* Buttons */
         .ob-actions {
@@ -313,7 +414,7 @@
 <body>
     <!-- Header -->
     <div class="ob-header">
-        <div class="ob-header-logo">ALEX IO</div>
+        <div class="ob-header-logo">VIBECLOUD</div>
         <h1>Configuremos tu plataforma</h1>
         <p>Personalizamos tu landing y tu tienda en minutos. Todo es editable despues desde el panel.</p>
     </div>
@@ -407,49 +508,176 @@
 
                 <form id="wizard-ecommerce-form" onsubmit="submitEcommerce(event)">
                     <div class="template-grid">
+                        <!-- Elegante -->
                         <label class="tpl-card {% if settings.storefront_template == 'elegante' %}selected{% endif %}" onclick="selectTemplate(this)">
                             <input type="radio" name="storefront_template" value="elegante" {% if settings.storefront_template == 'elegante' %}checked{% endif %}>
                             <div class="tpl-card-check"></div>
-                            <div class="tpl-swatch">
-                                <span style="background:#87CEEB;"></span>
-                                <span style="background:#ffffff;"></span>
-                                <span style="background:#FF6A00;"></span>
+                            <div class="tpl-preview" style="background:#fafaf9;">
+                                <div class="tpl-preview-nav" style="background:#0f172a; color:#fafaf9;">
+                                    <span style="font-family:'Playfair Display',serif;">Mi Tienda</span>
+                                    <div class="tpl-preview-nav-links"><span>Inicio</span><span>Catalogo</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Playfair Display',serif; color:#0f172a;">Bienvenido a nuestra tienda</h4>
+                                    <p style="color:#78716c;">Productos seleccionados con cuidado</p>
+                                    <span class="tpl-btn" style="background:#c9a96e; color:#fff; border-radius:2px;">Ver catalogo</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;">
+                                        <div class="tpl-preview-product-img" style="background:#0f172a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#0f172a;"></div><div class="price" style="background:#c9a96e;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;">
+                                        <div class="tpl-preview-product-img" style="background:#0f172a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#0f172a;"></div><div class="price" style="background:#c9a96e;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;">
+                                        <div class="tpl-preview-product-img" style="background:#0f172a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#0f172a;"></div><div class="price" style="background:#c9a96e;"></div></div>
+                                    </div>
+                                </div>
                             </div>
-                            <h3>Elegante</h3>
-                            <p>Celeste, blanco y naranja. Ideal para comercio general, retail y servicios profesionales.</p>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Elegante</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#0f172a;"></span>
+                                        <span style="background:#c9a96e;"></span>
+                                        <span style="background:#fafaf9;"></span>
+                                    </div>
+                                </div>
+                                <p>Sofisticado y limpio. Ideal para retail, joyeria y servicios profesionales.</p>
+                                <span class="tpl-font-tag" style="font-family:'Playfair Display',serif;">Playfair Display + Inter</span>
+                            </div>
                         </label>
+
+                        <!-- Urbano -->
                         <label class="tpl-card {% if settings.storefront_template == 'urbano' %}selected{% endif %}" onclick="selectTemplate(this)">
                             <input type="radio" name="storefront_template" value="urbano" {% if settings and settings.storefront_template == 'urbano' %}checked{% endif %}>
                             <div class="tpl-card-check"></div>
-                            <div class="tpl-swatch">
-                                <span style="background:#1a1a1a;"></span>
-                                <span style="background:#c9a93e;"></span>
-                                <span style="background:#333;"></span>
+                            <div class="tpl-preview" style="background:#0a0a0a;">
+                                <div class="tpl-preview-nav" style="background:#171717; color:#fafafa;">
+                                    <span style="font-family:'Space Grotesk',sans-serif;">MI TIENDA</span>
+                                    <div class="tpl-preview-nav-links"><span>Inicio</span><span>Catalogo</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Space Grotesk',sans-serif; color:#fafafa;">Lo ultimo esta aca</h4>
+                                    <p style="color:#a3a3a3;">Encontra lo que buscas</p>
+                                    <span class="tpl-btn" style="background:#f97316; color:#fff; border-radius:8px;">Explorar</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#fafafa;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#fafafa;"></div><div class="price" style="background:#f97316;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#fafafa;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#fafafa;"></div><div class="price" style="background:#f97316;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#fafafa;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#fafafa;"></div><div class="price" style="background:#f97316;"></div></div>
+                                    </div>
+                                </div>
                             </div>
-                            <h3>Urbano</h3>
-                            <p>Oscuro con acentos dorados. Perfecto para streetwear, moda urbana y lifestyle.</p>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Urbano</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#0a0a0a;"></span>
+                                        <span style="background:#f97316;"></span>
+                                        <span style="background:#fafafa; border-color:rgba(0,0,0,0.15);"></span>
+                                    </div>
+                                </div>
+                                <p>Oscuro y audaz. Perfecto para streetwear, moda urbana y lifestyle.</p>
+                                <span class="tpl-font-tag" style="font-family:'Space Grotesk',sans-serif;">Space Grotesk + Inter</span>
+                            </div>
                         </label>
+
+                        <!-- Natural -->
                         <label class="tpl-card {% if settings.storefront_template == 'natural' %}selected{% endif %}" onclick="selectTemplate(this)">
                             <input type="radio" name="storefront_template" value="natural" {% if settings and settings.storefront_template == 'natural' %}checked{% endif %}>
                             <div class="tpl-card-check"></div>
-                            <div class="tpl-swatch">
-                                <span style="background:#8fbc8f;"></span>
-                                <span style="background:#f5f0e8;"></span>
-                                <span style="background:#6b8e6b;"></span>
+                            <div class="tpl-preview" style="background:#fefdf8;">
+                                <div class="tpl-preview-nav" style="background:#166534; color:#fefdf8;">
+                                    <span style="font-family:'Lora',serif;">Mi Tienda</span>
+                                    <div class="tpl-preview-nav-links"><span>Inicio</span><span>Catalogo</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Lora',serif; color:#292524;">Productos naturales</h4>
+                                    <p style="color:#78716c;">Hechos con cuidado y amor</p>
+                                    <span class="tpl-btn" style="background:#ca8a04; color:#fff; border-radius:999px;">Descubrir</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#166534;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#292524;"></div><div class="price" style="background:#ca8a04;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#166534;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#292524;"></div><div class="price" style="background:#ca8a04;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#166534;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#292524;"></div><div class="price" style="background:#ca8a04;"></div></div>
+                                    </div>
+                                </div>
                             </div>
-                            <h3>Natural</h3>
-                            <p>Salvia, beige y tonos organicos. Para marcas artesanales, eco y bienestar.</p>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Natural</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#166534;"></span>
+                                        <span style="background:#ca8a04;"></span>
+                                        <span style="background:#fefdf8;"></span>
+                                    </div>
+                                </div>
+                                <p>Organico y calido. Para marcas artesanales, eco y bienestar.</p>
+                                <span class="tpl-font-tag" style="font-family:'Lora',serif;">Lora + Inter</span>
+                            </div>
                         </label>
+
+                        <!-- Tech -->
                         <label class="tpl-card {% if settings.storefront_template == 'tech' %}selected{% endif %}" onclick="selectTemplate(this)">
                             <input type="radio" name="storefront_template" value="tech" {% if settings and settings.storefront_template == 'tech' %}checked{% endif %}>
                             <div class="tpl-card-check"></div>
-                            <div class="tpl-swatch">
-                                <span style="background:#0c0c1e;"></span>
-                                <span style="background:#3b82f6;"></span>
-                                <span style="background:#06b6d4;"></span>
+                            <div class="tpl-preview" style="background:#030712;">
+                                <div class="tpl-preview-nav" style="background:#111827; color:#f9fafb;">
+                                    <span style="font-family:'JetBrains Mono',monospace;">MI_TIENDA</span>
+                                    <div class="tpl-preview-nav-links"><span>Inicio</span><span>Catalogo</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'JetBrains Mono',monospace; color:#f9fafb;">Tecnologia de punta</h4>
+                                    <p style="color:#9ca3af;">Lo mejor en gadgets y electronica</p>
+                                    <span class="tpl-btn" style="background:#06b6d4; color:#fff; border-radius:6px;">Explorar</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#818cf8;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#f9fafb;"></div><div class="price" style="background:#06b6d4;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#06b6d4;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#f9fafb;"></div><div class="price" style="background:#818cf8;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#818cf8;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#f9fafb;"></div><div class="price" style="background:#06b6d4;"></div></div>
+                                    </div>
+                                </div>
                             </div>
-                            <h3>Tech</h3>
-                            <p>Futurista con azul electrico. Ideal para electronica, gadgets y software.</p>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Tech</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#818cf8;"></span>
+                                        <span style="background:#06b6d4;"></span>
+                                        <span style="background:#030712;"></span>
+                                    </div>
+                                </div>
+                                <p>Futurista y moderno. Ideal para electronica, gadgets y software.</p>
+                                <span class="tpl-font-tag" style="font-family:'JetBrains Mono',monospace;">JetBrains Mono + Inter</span>
+                            </div>
                         </label>
                     </div>
 

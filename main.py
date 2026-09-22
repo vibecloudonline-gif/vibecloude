@@ -1,4 +1,4 @@
-"""Alex IO SaaS — Main Application (Refactored)"""
+"""VibeCloud SaaS — Main Application (Refactored)"""
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,8 +51,6 @@ from routers.help import router as help_router
 from routers.payments import router as payments_router
 from routers.research import router as research_router
 from routers.offer import router as offer_router
-from routers.alex_agent_config import router as alex_agent_config_router
-from routers.forecast import router as forecast_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
@@ -69,7 +67,7 @@ if HAS_SLOWAPI:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
 
-app = FastAPI(title="Alex IO", lifespan=lifespan)
+app = FastAPI(title="VibeCloud", lifespan=lifespan)
 if HAS_SLOWAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -81,9 +79,9 @@ def _get_cors_origins() -> list[str]:
     raw = os.getenv("CORS_ORIGINS", "")
     if not raw:
         if env == "production":
-            raw = "https://alexio-frontend.onrender.com,https://alexio.onrender.com"
+            raw = "https://vibecloud-frontend.onrender.com,https://vibecloud.onrender.com"
         else:
-            raw = "http://localhost,http://127.0.0.1,https://alexio-frontend.onrender.com"
+            raw = "http://localhost,http://127.0.0.1,https://vibecloud-frontend.onrender.com"
     origins = [o.strip() for o in raw.split(",") if o.strip()]
     if env == "production":
         unsafe = [o for o in origins if "localhost" in o or "127.0.0.1" in o]
@@ -130,8 +128,6 @@ app.include_router(help_router)
 app.include_router(payments_router)
 app.include_router(research_router)
 app.include_router(offer_router)
-app.include_router(alex_agent_config_router)
-app.include_router(forecast_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])

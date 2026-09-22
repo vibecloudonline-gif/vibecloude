@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Configuración - Alex IO (v2.5){% endblock %}
+{% block title %}Configuración - VibeCloud (v2.5){% endblock %}
 
 {% block content %}
 <div class="glass-card animate-fade-in">
@@ -10,14 +10,35 @@
     </div>
 
     <!-- Tabs -->
-    <div class="nav-links" style="margin-bottom: 32px; display: inline-flex;">
-        <button onclick="switchTab('general')" id="tab-general" class="tab-btn active btn-secondary">Sistema</button>
-        <button onclick="switchTab('users')" id="tab-users" class="tab-btn btn-secondary">Usuarios</button>
-        <button onclick="switchTab('import')" id="tab-import" class="tab-btn btn-secondary">Importación</button>
-        <button onclick="switchTab('taxes')" id="tab-taxes" class="tab-btn btn-secondary">Impuestos</button>
-        <button onclick="switchTab('backup')" id="tab-backup" class="tab-btn btn-secondary">Respaldo</button>
-        <button onclick="switchTab('security')" id="tab-security" class="tab-btn btn-secondary">Seguridad</button>
-        <button onclick="switchTab('ai')" id="tab-ai" class="tab-btn btn-secondary">IA</button>
+    <div class="settings-tabs">
+        <button onclick="switchTab('general')" id="tab-general" class="tab-btn active">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a6.759 6.759 0 010 .255c-.007.38.138.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.38-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            Sistema
+        </button>
+        <button onclick="switchTab('users')" id="tab-users" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+            Usuarios
+        </button>
+        <button onclick="switchTab('import')" id="tab-import" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+            Importación
+        </button>
+        <button onclick="switchTab('taxes')" id="tab-taxes" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+            Impuestos
+        </button>
+        <button onclick="switchTab('backup')" id="tab-backup" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125" /></svg>
+            Respaldo
+        </button>
+        <button onclick="switchTab('security')" id="tab-security" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+            Seguridad
+        </button>
+        <button onclick="switchTab('ai')" id="tab-ai" class="tab-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>
+            IA
+        </button>
     </div>
 
     <!-- GENERAL SETTINGS -->
@@ -37,14 +58,74 @@
                         <option value="minimalist">Minimalista (Blanco y Negro)</option>
                     </select>
                 </div>
-                <div>
-                    <label>Plantilla de Tienda Online (Storefront)</label>
-                    <select id="s-storefront-template" name="storefront_template" class="form-input" style="border: 2px solid var(--primary-color); font-weight: bold;">
-                        <option value="elegante">🩵 Elegante (Celeste, Blanco y Naranja - Default)</option>
-                        <option value="urbano">🖤 Urbano (Streetwear Oscuro y Dorado)</option>
-                        <option value="natural">🌿 Natural (Salvia, Beige y Orgánico)</option>
-                        <option value="tech">⚡ Tech (Futurista, Azul Eléctrico y Glass)</option>
-                    </select>
+                <div style="grid-column: 1 / -1;">
+                    <label style="margin-bottom:12px; display:block;">Plantilla de Tienda Online (Storefront)</label>
+                    <div class="sf-tpl-grid">
+                        <label class="sf-tpl-card" data-value="elegante" onclick="selectSfTemplate(this)">
+                            <input type="radio" name="storefront_template" value="elegante">
+                            <div class="sf-tpl-preview" style="background:#fafaf9;">
+                                <div class="sf-tpl-nav" style="background:#0f172a; color:#fafaf9;"><span style="font-family:'Playfair Display',serif; font-size:7px;">Mi Tienda</span></div>
+                                <div class="sf-tpl-hero"><div class="sf-tpl-hero-title" style="background:#0f172a;"></div><div class="sf-tpl-hero-btn" style="background:#c9a96e;"></div></div>
+                                <div class="sf-tpl-products">
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;"><div class="sf-tpl-prod-img" style="background:#0f172a;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;"><div class="sf-tpl-prod-img" style="background:#0f172a;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.06); border-radius:4px;"><div class="sf-tpl-prod-img" style="background:#0f172a;"></div></div>
+                                </div>
+                            </div>
+                            <div class="sf-tpl-label">
+                                <strong>Elegante</strong>
+                                <div class="sf-tpl-swatches"><span style="background:#0f172a;"></span><span style="background:#c9a96e;"></span><span style="background:#fafaf9;"></span></div>
+                            </div>
+                        </label>
+                        <label class="sf-tpl-card" data-value="urbano" onclick="selectSfTemplate(this)">
+                            <input type="radio" name="storefront_template" value="urbano">
+                            <div class="sf-tpl-preview" style="background:#0a0a0a;">
+                                <div class="sf-tpl-nav" style="background:#171717; color:#fafafa;"><span style="font-family:'Space Grotesk',sans-serif; font-size:7px;">MI TIENDA</span></div>
+                                <div class="sf-tpl-hero"><div class="sf-tpl-hero-title" style="background:#fafafa;"></div><div class="sf-tpl-hero-btn" style="background:#f97316;"></div></div>
+                                <div class="sf-tpl-products">
+                                    <div class="sf-tpl-prod" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;"><div class="sf-tpl-prod-img" style="background:#fafafa; opacity:0.15;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;"><div class="sf-tpl-prod-img" style="background:#fafafa; opacity:0.15;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#171717; border:1px solid rgba(255,255,255,0.1); border-radius:12px;"><div class="sf-tpl-prod-img" style="background:#fafafa; opacity:0.15;"></div></div>
+                                </div>
+                            </div>
+                            <div class="sf-tpl-label">
+                                <strong>Urbano</strong>
+                                <div class="sf-tpl-swatches"><span style="background:#0a0a0a;"></span><span style="background:#f97316;"></span><span style="background:#fafafa; border-color:rgba(0,0,0,0.15);"></span></div>
+                            </div>
+                        </label>
+                        <label class="sf-tpl-card" data-value="natural" onclick="selectSfTemplate(this)">
+                            <input type="radio" name="storefront_template" value="natural">
+                            <div class="sf-tpl-preview" style="background:#fefdf8;">
+                                <div class="sf-tpl-nav" style="background:#166534; color:#fefdf8;"><span style="font-family:'Lora',serif; font-size:7px;">Mi Tienda</span></div>
+                                <div class="sf-tpl-hero"><div class="sf-tpl-hero-title" style="background:#292524;"></div><div class="sf-tpl-hero-btn" style="background:#ca8a04; border-radius:999px;"></div></div>
+                                <div class="sf-tpl-products">
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;"><div class="sf-tpl-prod-img" style="background:#166534;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;"><div class="sf-tpl-prod-img" style="background:#166534;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#fff; border:1px solid rgba(0,0,0,0.07); border-radius:16px;"><div class="sf-tpl-prod-img" style="background:#166534;"></div></div>
+                                </div>
+                            </div>
+                            <div class="sf-tpl-label">
+                                <strong>Natural</strong>
+                                <div class="sf-tpl-swatches"><span style="background:#166534;"></span><span style="background:#ca8a04;"></span><span style="background:#fefdf8;"></span></div>
+                            </div>
+                        </label>
+                        <label class="sf-tpl-card" data-value="tech" onclick="selectSfTemplate(this)">
+                            <input type="radio" name="storefront_template" value="tech">
+                            <div class="sf-tpl-preview" style="background:#030712;">
+                                <div class="sf-tpl-nav" style="background:#111827; color:#f9fafb;"><span style="font-family:'JetBrains Mono',monospace; font-size:7px;">MI_TIENDA</span></div>
+                                <div class="sf-tpl-hero"><div class="sf-tpl-hero-title" style="background:#f9fafb;"></div><div class="sf-tpl-hero-btn" style="background:#06b6d4;"></div></div>
+                                <div class="sf-tpl-products">
+                                    <div class="sf-tpl-prod" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;"><div class="sf-tpl-prod-img" style="background:#818cf8;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;"><div class="sf-tpl-prod-img" style="background:#06b6d4;"></div></div>
+                                    <div class="sf-tpl-prod" style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius:8px;"><div class="sf-tpl-prod-img" style="background:#818cf8;"></div></div>
+                                </div>
+                            </div>
+                            <div class="sf-tpl-label">
+                                <strong>Tech</strong>
+                                <div class="sf-tpl-swatches"><span style="background:#818cf8;"></span><span style="background:#06b6d4;"></span><span style="background:#030712;"></span></div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -56,7 +137,7 @@
             <input type="file" id="s-logo" name="logo_file" accept="image/*" class="form-input" style="padding: 8px;">
 
 
-            <h4 style="margin-top: 24px; margin-bottom: 12px; border-top: 1px solid #eee; padding-top: 16px;">
+            <h4 style="margin-top: 24px; margin-bottom: 12px; border-top: 1px solid var(--border-color); padding-top: 16px;">
                 Configuración de Etiquetas</h4>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
@@ -71,7 +152,7 @@
                         class="form-input">
                 </div>
             </div>
-            <p style="font-size: 0.8em; color: #666; margin-top: 8px;">
+            <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 8px;">
                 Estándar: 60x40mm. Otros comunes: 55x44mm, 50x25mm, 100x60mm.
             </p>
 
@@ -89,7 +170,7 @@
             <button type="submit" class="btn" style="margin-top: 8px;">Guardar</button>
             <button type="button" class="btn btn-secondary" style="margin-top: 8px; margin-left: 8px;" onclick="testAI()">Probar con ejemplo</button>
         </form>
-        <div id="ai-key-msg" style="margin-top: 12px; color:#0f766e; font-weight:600;"></div>
+        <div id="ai-key-msg" style="margin-top: 12px; font-weight: 600;"></div>
     </div>
 
     <!-- SECURITY -->
@@ -118,7 +199,7 @@
                 <small>Solo administradores pueden ejecutar este reset.</small>
             </form>
         </div>
-        <div id="security-msg" style="margin-top:12px;color:#0f766e;font-weight:600;"></div>
+        <div id="security-msg" style="margin-top: 12px; font-weight: 600;"></div>
     </div>
     <!-- USERS -->
     <div id="content-users" class="tab-content" style="display: none;">
@@ -163,7 +244,7 @@
                 </tbody>
             </table>
         </div>
-        <p style="color: #6F6A65; font-size: 0.9em; margin-top: 16px;">
+        <p style="color: var(--text-muted); font-size: 0.9em; margin-top: 16px;">
             Estos impuestos se pueden aplicar opcionalmente a los productos o tickets.
         </p>
     </div>
@@ -174,9 +255,9 @@
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
             <!-- Products Import -->
-            <div style="border: 2px dashed #d4cbc0; padding: 24px; border-radius: 12px; text-align: center;">
+            <div style="border: 2px dashed var(--border-strong); padding: 24px; border-radius: var(--radius-lg); text-align: center;">
                 <h4>Productos</h4>
-                <p style="color: #6F6A65; font-size: 0.9rem; margin-bottom: 16px;">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
                     Columnas requeridas: Name, Price, Stock<br>
                     Opcionales: Barcode, Category, Cost, Description, CantBulto
                 </p>
@@ -187,9 +268,9 @@
             </div>
 
             <!-- Clients Import -->
-            <div style="border: 2px dashed #d4cbc0; padding: 24px; border-radius: 12px; text-align: center;">
+            <div style="border: 2px dashed var(--border-strong); padding: 24px; border-radius: var(--radius-lg); text-align: center;">
                 <h4>Clientes</h4>
-                <p style="color: #6F6A65; font-size: 0.9rem; margin-bottom: 16px;">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
                     Columnas requeridas: Name<br>
                     Opcionales: Phone, Email, Address
                 </p>
@@ -201,13 +282,13 @@
 
             <!-- Magic Button (Seed) -->
             <div
-                style="grid-column: span 2; border: 2px dashed #a78bfa; background: #f5f3ff; padding: 24px; border-radius: 12px; text-align: center;">
-                <h4 style="color: #7c3aed;">🪄 Botón Mágico (Datos de Prueba)</h4>
-                <p style="color: #6F6A65; font-size: 0.9rem; margin-bottom: 16px;">
+                style="grid-column: span 2; border: 2px dashed var(--info-border); background: var(--info-bg); padding: 24px; border-radius: var(--radius-lg); text-align: center;">
+                <h4 style="color: var(--info-color);">Datos de Prueba</h4>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
                     Si se borró la base de datos (por actualización), usa esto para cargar productos de ejemplo al
                     instante.
                 </p>
-                <button onclick="seedData()" class="btn" style="background-color: #7c3aed; color: white;">
+                <button onclick="seedData()" class="btn" style="background-color: var(--info-color); color: white;">
                     Restaurar Productos de Prueba
                 </button>
             </div>
@@ -217,13 +298,13 @@
     <!-- BACKUP -->
     <div id="content-backup" class="tab-content" style="display: none;">
         <h3 style="margin-bottom: 16px;">Respaldo de Base de Datos</h3>
-        <p style="color: #6F6A65; margin-bottom: 24px;">Genere snapshots comprimidos de la base y descárguelos para
+        <p style="color: var(--text-muted); margin-bottom: 24px;">Genere snapshots comprimidos de la base y descárguelos para
             recuperación ante fallas (compatible con despliegues en Supabase).</p>
 
         <div style="display:flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
-            <button onclick="createDbBackup()" class="btn" style="background-color:#080808;">💾 Generar backup
+            <button onclick="createDbBackup()" class="btn" style="background-color: var(--text-main);">Generar backup
                 (.json.gz)</button>
-            <a href="/api/backup" target="_blank" class="btn" style="text-decoration:none; background:#3d3832;">Descarga
+            <a href="/api/backup" target="_blank" class="btn btn-secondary" style="text-decoration: none;">Descarga
                 rápida JSON</a>
             <form id="restore-form" onsubmit="restoreBackup(event)" style="display:flex; gap:8px; align-items:center;">
                 <input type="file" id="restore-file" accept=".json,.gz" required>
@@ -231,9 +312,9 @@
             </form>
         </div>
 
-        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e0d6;">
-            <h4 style="margin-bottom: 12px; color: #ef4444;">⚠️ Restaurar Sistema</h4>
-            <p style="color: #6F6A65; font-size: 0.9em; margin-bottom: 16px;">
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+            <h4 style="margin-bottom: 12px; color: var(--danger-color);">Restaurar Sistema</h4>
+            <p style="color: var(--text-muted); font-size: 0.9em; margin-bottom: 16px;">
                 Cargue un archivo (.json o .json.gz) generado por la opción "Generar backup".
                 <strong>Esta acción borrará los datos actuales y restaurará el sistema al punto del backup.</strong>
             </p>
@@ -242,19 +323,19 @@
                     <label style="display:block; font-size: 0.8em; margin-bottom: 4px; font-weight: bold;">Archivo de
                         Backup</label>
                     <input type="file" name="file" accept=".json,.json.gz,application/json,application/gzip" required
-                        style="padding: 10px; border: 1px solid #ccc; width: 100%; border-radius: 8px;">
+                        class="form-input">
                 </div>
-                <button type="submit" class="btn" style="background-color: #ef4444; height: 42px;">Restaurar</button>
+                <button type="submit" class="btn" style="background-color: var(--danger-color); height: 42px;">Restaurar</button>
             </form>
         </div>
 
         <h4 style="margin-top: 32px; margin-bottom: 12px;">Historial Local de Backups</h4>
 
         <div id="backup-list"
-            style="font-size: 0.9rem; color:#3d3832; background:#FAF6F1; border:1px solid #e8e0d6; border-radius:8px; padding:12px;">
+            style="font-size: 0.9rem; color: var(--text-secondary); background: var(--surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px;">
             Cargando backups...
         </div>
-        <div id="backup-msg" style="margin-top:8px; color:#0f766e; font-weight:600;"></div>
+        <div id="backup-msg" style="margin-top: 8px; font-weight: 600;"></div>
     </div>
 
 </div>
@@ -262,7 +343,7 @@
 <!-- Add User Modal -->
 <div id="user-modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;">
-    <div class="glass-card" style="width: 100%; max-width: 400px; background: white;">
+    <div class="glass-card" style="width: 100%; max-width: 400px;">
         <h3 style="margin-bottom: 16px;">Nuevo Usuario</h3>
         <form onsubmit="createUser(event)">
             <label style="display: block; margin-bottom: 8px;">Username</label>
@@ -272,14 +353,12 @@
             <label style="display: block; margin-bottom: 8px;">Nombre Completo</label>
             <input type="text" name="full_name" class="form-input">
             <label style="display: block; margin-bottom: 8px;">Rol</label>
-            <select name="role" required
-                style="width: 100%; padding: 10px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e5e7eb;">
+            <select name="role" required class="form-input" style="margin-bottom: 16px;">
                 <option value="cashier">Cajero (Limitado)</option>
                 <option value="admin">Administrador (Total)</option>
             </select>
             <div style="text-align: right;">
-                <button type="button" onclick="document.getElementById('user-modal').style.display='none'" class="btn"
-                    style="background: #999;">Cancelar</button>
+                <button type="button" onclick="document.getElementById('user-modal').style.display='none'" class="btn btn-secondary">Cancelar</button>
                 <button type="submit" class="btn">Crear</button>
             </div>
         </form>
@@ -289,7 +368,7 @@
 <!-- Add Tax Modal -->
 <div id="tax-modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center;">
-    <div class="glass-card" style="width: 100%; max-width: 400px; background: white;">
+    <div class="glass-card" style="width: 100%; max-width: 400px;">
         <h3 style="margin-bottom: 16px;">Nuevo Impuesto</h3>
         <form onsubmit="createTax(event)">
             <label style="display: block; margin-bottom: 8px;">Nombre (ej. IVA 21%)</label>
@@ -297,8 +376,7 @@
             <label style="display: block; margin-bottom: 8px;">Alícuota (ej. 0.21 para 21%)</label>
             <input type="number" step="0.001" name="rate" required placeholder="0.21" class="form-input">
             <div style="text-align: right; margin-top: 16px;">
-                <button type="button" onclick="document.getElementById('tax-modal').style.display='none'" class="btn"
-                    style="background: #999;">Cancelar</button>
+                <button type="button" onclick="document.getElementById('tax-modal').style.display='none'" class="btn btn-secondary">Cancelar</button>
                 <button type="submit" class="btn">Crear</button>
             </div>
         </form>
@@ -308,19 +386,18 @@
 <script>
     const currentUserId = {{ user.id }};
 
+    function selectSfTemplate(card) {
+        document.querySelectorAll('.sf-tpl-card').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+        card.querySelector('input[type="radio"]').checked = true;
+    }
+
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.tab-btn').forEach(el => {
-            el.style.borderBottomColor = 'transparent';
-            el.style.color = '#666';
-            el.classList.remove('active');
-        });
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
 
         document.getElementById('content-' + tab).style.display = 'block';
-        const btn = document.getElementById('tab-' + tab);
-        btn.style.borderBottomColor = 'var(--primary-color)';
-        btn.style.color = 'var(--primary-color)';
-        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
 
         if (tab === 'users') loadUsers();
         if (tab === 'taxes') loadTaxes();
@@ -373,7 +450,7 @@
 
     function showSecurityMsg(msg, isError) {
         const el = document.getElementById('security-msg');
-        el.style.color = isError ? '#b91c1c' : '#0f766e';
+        el.style.color = isError ? 'var(--danger-color)' : 'var(--success-color)';
         el.textContent = msg;
     }
 
@@ -382,7 +459,7 @@
         const res = await fetch('/api/ai/key');
         const data = await res.json();
         const msg = document.getElementById('ai-key-msg');
-        msg.style.color = '#0f766e';
+        msg.style.color = 'var(--success-color)';
         msg.textContent = data.exists ? 'API key cargada para este tenant.' : 'Aún no configurada.';
     }
 
@@ -394,11 +471,11 @@
         const res = await fetch('/api/ai/key', { method: 'POST', body: fd });
         const msg = document.getElementById('ai-key-msg');
         if (res.ok) {
-            msg.style.color = '#0f766e';
+            msg.style.color = 'var(--success-color)';
             msg.textContent = 'Guardada. El asistente ya puede responder.';
             document.getElementById('ai-key').value = '';
         } else {
-            msg.style.color = '#b91c1c';
+            msg.style.color = 'var(--danger-color)';
             msg.textContent = 'Error al guardar';
         }
     }
@@ -413,10 +490,10 @@
             });
             if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
-            msgBox.style.color = '#0f766e';
+            msgBox.style.color = 'var(--success-color)';
             msgBox.textContent = 'Respuesta: ' + data.answer;
         } catch (err) {
-            msgBox.style.color = '#b91c1c';
+            msgBox.style.color = 'var(--danger-color)';
             msgBox.textContent = 'Error: ' + err.message;
         }
     }
@@ -430,12 +507,12 @@
             <tr>
                 <td>${u.username}</td>
                 <td>${u.full_name || '-'}</td>
-                <td><span class="badge ${u.role === 'admin' || u.role === 'superadmin' ? 'admin' : ''}">${u.role}</span></td>
+                <td><span class="status-badge ${u.role === 'admin' || u.role === 'superadmin' ? 'status-badge-info' : 'status-badge-neutral'}">${u.role}</span></td>
                 <td>
                     ${u.id !== currentUserId ? `
-                    <button onclick="deleteUser(${u.id})" style="color: red; border:none; background:none; cursor:pointer;">Eliminar</button>
+                    <button onclick="deleteUser(${u.id})" class="btn-inline btn-inline-danger">Eliminar</button>
                     ` : ''}
-                    <button onclick="prefillReset(${u.id}, '${u.username}')" style="margin-left:8px; border:none; background:none; color:#0f766e; cursor:pointer;">Reset clave</button>
+                    <button onclick="prefillReset(${u.id}, '${u.username}')" class="btn-inline btn-inline-accent" style="margin-left:4px;">Reset clave</button>
                 </td>
             </tr>
         `).join('');
@@ -478,7 +555,7 @@
                 <td>${t.name}</td>
                 <td>${(t.rate * 100).toFixed(2)}%</td>
                 <td>
-                    <button onclick="deleteTax(${t.id})" style="color: red; border:none; background:none; cursor:pointer;">Eliminar</button>
+                    <button onclick="deleteTax(${t.id})" class="btn-inline btn-inline-danger">Eliminar</button>
                 </td>
             </tr>
         `).join('');
@@ -551,13 +628,13 @@
         const msg = document.getElementById('ecommerce-connector-msg');
         const res = await fetch('/api/settings', { method: 'POST', body: data });
         if (res.ok) {
-            msg.style.color = '#0f766e';
+            msg.style.color = 'var(--success-color)';
             msg.textContent = connected
                 ? 'Conectado: la tienda online ahora comparte stock con el ERP.'
                 : 'Desconectado: la tienda online usa su propio depósito ("ONLINE"), separado del ERP.';
         } else {
             document.getElementById('s-ecommerce-connected').checked = !connected;
-            msg.style.color = '#b91c1c';
+            msg.style.color = 'var(--danger-color)';
             msg.textContent = 'No se pudo guardar el cambio.';
         }
     }
@@ -571,7 +648,10 @@
         if (settings.label_width_mm) document.getElementById('s-label-w').value = settings.label_width_mm;
         if (settings.label_height_mm) document.getElementById('s-label-h').value = settings.label_height_mm;
         if (settings.ui_theme) document.getElementById('s-theme').value = settings.ui_theme;
-        if (settings.storefront_template) document.getElementById('s-storefront-template').value = settings.storefront_template;
+        if (settings.storefront_template) {
+            const card = document.querySelector('.sf-tpl-card[data-value="' + settings.storefront_template + '"]');
+            if (card) { card.querySelector('input').checked = true; card.classList.add('selected'); }
+        }
         document.getElementById('s-ecommerce-connected').checked = !!settings.ecommerce_connected_to_erp;
         loadBackupFiles();
     });
@@ -623,7 +703,7 @@
 
         box.innerHTML = backups.map(b => {
             const sizeKb = (b.size_bytes / 1024).toFixed(1);
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #e8e0d6;">
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border-color);">
                 <div><strong>${b.filename}</strong><br><small>${b.modified_at} · ${sizeKb} KB</small></div>
                 <a href="/api/admin/backups/download/${encodeURIComponent(b.filename)}" class="btn" style="text-decoration:none; padding:6px 10px;">Descargar</a>
             </div>`;
@@ -683,21 +763,103 @@
     .form-input {
         width: 100%;
         padding: 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
         margin-bottom: 0px;
+        background: var(--surface-color);
+        color: var(--text-main);
+        font-family: var(--font-sans);
+        font-size: 0.9rem;
+        transition: border-color 0.15s;
+    }
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(255,106,0,0.1);
     }
 
-    .badge {
+    /* Storefront template visual cards */
+    .sf-tpl-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    @media (max-width: 900px) { .sf-tpl-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .sf-tpl-grid { grid-template-columns: 1fr; } }
+    .sf-tpl-card {
+        position: relative;
+        border: 2px solid var(--border-color, #e5e7eb);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: var(--surface-color, #fff);
+        overflow: hidden;
+    }
+    .sf-tpl-card input[type="radio"] { display: none; }
+    .sf-tpl-card:hover { border-color: var(--primary-color, #f97316); box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+    .sf-tpl-card.selected { border-color: var(--primary-color, #f97316); box-shadow: 0 0 0 3px rgba(249,115,22,0.2); }
+    .sf-tpl-preview {
+        width: 100%;
+        height: 100px;
+        overflow: hidden;
+    }
+    .sf-tpl-nav {
+        display: flex;
+        align-items: center;
         padding: 4px 8px;
-        border-radius: 4px;
-        background: #e5e7eb;
-        font-size: 0.8rem;
     }
-
-    .badge.admin {
-        background: #dbeafe;
-        color: #1e40af;
+    .sf-tpl-hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 10px 6px;
+    }
+    .sf-tpl-hero-title {
+        width: 60%;
+        height: 5px;
+        border-radius: 2px;
+        opacity: 0.3;
+    }
+    .sf-tpl-hero-btn {
+        width: 35%;
+        height: 6px;
+        border-radius: 2px;
+    }
+    .sf-tpl-products {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        padding: 4px 8px 8px;
+    }
+    .sf-tpl-prod {
+        overflow: hidden;
+    }
+    .sf-tpl-prod-img {
+        width: 100%;
+        height: 18px;
+        opacity: 0.15;
+    }
+    .sf-tpl-label {
+        padding: 8px 10px;
+        border-top: 1px solid var(--border-color, #e5e7eb);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .sf-tpl-label strong {
+        font-size: 0.8rem;
+        color: var(--text-main, #1a1a1a);
+    }
+    .sf-tpl-swatches {
+        display: flex;
+        gap: 3px;
+    }
+    .sf-tpl-swatches span {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.08);
     }
 </style>
 {% endblock %}

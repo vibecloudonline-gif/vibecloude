@@ -1,5 +1,5 @@
 """Cliente de GoDaddy (actualización 2026-08-11 -- reemplaza a NameSilo/Dynadot
-como proveedor principal de venta de dominios, ver ALEXIO_ROADMAP_V2.md
+como proveedor principal de venta de dominios, ver VIBECLOUD_ROADMAP_V2.md
 sección "Actualización 2026-08-11").
 
 ADVERTENCIA: este cliente sigue la API pública documentada de GoDaddy
@@ -110,12 +110,12 @@ def _now_iso() -> str:
 
 
 def get_verification_txt_record_name(domain: str) -> str:
-    return f"_alexio-verify.{domain}"
+    return f"_vibecloud-verify.{domain}"
 
 
 async def verify_domain_txt(domain: str, expected_token: str) -> bool:
     """
-    Busca un registro TXT en _alexio-verify.<dominio> que contenga el
+    Busca un registro TXT en _vibecloud-verify.<dominio> que contenga el
     token esperado. Requiere dnspython (agregado a requirements.txt).
     Devuelve False (no True) si dnspython no está instalado o si la
     consulta DNS falla -- nunca marca un dominio como verificado por error.

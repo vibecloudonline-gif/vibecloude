@@ -271,7 +271,7 @@ class AIGatewayService:
         )
 
     # ------------------------------------------------------------------
-    # Fallback de chat de AlexIO: Gemini -> Qwen
+    # Fallback de chat de VibeCloud: Gemini -> Qwen
     # Now routes through AI Gateway
     # ------------------------------------------------------------------
 

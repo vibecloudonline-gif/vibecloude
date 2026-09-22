@@ -312,25 +312,6 @@ async def chat_bot_response(
         raise HTTPException(status_code=500, detail="Error interno del servicio de IA")
 
 
-@router.post("/alex-io")
-async def alex_io_chat(
-    req: ChatRequest,
-    db: Session = Depends(get_session),
-    tenant_id: int = Depends(get_current_tenant)
-):
-    from services.ai_brain_service import ai_brain_service
-    try:
-        response_text = await ai_brain_service.chat_response(
-            session=db,
-            tenant_id=tenant_id,
-            history=req.history,
-            new_message=req.new_message,
-            system_instruction=req.system_instruction
-        )
-        return {"success": True, "response": response_text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 class UIConfigTheme(BaseModel):
     primary_color: str
     secondary_color: str

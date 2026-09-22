@@ -1,7 +1,7 @@
-"""Tests for the offer service (Fase 2 of Alex IO pipeline)."""
+"""Tests for the offer service (Fase 2 of VibeCloud pipeline)."""
 import os
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("ALEXIO_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,7 +55,7 @@ def reset_rate_limiter():
 
 
 def _setup_tenant_with_project(session, project_status="completed"):
-    tenant = Tenant(name="OfferTest", subdomain="offertest", has_alexio=True, has_landing=True, has_ecommerce=True)
+    tenant = Tenant(name="OfferTest", subdomain="offertest", has_landing=True, has_ecommerce=True)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

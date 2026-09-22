@@ -8,7 +8,7 @@ from sqlmodel import Session, create_engine, text
 from database.models import *
 
 # Database URL (assuming SQLite)
-sqlite_file_name = "alexio.db"
+sqlite_file_name = "vibecloud.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)
 

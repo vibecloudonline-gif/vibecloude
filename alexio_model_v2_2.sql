@@ -77,7 +77,7 @@ CREATE TABLE settings (
 	printer_name VARCHAR, 
 	PRIMARY KEY (id)
 );
-INSERT INTO "settings" VALUES(1,'Alex IO','/static/images/logo.png','$',NULL);
+INSERT INTO "settings" VALUES(1,'VibeCloud','/static/images/logo.png','$',NULL);
 CREATE TABLE tax (
 	id INTEGER NOT NULL, 
 	name VARCHAR NOT NULL, 

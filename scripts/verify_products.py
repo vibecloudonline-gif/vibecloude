@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlmodel import Session, create_engine, select
 from database.models import Product
 
-sqlite_file_name = "alexio.db"
+sqlite_file_name = "vibecloud.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url)
 

@@ -1,11 +1,11 @@
-# render.yaml — Alex IO
+# render.yaml — VibeCloud
 # Infrastructure as Code — 2 servicios
 
 services:
 
-  # ── 1. Alex IO: FastAPI + Python ──────────────────────
+  # ── 1. VibeCloud: FastAPI + Python ──────────────────────
   - type: web
-    name: alexio-backend
+    name: vibecloud-backend
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
@@ -27,10 +27,10 @@ services:
         sync: false
       - key: REDIS_URL
         fromService:
-          name: alexio-redis
+          name: vibecloud-redis
           type: redis
           property: connectionString
-      - key: ALEXIO_API_KEY
+      - key: VIBECLOUD_API_KEY
         generateValue: true  # ← Render genera automáticamente
       - key: SECRET_KEY
         generateValue: true
@@ -39,7 +39,7 @@ services:
 
   # ── 2. Redis: rate limiting + cache de catálogo/IA ────
   - type: redis
-    name: alexio-redis
+    name: vibecloud-redis
     plan: starter
     maxmemoryPolicy: noeviction
     ipAllowList: []          # solo acceso interno entre servicios

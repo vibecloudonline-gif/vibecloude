@@ -1,7 +1,7 @@
-"""Tests for the research module (Fase 1 of Alex IO pipeline)."""
+"""Tests for the research module (Fase 1 of VibeCloud pipeline)."""
 import os
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("ALEXIO_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 
 import asyncio
 import pytest
@@ -56,8 +56,8 @@ def reset_rate_limiter():
     yield
 
 
-def _make_tenant_with_admin(session, has_alexio=True):
-    tenant = Tenant(name="TestTenant", subdomain="test", has_alexio=has_alexio, has_landing=True, has_ecommerce=True)
+def _make_tenant_with_admin(session):
+    tenant = Tenant(name="TestTenant", subdomain="test", has_landing=True, has_ecommerce=True)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -184,7 +184,7 @@ def test_gemini_market_provider_search_and_demand(monkeypatch):
     mock_demand_json = json.dumps({
         "confidence_level": "alto",
         "estimated_monthly_volume": 4200,
-        "source_description": "Inteligencia de Mercado Alex.io AI",
+        "source_description": "Inteligencia de Mercado VibeCloud AI",
         "notes": "Alta demanda sostenida en canales digitales."
     })
 

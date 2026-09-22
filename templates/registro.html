@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creá tu cuenta - Alex IO</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=10">
+    <title>Creá tu cuenta - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=11">
     <style>
         body {
             min-height: 100vh;
@@ -97,7 +97,7 @@
 </head>
 <body>
     <div class="signup-card glass-card">
-        <h1>Creá tu cuenta en Alex IO</h1>
+        <h1>Creá tu cuenta en VibeCloud</h1>
         <p class="subtitle">Elegí qué vas a usar. Podés combinarlo o ajustarlo después.</p>
 
         {% if error %}
@@ -119,11 +119,11 @@
 
                 <div class="field">
                     <label for="subdominio">Subdominio
-                        <span title="Es la dirección con la que vas a entrar a tu panel y, si tenés ecommerce o landing, la que ven tus clientes (ej. mi-empresa.alexio.online). Podés conectar tu propio dominio después." style="cursor: help; color: var(--text-muted); font-weight: 400; border: 1px solid var(--border-color); border-radius: 50%; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem;">?</span>
+                        <span title="Es la dirección con la que vas a entrar a tu panel y, si tenés ecommerce o landing, la que ven tus clientes (ej. mi-empresa.vibecloud.com). Podés conectar tu propio dominio después." style="cursor: help; color: var(--text-muted); font-weight: 400; border: 1px solid var(--border-color); border-radius: 50%; width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.65rem;">?</span>
                     </label>
                     <div class="subdomain-row">
                         <input type="text" id="subdominio" name="subdominio" required placeholder="mi-empresa" pattern="[a-z0-9-]+">
-                        <span class="subdomain-suffix">.alexio.online</span>
+                        <span class="subdomain-suffix">.vibecloud.com</span>
                     </div>
                     <div id="subdomain-hint" class="field-hint"></div>
                 </div>
@@ -145,7 +145,7 @@
                         <input type="checkbox" id="wants_web" checked>
                         <span class="choice-icon">🌐</span>
                         <span class="choice-name">Sitio Web</span>
-                        <span class="choice-desc">Landing, tienda online y/o AlexIO</span>
+                        <span class="choice-desc">Landing, tienda online</span>
                     </label>
                 </div>
 
@@ -159,10 +159,6 @@
                             <input type="checkbox" name="has_landing" id="has_landing">
                             <span><span class="name">Landing con IA</span><span class="desc">Página generada por IA</span></span>
                         </label>
-                        <label class="product-check">
-                            <input type="checkbox" name="has_alexio" id="has_alexio" checked>
-                            <span><span class="name">AlexIO</span><span class="desc">Asistente de IA transversal</span></span>
-                        </label>
                     </div>
                 </div>
             </div>
@@ -170,7 +166,7 @@
             <!-- Paso 3: dominio (solo si Sitio Web) -->
             <div class="wizard-step" data-step="dominio">
                 <h2>¿Con qué dominio?</h2>
-                <p class="step-desc">Podés usar gratis tu subdominio de Alex IO, o pedir uno propio.</p>
+                <p class="step-desc">Podés usar gratis tu subdominio de VibeCloud, o pedir uno propio.</p>
 
                 <div class="domain-search-row">
                     <input type="text" id="desired_domain_input" placeholder="miempresa.com">
@@ -181,7 +177,7 @@
                 <div class="domain-choice-row">
                     <label>
                         <input type="radio" name="domain_choice" value="subdominio" id="domain-choice-subdominio" checked>
-                        Uso mi subdominio gratis (<span id="domain-choice-subdomain-preview">tu-subdominio</span>.alexio.online)
+                        Uso mi subdominio gratis (<span id="domain-choice-subdomain-preview">tu-subdominio</span>.vibecloud.com)
                     </label>
                     <label>
                         <input type="radio" name="domain_choice" value="comprar" id="domain-choice-comprar" disabled>
@@ -271,7 +267,6 @@
             if (!wantsWeb.checked) {
                 hasEcommerce.checked = false;
                 hasLanding.checked = false;
-                document.getElementById('has_alexio').checked = false;
             }
         }
         cardErp.addEventListener('click', (e) => { e.preventDefault(); toggleCard(cardErp, hasErp); });
@@ -310,7 +305,7 @@
                 const data = await res.json();
                 lastCheckedAvailable = data.available;
                 if (data.available) {
-                    subdomainHint.textContent = `¡Disponible! ${value}.alexio.online`;
+                    subdomainHint.textContent = `¡Disponible! ${value}.vibecloud.com`;
                     subdomainHint.className = 'field-hint ok';
                 } else {
                     subdomainHint.textContent = data.reason || 'No disponible';
@@ -407,8 +402,8 @@
             }
             if (step.dataset.step === 'productos') {
                 if (!hasErp.checked && !wantsWeb.checked) { alert('Elegí al menos ERP o Sitio Web'); return false; }
-                if (wantsWeb.checked && !hasEcommerce.checked && !hasLanding.checked && !document.getElementById('has_alexio').checked) {
-                    alert('Dentro de Sitio Web, elegí Ecommerce, Landing o AlexIO');
+                if (wantsWeb.checked && !hasEcommerce.checked && !hasLanding.checked) {
+                    alert('Dentro de Sitio Web, elegí Ecommerce o Landing');
                     return false;
                 }
             }

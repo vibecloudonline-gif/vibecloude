@@ -69,7 +69,7 @@ async def create_credits_order(
     result = await provider.create_order(
         amount=amount,
         currency="USD",
-        description=f"Alex IO — {req.credits} créditos de IA",
+        description=f"VibeCloud — {req.credits} créditos de IA",
         return_url=f"{base}/payments/credits/capture?provider={req.provider}",
         cancel_url=f"{base}/panel/creditos",
     )
@@ -173,7 +173,7 @@ async def create_plan_order(
     result = await provider.create_order(
         amount=plan["price"],
         currency="USD",
-        description=f"Alex IO — Plan {plan['label']}",
+        description=f"VibeCloud — Plan {plan['label']}",
         return_url=f"{base}/payments/plan/capture?provider={req.provider}",
         cancel_url=f"{base}/panel/planes",
     )

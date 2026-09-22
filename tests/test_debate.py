@@ -1,7 +1,7 @@
-"""Tests for the debate service (Fase 2 of Alex IO pipeline)."""
+"""Tests for the debate service (Fase 2 of VibeCloud pipeline)."""
 import os
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("ALEXIO_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 
 import pytest
 from unittest.mock import patch, AsyncMock
@@ -59,7 +59,7 @@ def reset_rate_limiter():
 
 
 def _setup_tenant_with_offer(session):
-    tenant = Tenant(name="DebateTest", subdomain="debatetest", has_alexio=True, has_landing=True)
+    tenant = Tenant(name="DebateTest", subdomain="debatetest", has_landing=True)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

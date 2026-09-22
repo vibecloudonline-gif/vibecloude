@@ -1,6 +1,6 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["ALEXIO_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 
 import pytest
 from fastapi.testclient import TestClient
@@ -95,7 +95,7 @@ def test_ayuda_muestra_faq_gateada_por_flags(client, session):
     resp = client.get("/panel/ayuda")
     assert resp.status_code == 200
     assert "Predicción de viabilidad" in resp.text
-    assert "AlexIO" not in resp.text  # sin ecommerce/landing, no aplica
+    assert "asistente de IA" not in resp.text  # sin ecommerce/landing, no aplica
 
 
 def test_crear_ticket_funciona(client, session):

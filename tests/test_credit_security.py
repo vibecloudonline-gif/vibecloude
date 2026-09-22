@@ -14,7 +14,7 @@ from decimal import Decimal
 from sqlmodel import SQLModel, Session, create_engine, select, func
 
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("ALEXIO_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_security_full.db")
 
 from database.models import (

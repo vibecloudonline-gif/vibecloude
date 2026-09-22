@@ -19,7 +19,7 @@ import services.competitor_service as comp_svc
 class TestWorkOrderExecution(unittest.TestCase):
 
     def setUp(self):
-        os.environ["SECRET_KEY"] = "test_session_secret_key_alexio"
+        os.environ["SECRET_KEY"] = "test_session_secret_key_vibecloud"
         self.engine = create_engine("sqlite:///:memory:")
         SQLModel.metadata.create_all(self.engine)
         self.session = Session(self.engine)
