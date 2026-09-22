@@ -278,8 +278,6 @@ def signup_submit(
     tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
     request.session["tenant_flags"] = tenant_flags
     modules = []
-    if has_erp:
-        modules.append("erp")
     if has_ecommerce:
         modules.append("ecommerce")
     if has_landing:
@@ -319,8 +317,6 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
     }
     request.session["tenant_flags"] = tenant_flags
     modules = []
-    if tenant_flags.get("erp"):
-        modules.append("erp")
     if tenant_flags.get("ecommerce"):
         modules.append("ecommerce")
     if tenant_flags.get("landing"):

@@ -179,8 +179,6 @@ def get_dashboard(request: Request, user: User = Depends(require_auth), settings
     if not request.session.get("nav_view"):
         tenant = session.get(Tenant, tenant_id)
         modules = []
-        if tenant.has_erp:
-            modules.append("erp")
         if tenant.has_ecommerce:
             modules.append("ecommerce")
         if tenant.has_landing:

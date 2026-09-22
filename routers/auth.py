@@ -65,8 +65,6 @@ def login(
     }
     request.session["tenant_flags"] = tenant_flags
     modules = []
-    if tenant_flags.get("erp"):
-        modules.append("erp")
     if tenant_flags.get("ecommerce"):
         modules.append("ecommerce")
     if tenant_flags.get("landing"):
