@@ -1,6 +1,6 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["VIBECLOUD_API_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 
 import httpx
 from httpx import ASGITransport

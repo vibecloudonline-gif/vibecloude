@@ -1,6 +1,6 @@
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["VIBECLOUD_API_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 os.environ["PAYPAL_CLIENT_ID"] = "test_client_id"
 os.environ["PAYPAL_CLIENT_SECRET"] = "test_client_secret"
 

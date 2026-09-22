@@ -64,10 +64,16 @@ def login(
         "landing": tenant.has_landing if tenant else True,
     }
     request.session["tenant_flags"] = tenant_flags
-    # nav_view NO se setea acá a propósito -- sin elegir un módulo todavía,
-    # "/" muestra el hub de entrada (ver main.py::get_dashboard). Entrar a
-    # un módulo específico es lo que lo setea (POST /panel/nav-view).
-    request.session.pop("nav_view", None)
+    modules = []
+    if tenant_flags.get("erp"):
+        modules.append("erp")
+    if tenant_flags.get("ecommerce"):
+        modules.append("ecommerce")
+    if tenant_flags.get("landing"):
+        modules.append("landing")
+    if not modules:
+        modules = ["ecommerce", "landing"]
+    request.session["nav_view"] = modules
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
     return RedirectResponse("/", status_code=302)

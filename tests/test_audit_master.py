@@ -4,7 +4,7 @@ Verifica de forma empírica los bloques 1 al 8.
 """
 import os
 os.environ["SECRET_KEY"] = "testsecretkey123"
-os.environ["VIBECLOUD_FERNET_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
+os.environ["VIBECLOUD_API_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 
 import pytest
 import threading

@@ -277,12 +277,16 @@ def signup_submit(
     request.session["user_id"] = admin_user.id
     tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
     request.session["tenant_flags"] = tenant_flags
-    # nav_view NO se setea acá a propósito -- "/" muestra el hub de entrada
-    # hasta que el tenant elige un módulo (ver main.py::get_dashboard). Se
-    # popea explícitamente por si el navegador traía un nav_view viejo de
-    # otra cuenta logueada antes en el mismo origen (la cookie de sesión
-    # sobrevive entre requests si no se toca esa key).
-    request.session.pop("nav_view", None)
+    modules = []
+    if has_erp:
+        modules.append("erp")
+    if has_ecommerce:
+        modules.append("ecommerce")
+    if has_landing:
+        modules.append("landing")
+    if not modules:
+        modules = ["ecommerce", "landing"]
+    request.session["nav_view"] = modules
 
     return RedirectResponse("/", status_code=302)
 
@@ -314,6 +318,15 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
         "landing": tenant.has_landing if tenant else True,
     }
     request.session["tenant_flags"] = tenant_flags
-    request.session.pop("nav_view", None)
+    modules = []
+    if tenant_flags.get("erp"):
+        modules.append("erp")
+    if tenant_flags.get("ecommerce"):
+        modules.append("ecommerce")
+    if tenant_flags.get("landing"):
+        modules.append("landing")
+    if not modules:
+        modules = ["ecommerce", "landing"]
+    request.session["nav_view"] = modules
 
     return RedirectResponse("/", status_code=302)

@@ -1,7 +1,7 @@
 """Tests for the research module (Fase 1 of VibeCloud pipeline)."""
 import os
 os.environ.setdefault("SECRET_KEY", "testsecretkey123")
-os.environ.setdefault("VIBECLOUD_FERNET_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
+os.environ.setdefault("VIBECLOUD_API_KEY", "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI=")
 
 import asyncio
 import pytest

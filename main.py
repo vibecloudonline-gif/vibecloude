@@ -176,15 +176,18 @@ def get_dashboard(request: Request, user: User = Depends(require_auth), settings
     if user.role == "superadmin":
         return RedirectResponse("/tenants", status_code=302)
 
-    # Sin un modulo elegido en esta sesion (recien logueado, o recien
-    # deslogueado y vuelto a entrar) se muestra el hub de entrada en vez
-    # del dashboard de ERP directo -- entrar a un modulo especifico es lo
-    # que setea nav_view (ver /panel/nav-view, o los links del hub).
     if not request.session.get("nav_view"):
         tenant = session.get(Tenant, tenant_id)
-        return templates.TemplateResponse(
-            "hub.html", {"request": request, "user": user, "settings": settings, "tenant": tenant}
-        )
+        modules = []
+        if tenant.has_erp:
+            modules.append("erp")
+        if tenant.has_ecommerce:
+            modules.append("ecommerce")
+        if tenant.has_landing:
+            modules.append("landing")
+        if not modules:
+            modules = ["ecommerce", "landing"]
+        request.session["nav_view"] = modules
 
     total_products = session.exec(select(func.count(Product.id)).where(Product.tenant_id == tenant_id)).one()
     from database.models import BinStock
