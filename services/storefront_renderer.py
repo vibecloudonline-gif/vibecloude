@@ -84,7 +84,7 @@ class SiteConfig(BaseModel):
     commerce: CommerceConfig = Field(default_factory=CommerceConfig)
 
 
-# ── 4 Theme Presets ───────────────────────────────────────────────────────
+# ── 11 Theme Presets (4 genéricos + 7 por tipo de negocio) ────────────────
 
 THEME_PRESETS: dict[str, dict] = {
     "elegante": {
@@ -179,6 +179,168 @@ THEME_PRESETS: dict[str, dict] = {
         "shadow_md": "0 4px 16px rgba(6,182,212,0.1)",
         "shadow_lg": "0 8px 32px rgba(129,140,248,0.15)",
     },
+    # ── 7 presets por tipo de negocio ─────────────────────────────────
+    "sabor": {
+        "preset": "sabor",
+        "primary": "#2D1810",
+        "accent": "#C75B39",
+        "background": "#FDF6F0",
+        "surface": "#ffffff",
+        "surface_alt": "#FAF0E6",
+        "text": "#2D1810",
+        "text_muted": "#8B7355",
+        "border": "rgba(45,24,16,0.08)",
+        "success": "#2E7D32",
+        "danger": "#C62828",
+        "heading_font": "DM Serif Display",
+        "body_font": "Inter",
+        "heading_weight": "400",
+        "radius": "8px",
+        "radius_lg": "12px",
+        "card_radius": "12px",
+        "button_radius": "8px",
+        "shadow_sm": "0 1px 3px rgba(45,24,16,0.06)",
+        "shadow_md": "0 4px 12px rgba(45,24,16,0.08)",
+        "shadow_lg": "0 8px 24px rgba(45,24,16,0.12)",
+    },
+    "vitrina": {
+        "preset": "vitrina",
+        "primary": "#1a1a1a",
+        "accent": "#B8860B",
+        "background": "#ffffff",
+        "surface": "#fafafa",
+        "surface_alt": "#f5f5f0",
+        "text": "#1a1a1a",
+        "text_muted": "#737373",
+        "border": "rgba(0,0,0,0.06)",
+        "success": "#2E7D32",
+        "danger": "#C62828",
+        "heading_font": "Cormorant Garamond",
+        "body_font": "Inter",
+        "heading_weight": "600",
+        "radius": "0px",
+        "radius_lg": "0px",
+        "card_radius": "0px",
+        "button_radius": "0px",
+        "shadow_sm": "0 1px 2px rgba(0,0,0,0.04)",
+        "shadow_md": "0 4px 12px rgba(0,0,0,0.06)",
+        "shadow_lg": "0 8px 24px rgba(0,0,0,0.10)",
+    },
+    "aura": {
+        "preset": "aura",
+        "primary": "#6B3A5D",
+        "accent": "#D4A0A0",
+        "background": "#FBF7F9",
+        "surface": "#ffffff",
+        "surface_alt": "#F8F0F4",
+        "text": "#2D2030",
+        "text_muted": "#8B7B82",
+        "border": "rgba(107,58,93,0.08)",
+        "success": "#43A047",
+        "danger": "#E53935",
+        "heading_font": "Outfit",
+        "body_font": "Inter",
+        "heading_weight": "600",
+        "radius": "16px",
+        "radius_lg": "20px",
+        "card_radius": "20px",
+        "button_radius": "999px",
+        "shadow_sm": "0 1px 3px rgba(107,58,93,0.05)",
+        "shadow_md": "0 4px 12px rgba(107,58,93,0.08)",
+        "shadow_lg": "0 8px 24px rgba(107,58,93,0.12)",
+    },
+    "impulso": {
+        "preset": "impulso",
+        "primary": "#1A1A1A",
+        "accent": "#84CC16",
+        "background": "#F5F5F5",
+        "surface": "#ffffff",
+        "surface_alt": "#EBEBEB",
+        "text": "#1A1A1A",
+        "text_muted": "#6B6B6B",
+        "border": "rgba(0,0,0,0.08)",
+        "success": "#4CAF50",
+        "danger": "#F44336",
+        "heading_font": "Archivo",
+        "body_font": "Inter",
+        "heading_weight": "700",
+        "radius": "4px",
+        "radius_lg": "6px",
+        "card_radius": "6px",
+        "button_radius": "4px",
+        "shadow_sm": "0 1px 2px rgba(0,0,0,0.06)",
+        "shadow_md": "0 4px 12px rgba(0,0,0,0.10)",
+        "shadow_lg": "0 8px 24px rgba(0,0,0,0.14)",
+    },
+    "nido": {
+        "preset": "nido",
+        "primary": "#4F6F52",
+        "accent": "#C19A6B",
+        "background": "#FAF8F5",
+        "surface": "#ffffff",
+        "surface_alt": "#F3EDE4",
+        "text": "#2C2C2C",
+        "text_muted": "#7A7264",
+        "border": "rgba(79,111,82,0.08)",
+        "success": "#388E3C",
+        "danger": "#D32F2F",
+        "heading_font": "Nunito",
+        "body_font": "Inter",
+        "heading_weight": "700",
+        "radius": "12px",
+        "radius_lg": "16px",
+        "card_radius": "16px",
+        "button_radius": "12px",
+        "shadow_sm": "0 1px 3px rgba(79,111,82,0.05)",
+        "shadow_md": "0 4px 12px rgba(79,111,82,0.08)",
+        "shadow_lg": "0 8px 24px rgba(79,111,82,0.12)",
+    },
+    "estudio": {
+        "preset": "estudio",
+        "primary": "#1E3A5F",
+        "accent": "#E8634A",
+        "background": "#ffffff",
+        "surface": "#F8F9FB",
+        "surface_alt": "#EDF0F5",
+        "text": "#1a1a2e",
+        "text_muted": "#64748b",
+        "border": "rgba(30,58,95,0.08)",
+        "success": "#2E7D32",
+        "danger": "#C62828",
+        "heading_font": "Montserrat",
+        "body_font": "Inter",
+        "heading_weight": "700",
+        "radius": "6px",
+        "radius_lg": "8px",
+        "card_radius": "8px",
+        "button_radius": "6px",
+        "shadow_sm": "0 1px 2px rgba(30,58,95,0.05)",
+        "shadow_md": "0 4px 12px rgba(30,58,95,0.08)",
+        "shadow_lg": "0 8px 24px rgba(30,58,95,0.12)",
+    },
+    "mercado": {
+        "preset": "mercado",
+        "primary": "#D32F2F",
+        "accent": "#FFC107",
+        "background": "#ffffff",
+        "surface": "#FAFAFA",
+        "surface_alt": "#FFF8E1",
+        "text": "#212121",
+        "text_muted": "#757575",
+        "border": "rgba(0,0,0,0.08)",
+        "success": "#388E3C",
+        "danger": "#C62828",
+        "heading_font": "Poppins",
+        "body_font": "Inter",
+        "heading_weight": "700",
+        "radius": "10px",
+        "radius_lg": "14px",
+        "card_radius": "14px",
+        "button_radius": "10px",
+        "shadow_sm": "0 1px 3px rgba(0,0,0,0.06)",
+        "shadow_md": "0 4px 12px rgba(0,0,0,0.10)",
+        "shadow_lg": "0 8px 24px rgba(0,0,0,0.14)",
+    },
 }
 
 
@@ -249,6 +411,210 @@ DEFAULT_SECTIONS: dict[str, list[dict]] = {
             "style": "primary",
         }},
     ],
+    # ── 7 presets por tipo de negocio ─────────────────────────────────
+    "sabor": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "El sabor que te espera",
+            "subtitle": "Platos preparados con ingredientes frescos y mucho cariño",
+            "cta_text": "Ver nuestro menú",
+            "cta_url": "#menu",
+        }},
+        {"type": "menu_grid", "order": 1, "data": {
+            "title": "Nuestro Menú",
+            "categories": [
+                {"name": "Entradas", "items": [
+                    {"name": "Guacamole clásico", "desc": "Aguacate, cilantro, limón y chile serrano", "price": "$120"},
+                    {"name": "Quesadillas de flor de calabaza", "desc": "Tortilla de maíz, queso Oaxaca y flor de calabaza", "price": "$95"},
+                ]},
+                {"name": "Platos fuertes", "items": [
+                    {"name": "Tacos al pastor", "desc": "Carne adobada, piña, cebolla y cilantro (3 piezas)", "price": "$145"},
+                    {"name": "Enchiladas verdes", "desc": "Pollo deshebrado, salsa verde, crema y queso fresco", "price": "$160"},
+                ]},
+            ],
+        }},
+        {"type": "features", "order": 2, "data": {
+            "title": "¿Por qué elegirnos?",
+            "items": [
+                {"icon": "🔥", "title": "Hecho al momento", "desc": "Cada platillo se prepara cuando lo pedís"},
+                {"icon": "🌽", "title": "Ingredientes frescos", "desc": "Trabajamos con productores locales"},
+                {"icon": "🛵", "title": "Delivery rápido", "desc": "En la puerta de tu casa en menos de 40 min"},
+            ],
+        }},
+        {"type": "contact_info", "order": 3, "data": {
+            "title": "Visitanos",
+            "address": "Tu dirección aquí",
+            "hours": "Lun-Sáb 12:00 - 22:00",
+            "whatsapp": "",
+        }},
+    ],
+    "vitrina": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Nueva Colección",
+            "subtitle": "Prendas que definen tu estilo",
+            "cta_text": "Comprar ahora",
+            "cta_url": "#catalogo",
+        }},
+        {"type": "category_grid", "order": 1, "data": {
+            "title": "Categorías",
+        }},
+        {"type": "featured_products", "order": 2, "data": {
+            "title": "Lo más vendido",
+            "max_items": 4,
+        }},
+        {"type": "banner", "order": 3, "data": {
+            "text": "Envío gratis en compras mayores a $2,000",
+            "style": "accent",
+        }},
+        {"type": "product_grid", "order": 4, "data": {
+            "title": "Todos los productos",
+        }},
+    ],
+    "aura": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Tu momento de bienestar",
+            "subtitle": "Tratamientos y productos pensados para vos",
+            "cta_text": "Reservar turno",
+            "cta_url": "#servicios",
+        }},
+        {"type": "services_list", "order": 1, "data": {
+            "title": "Nuestros Servicios",
+            "items": [
+                {"name": "Corte y peinado", "desc": "Asesoramiento personalizado de imagen", "price": "$800", "duration": "45 min"},
+                {"name": "Colorimetría completa", "desc": "Color, mechas o balayage con productos premium", "price": "$2,500", "duration": "2 h"},
+                {"name": "Tratamiento capilar", "desc": "Hidratación profunda y reconstrucción", "price": "$1,200", "duration": "1 h"},
+                {"name": "Manicura semipermanente", "desc": "Limado, cutículas y esmaltado gel", "price": "$600", "duration": "40 min"},
+            ],
+        }},
+        {"type": "gallery", "order": 2, "data": {
+            "title": "Nuestro Trabajo",
+            "columns": 3,
+        }},
+        {"type": "testimonials", "order": 3, "data": {
+            "title": "Lo que dicen nuestras clientas",
+            "items": [
+                {"name": "María L.", "text": "El mejor lugar para relajarse. Salís renovada.", "rating": 5},
+                {"name": "Carolina P.", "text": "Atención increíble, productos de primera calidad.", "rating": 5},
+            ],
+        }},
+        {"type": "contact_info", "order": 4, "data": {
+            "title": "Reservá tu turno",
+            "address": "Tu dirección aquí",
+            "hours": "Lun-Sáb 9:00 - 20:00",
+            "whatsapp": "",
+        }},
+    ],
+    "impulso": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Superá tus límites",
+            "subtitle": "Equipamiento, suplementos y ropa deportiva para rendir al máximo",
+            "cta_text": "Ver productos",
+            "cta_url": "#catalogo",
+        }},
+        {"type": "banner", "order": 1, "data": {
+            "text": "💪 20% OFF en tu primera compra — Código: IMPULSO20",
+            "style": "accent",
+        }},
+        {"type": "featured_products", "order": 2, "data": {
+            "title": "Los más vendidos",
+            "max_items": 4,
+        }},
+        {"type": "features", "order": 3, "data": {
+            "title": "Comprá con confianza",
+            "items": [
+                {"icon": "🏋️", "title": "Calidad garantizada", "desc": "Solo marcas certificadas y originales"},
+                {"icon": "🚀", "title": "Envío express", "desc": "Recibí tu pedido en 24-48 horas"},
+                {"icon": "🔄", "title": "Cambio fácil", "desc": "30 días para cambiar talla o producto"},
+            ],
+        }},
+        {"type": "product_grid", "order": 4, "data": {
+            "title": "Todo el catálogo",
+        }},
+    ],
+    "nido": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Hacé de tu casa un hogar",
+            "subtitle": "Muebles, decoración y todo lo que necesitás para cada rincón",
+            "cta_text": "Explorar",
+            "cta_url": "#catalogo",
+        }},
+        {"type": "category_grid", "order": 1, "data": {
+            "title": "Ambientes",
+        }},
+        {"type": "featured_products", "order": 2, "data": {
+            "title": "Destacados",
+            "max_items": 6,
+        }},
+        {"type": "features", "order": 3, "data": {
+            "title": "Nuestra promesa",
+            "items": [
+                {"icon": "🪵", "title": "Materiales nobles", "desc": "Madera maciza, lino natural y algodón orgánico"},
+                {"icon": "🚚", "title": "Entrega e instalación", "desc": "Armamos tus muebles en tu casa"},
+                {"icon": "💳", "title": "Cuotas sin interés", "desc": "Hasta 12 cuotas con todas las tarjetas"},
+            ],
+        }},
+        {"type": "product_grid", "order": 4, "data": {
+            "title": "Todos los productos",
+        }},
+    ],
+    "estudio": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Soluciones profesionales para tu negocio",
+            "subtitle": "Asesoría especializada con resultados medibles",
+            "cta_text": "Agendar consulta",
+            "cta_url": "#contacto",
+        }},
+        {"type": "services_list", "order": 1, "data": {
+            "title": "Servicios",
+            "items": [
+                {"name": "Consultoría inicial", "desc": "Diagnóstico completo de tu situación actual", "price": "Gratis", "duration": "30 min"},
+                {"name": "Plan estratégico", "desc": "Roadmap personalizado con objetivos y métricas", "price": "Desde $5,000", "duration": ""},
+                {"name": "Acompañamiento mensual", "desc": "Seguimiento continuo con reuniones semanales", "price": "Desde $8,000/mes", "duration": ""},
+            ],
+        }},
+        {"type": "features", "order": 2, "data": {
+            "title": "¿Por qué trabajar con nosotros?",
+            "items": [
+                {"icon": "📊", "title": "Resultados medibles", "desc": "KPIs claros desde el primer mes"},
+                {"icon": "🤝", "title": "Trato personalizado", "desc": "Un profesional dedicado a tu caso"},
+                {"icon": "⚡", "title": "Respuesta rápida", "desc": "Comunicación directa en horario extendido"},
+            ],
+        }},
+        {"type": "testimonials", "order": 3, "data": {
+            "title": "Casos de éxito",
+            "items": [
+                {"name": "Carlos R.", "text": "Duplicamos nuestras ventas en 6 meses con su asesoría.", "rating": 5},
+                {"name": "Laura M.", "text": "Profesionales, puntuales y con una visión estratégica clara.", "rating": 5},
+            ],
+        }},
+        {"type": "contact_info", "order": 4, "data": {
+            "title": "Contactanos",
+            "address": "Tu dirección aquí",
+            "hours": "Lun-Vie 9:00 - 18:00",
+            "whatsapp": "",
+        }},
+    ],
+    "mercado": [
+        {"type": "hero", "order": 0, "data": {
+            "title": "Todo lo que necesitás, en un solo lugar",
+            "subtitle": "Precios bajos todos los días con la mejor variedad",
+            "cta_text": "Ver ofertas",
+            "cta_url": "#catalogo",
+        }},
+        {"type": "banner", "order": 1, "data": {
+            "text": "🔥 Ofertas de la semana — ¡Aprovechá antes de que se acaben!",
+            "style": "primary",
+        }},
+        {"type": "featured_products", "order": 2, "data": {
+            "title": "Ofertas destacadas",
+            "max_items": 6,
+        }},
+        {"type": "category_grid", "order": 3, "data": {
+            "title": "Categorías",
+        }},
+        {"type": "product_grid", "order": 4, "data": {
+            "title": "Todos los productos",
+        }},
+    ],
 }
 
 
@@ -260,7 +626,14 @@ BLOCK_TEMPLATES: dict[str, str] = {
     "banner": "blocks/banner.html",
     "features": "blocks/features.html",
     "newsletter": "blocks/newsletter.html",
+    "menu_grid": "blocks/menu_grid.html",
+    "services_list": "blocks/services_list.html",
+    "gallery": "blocks/gallery.html",
+    "testimonials": "blocks/testimonials.html",
+    "contact_info": "blocks/contact_info.html",
 }
+
+VALID_TEMPLATE_NAMES = frozenset(THEME_PRESETS.keys())
 
 
 # ── Renderer functions ────────────────────────────────────────────────────

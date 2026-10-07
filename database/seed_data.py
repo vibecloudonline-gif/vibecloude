@@ -1,5 +1,5 @@
 from sqlmodel import Session, select
-from database.models import Product, Tenant
+from database.models import Product, Tenant, BusinessCategory
 
 
 def seed_products(session: Session):
@@ -125,5 +125,44 @@ def seed_products(session: Session):
         if not product:
             session.add(Product(tenant_id=tenant.id, **p_data))
             print(f"Adding product: {p_data['name']}")
+
+    session.commit()
+
+
+def seed_business_categories(session: Session):
+    existing = session.exec(select(BusinessCategory).limit(1)).first()
+    if existing:
+        return
+
+    categories = [
+        ("Tecnología", "tecnologia", "💻", None),
+        ("Software", "software", "🖥️", "tecnologia"),
+        ("Hardware", "hardware", "🔧", "tecnologia"),
+        ("Gastronomía", "gastronomia", "🍽️", None),
+        ("Restaurantes", "restaurantes", "🍔", "gastronomia"),
+        ("Catering", "catering", "🎪", "gastronomia"),
+        ("Retail", "retail", "🛍️", None),
+        ("Indumentaria", "indumentaria", "👕", "retail"),
+        ("Calzado", "calzado", "👟", "retail"),
+        ("Servicios", "servicios", "⚙️", None),
+        ("Consultoría", "consultoria", "📊", "servicios"),
+        ("Marketing", "marketing", "📣", "servicios"),
+        ("Salud", "salud", "🏥", None),
+        ("Educación", "educacion", "📚", None),
+        ("Construcción", "construccion", "🏗️", None),
+        ("Transporte", "transporte", "🚛", None),
+        ("Agricultura", "agricultura", "🌾", None),
+        ("Finanzas", "finanzas", "💰", None),
+        ("Turismo", "turismo", "✈️", None),
+        ("Otro", "otro", "📦", None),
+    ]
+
+    slug_to_id = {}
+    for name, slug, icon, parent_slug in categories:
+        parent_id = slug_to_id.get(parent_slug) if parent_slug else None
+        cat = BusinessCategory(name=name, slug=slug, icon=icon, parent_id=parent_id)
+        session.add(cat)
+        session.flush()
+        slug_to_id[slug] = cat.id
 
     session.commit()

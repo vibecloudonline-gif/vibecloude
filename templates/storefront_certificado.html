@@ -1,0 +1,99 @@
+{% extends "storefront_base.html" %}
+{% block title %}Certificado - {{ course.title }} - {{ settings.company_name }}{% endblock %}
+
+{% block head %}
+<style>
+.cert-page { max-width: 800px; margin: 0 auto; }
+.cert-back {
+    font-size: 0.85rem; color: var(--sf-muted); display: inline-flex;
+    align-items: center; gap: 4px; margin-bottom: 20px; text-decoration: none;
+}
+.cert-back:hover { color: var(--sf-accent); }
+.certificate {
+    border: 3px solid var(--sf-accent, #FF6A00);
+    border-radius: 16px;
+    padding: 48px 40px;
+    text-align: center;
+    background: var(--sf-surface, #fff);
+    position: relative;
+    overflow: hidden;
+}
+.certificate::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 6px;
+    background: linear-gradient(90deg, var(--sf-accent, #FF6A00), #F59E0B, var(--sf-accent, #FF6A00));
+}
+.cert-badge {
+    width: 64px; height: 64px; margin: 0 auto 20px;
+    background: var(--sf-accent, #FF6A00); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+}
+.cert-label {
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--sf-muted); margin-bottom: 8px;
+}
+.cert-title {
+    font-family: var(--sf-heading-font);
+    font-weight: var(--sf-heading-weight);
+    font-size: 1.6rem; margin-bottom: 24px; color: var(--sf-text);
+}
+.cert-body { font-size: 1rem; line-height: 1.8; color: var(--sf-text); margin-bottom: 32px; }
+.cert-name {
+    font-size: 1.4rem; font-weight: 700; color: var(--sf-accent, #FF6A00);
+    border-bottom: 2px solid var(--sf-accent, #FF6A00);
+    display: inline-block; padding-bottom: 4px; margin-bottom: 8px;
+}
+.cert-course {
+    font-size: 1.1rem; font-weight: 600; margin-top: 12px;
+}
+.cert-date {
+    font-size: 0.88rem; color: var(--sf-muted); margin-top: 24px;
+}
+.cert-issuer {
+    font-size: 0.82rem; color: var(--sf-muted); margin-top: 8px;
+    font-style: italic;
+}
+.cert-footer {
+    margin-top: 32px; padding-top: 20px;
+    border-top: 1px solid var(--sf-border);
+    display: flex; justify-content: center; gap: 32px;
+    font-size: 0.82rem; color: var(--sf-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cert-page">
+    <a href="/tienda/cursos/{{ course.id }}" class="cert-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        Volver al curso
+    </a>
+
+    <div class="certificate">
+        <div class="cert-badge">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                <path d="M12 15l-2 5 2-1.5L14 20l-2-5z"/>
+                <circle cx="12" cy="9" r="6"/>
+            </svg>
+        </div>
+        <div class="cert-label">Certificado de completacion</div>
+        <h1 class="cert-title">Felicitaciones</h1>
+        <div class="cert-body">
+            <p>Se certifica que</p>
+            <div class="cert-name">{{ user.username }}</div>
+            <p>ha completado exitosamente el curso</p>
+            <div class="cert-course">"{{ course.title }}"</div>
+        </div>
+        <div class="cert-date">
+            Completado el {{ enrollment.completed_at.strftime('%d/%m/%Y') }}
+        </div>
+        <div class="cert-issuer">
+            Emitido por {{ settings.company_name }} a traves de VibeCloud
+        </div>
+        <div class="cert-footer">
+            <span>{{ settings.company_name }}</span>
+            <span>ID: {{ enrollment.id }}-{{ course.id }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

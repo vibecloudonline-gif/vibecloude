@@ -36,8 +36,8 @@ def client(session):
 
 @pytest.mark.anyio
 async def test_execute_tool_consultar_stock_injection(session):
-    t1 = Tenant(name="Tenant 1", subdomain="t1", ai_credits=100)
-    t2 = Tenant(name="Tenant 2", subdomain="t2", ai_credits=100)
+    t1 = Tenant(name="Tenant 1", subdomain="t1", ai_credits=100, has_erp=True)
+    t2 = Tenant(name="Tenant 2", subdomain="t2", ai_credits=100, has_erp=True)
     session.add(t1)
     session.add(t2)
     session.commit()
@@ -76,8 +76,8 @@ async def test_execute_tool_consultar_stock_injection(session):
 
 @pytest.mark.anyio
 async def test_execute_tool_obtener_metricas_ventas_isolation(session):
-    t1 = Tenant(name="Tenant 1", subdomain="t1")
-    t2 = Tenant(name="Tenant 2", subdomain="t2")
+    t1 = Tenant(name="Tenant 1", subdomain="t1", has_erp=True)
+    t2 = Tenant(name="Tenant 2", subdomain="t2", has_erp=True)
     session.add(t1)
     session.add(t2)
     session.commit()
@@ -167,8 +167,6 @@ async def test_template_studio_success(client, session, monkeypatch):
 
 @pytest.mark.anyio
 async def test_credits_management_endpoints(client, session):
-    from database.models import PlatformPayment
-    from decimal import Decimal
     from web.dependencies import require_auth
 
     t1 = Tenant(name="Tenant 1", subdomain="t1", ai_credits=50, ai_tier="free")
@@ -180,21 +178,10 @@ async def test_credits_management_endpoints(client, session):
         tenant_id=t1.id,
         username="admin_test",
         password_hash="pw",
-        role="admin",
+        role="superadmin",
         is_active=True,
     )
     session.add(admin_user)
-
-    payment = PlatformPayment(
-        tenant_id=t1.id,
-        provider="manual_test",
-        external_id="pay_ref_test_150",
-        amount=Decimal("15.00"),
-        currency="ARS",
-        status="completed",
-        payment_type="credit_purchase",
-    )
-    session.add(payment)
     session.commit()
 
     app.dependency_overrides[require_auth] = lambda: admin_user
@@ -209,13 +196,11 @@ async def test_credits_management_endpoints(client, session):
         resp_buy = client.post(
             "/api/v1/ai/credits/buy",
             headers={"x-tenant-subdomain": "t1"},
-            json={"amount": 150, "payment_reference": "pay_ref_test_150"},
+            json={},
         )
         assert resp_buy.status_code == 200
         data_buy = resp_buy.json()
-        assert data_buy["ai_credits"] == 200
-
-        db_tenant = session.get(Tenant, t1.id)
-        assert db_tenant.ai_credits == 200
+        assert data_buy["success"] is False
+        assert "/api/v1/payments/credits/create" in data_buy["redirect"]
     finally:
         app.dependency_overrides.pop(require_auth, None)

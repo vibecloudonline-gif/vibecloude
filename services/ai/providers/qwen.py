@@ -99,7 +99,7 @@ class QwenAdapter(AIProviderAdapter):
 
         finish = data.get("choices", [{}])[0].get("finish_reason", "")
 
-        return AIResponse(
+        result = AIResponse(
             request_id=request.request_id,
             provider=self.provider_name,
             model=model,
@@ -108,3 +108,5 @@ class QwenAdapter(AIProviderAdapter):
             latency_ms=latency_ms,
             finish_reason=finish,
         )
+        self.log_call(request, result)
+        return result

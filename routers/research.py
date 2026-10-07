@@ -9,6 +9,7 @@ from sqlmodel import Session
 
 from database.models import Settings, Tenant, User
 from database.session import get_session
+from services.entitlements import can_use_module, get_blocked_message
 from sqlmodel import select
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
@@ -21,8 +22,8 @@ def _templates():
 
 
 def _require_research_access(tenant: Tenant):
-    if not (tenant.has_landing or tenant.has_ecommerce):
-        raise HTTPException(403, "Tu cuenta no tiene acceso al módulo de investigación")
+    if not can_use_module(tenant, "research"):
+        raise HTTPException(403, get_blocked_message("research"))
 
 
 @router.get("/panel/research", response_class=HTMLResponse)
@@ -152,6 +153,35 @@ async def research_run_search(
         "status": "success",
         "listings_count": len(listings),
         "project_id": project.id,
+    }
+
+
+@router.post("/panel/research/{project_id}/verificar")
+async def research_verify_data(
+    project_id: int,
+    request: Request,
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    from services.research_service import get_project_with_results, verify_project_listings
+
+    tenant = session.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404)
+    _require_research_access(tenant)
+
+    project = get_project_with_results(session, project_id, tenant_id)
+    if not project:
+        raise HTTPException(404, "Proyecto no encontrado")
+
+    verified_count = await verify_project_listings(session, project)
+    total = len([l for l in project.listings if not l.is_demo])
+
+    return {
+        "status": "success",
+        "verified": verified_count,
+        "total": total,
     }
 
 
@@ -480,6 +510,8 @@ async def research_generate_forecast(
 
     result = await generate_market_forecast(project.query_description, prices, horizon_days, business_context=biz_ctx)
 
+    explanation = await _explain_forecast(result, project.query_description, horizon_days)
+
     forecast_row = ResearchForecast(
         project_id=project_id,
         horizon_days=horizon_days,
@@ -491,6 +523,7 @@ async def research_generate_forecast(
         launch_window=result.launch_window,
         recommendation=result.recommendation,
         provider=result.provider,
+        explanation=explanation,
     )
     session.add(forecast_row)
     session.commit()
@@ -503,6 +536,25 @@ async def research_generate_forecast(
         "launch_window": result.launch_window,
         "provider": result.provider,
     }
+
+
+async def _explain_forecast(result, query: str, horizon_days: int) -> Optional[str]:
+    """Traduce el forecast a lenguaje simple via GPT-4o. Retorna None si no hay OpenAI."""
+    try:
+        from services.ai_gateway_service import ai_gateway_service
+        forecast_data = {
+            "producto": query,
+            "horizonte_dias": horizon_days,
+            "tendencia": result.trend_direction,
+            "ventana_lanzamiento": result.launch_window,
+            "recomendacion_tecnica": result.recommendation,
+            "precio_actual": result.price_series[-1] if result.price_series else None,
+            "precio_proyectado": result.forecast_series[-1] if result.forecast_series else None,
+            "proveedor": result.provider,
+        }
+        return await ai_gateway_service.explain_results(forecast_data, context_type="forecast")
+    except Exception:
+        return None
 
 
 def _parse_forecast(fc):
@@ -520,6 +572,7 @@ def _parse_forecast(fc):
         "launch_window": fc.launch_window,
         "recommendation": fc.recommendation,
         "provider": fc.provider,
+        "explanation": fc.explanation,
         "created_at": fc.created_at,
     }
 
@@ -890,6 +943,9 @@ async def research_instant_forecast(
 
     # 3. Generar forecast
     result = await generate_market_forecast(project.query_description, prices, horizon_days)
+
+    explanation = await _explain_forecast(result, project.query_description, horizon_days)
+
     forecast_row = ResearchForecast(
         project_id=project.id,
         horizon_days=horizon_days,
@@ -901,6 +957,7 @@ async def research_instant_forecast(
         launch_window=result.launch_window,
         recommendation=result.recommendation,
         provider=result.provider,
+        explanation=explanation,
     )
     session.add(forecast_row)
     session.commit()

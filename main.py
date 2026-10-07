@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, func
 from sqlalchemy import text
 from contextlib import asynccontextmanager
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 import os
 import logging
 import httpx
@@ -40,7 +40,7 @@ from routers.api.v1.ui_config import router as ui_config_v1_router
 
 from routers.ai import router as ai_router
 from routers.superadmin import router as superadmin_router
-from routers.store import router as store_router
+from routers.store import router as store_router, panel_router as store_panel_router
 from routers.catalog_import import router as catalog_import_router
 from routers.storefront import router as storefront_router
 from routers.landing_studio import router as landing_studio_router
@@ -49,16 +49,35 @@ from routers.team import router as team_router
 from routers.panel_domains import router as panel_domains_router
 from routers.help import router as help_router
 from routers.payments import router as payments_router
+from routers.webhooks import router as webhooks_router
 from routers.research import router as research_router
 from routers.offer import router as offer_router
 from routers.social_content import router as social_content_router
 from routers.expert_debate import router as expert_debate_router
+from routers.courses import router as courses_router
+from routers.network import router as network_router
+from routers.crm import router as crm_router
+from routers.panel_plan import router as panel_plan_router
+from routers.platform import router as platform_router
 
 from core.logging_config import setup_logging
 from core.startup import lifespan
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+_sentry_dsn = os.getenv("SENTRY_DSN", "")
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_RATE", "0.1")),
+            environment=os.getenv("ENVIRONMENT", "development"),
+        )
+        logger.info("Sentry inicializado")
+    except ImportError:
+        logger.warning("SENTRY_DSN configurado pero sentry-sdk no instalado")
 
 templates = CompatTemplates(directory="templates")
 
@@ -93,6 +112,9 @@ def _get_cors_origins() -> list[str]:
 
 app.add_middleware(CORSMiddleware, allow_origins=_get_cors_origins(), allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+from core.security_headers import SecurityHeadersMiddleware
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 from starlette.middleware.sessions import SessionMiddleware
 SESSION_SECRET = os.getenv("SECRET_KEY")
@@ -103,10 +125,12 @@ app.add_middleware(
     secret_key=SESSION_SECRET,
     same_site="lax",
     https_only=os.getenv("ENVIRONMENT", "development").lower() == "production",
+    max_age=86400 * 7,
 )
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+os.makedirs("static/uploads", exist_ok=True)
 
 # Register all routers
 app.include_router(auth_router)
@@ -128,10 +152,16 @@ app.include_router(team_router)
 app.include_router(panel_domains_router)
 app.include_router(help_router)
 app.include_router(payments_router)
+app.include_router(webhooks_router)
 app.include_router(research_router)
 app.include_router(offer_router)
 app.include_router(social_content_router)
 app.include_router(expert_debate_router)
+app.include_router(courses_router)
+app.include_router(network_router)
+app.include_router(crm_router)
+app.include_router(panel_plan_router)
+app.include_router(platform_router)
 
 # Register API V1 Routers
 app.include_router(auth_v1_router, prefix="/api/v1", tags=["Auth V1"])
@@ -145,6 +175,7 @@ app.include_router(ui_config_v1_router, prefix="/api/v1", tags=["UI Config V1 (L
 
 app.include_router(ai_router)
 app.include_router(store_router)
+app.include_router(store_panel_router)
 app.include_router(superadmin_router)
 
 
@@ -152,13 +183,22 @@ app.include_router(superadmin_router)
 @app.head("/health")
 async def health_check(session: Session = Depends(get_session)):
     status = "healthy"
-    services = {"database": "ok"}
+    services = {"database": "ok", "storage": "ok"}
     try:
         session.execute(text("SELECT 1"))
     except Exception as e:
         status = "degraded"
         services["database"] = f"error: {str(e)}"
-        
+
+    try:
+        from services.storage_service import get_storage
+        if not get_storage().health_check():
+            status = "degraded"
+            services["storage"] = "unreachable"
+    except Exception as e:
+        status = "degraded"
+        services["storage"] = f"error: {str(e)}"
+
     return {"status": status, "services": services}
 
 
@@ -206,7 +246,7 @@ def get_dashboard(request: Request, user: User = Depends(require_auth), settings
     low_stock = session.exec(select(func.count()).select_from(subquery)).one()
             
     recent_sales = session.exec(select(Sale).where(Sale.tenant_id == tenant_id, Sale.is_closed == False).order_by(Sale.timestamp.desc()).limit(5)).all()
-    today_start = datetime.combine(date.today(), datetime.min.time())
+    today_start = datetime.combine(datetime.now(timezone.utc).date(), datetime.min.time())
     today_sales_total = session.exec(select(func.sum(Sale.total_amount)).where(Sale.tenant_id == tenant_id, Sale.timestamp >= today_start, Sale.is_closed == False)).one() or 0.0
     view = request.session.get("nav_view", [])
     return templates.TemplateResponse("dashboard.html", {"request": request, "active_page": "home", "settings": settings, "user": user, "total_products": total_products, "low_stock": low_stock, "recent_sales": recent_sales, "today_sales_total": today_sales_total, "view": view})

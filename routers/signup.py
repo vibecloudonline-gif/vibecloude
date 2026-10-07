@@ -139,6 +139,7 @@ def signup_submit(
     has_erp: bool = Form(False),
     has_ecommerce: bool = Form(False),
     has_landing: bool = Form(False),
+    has_courses: bool = Form(False),
     domain_choice: str = Form("subdominio"),
     desired_domain: Optional[str] = Form(None),
     ecommerce_connected_to_erp: bool = Form(False),
@@ -160,7 +161,7 @@ def signup_submit(
             "registro.html", {"request": request, "error": "Ese subdominio ya está en uso"}, status_code=400
         )
 
-    if not (has_erp or has_ecommerce or has_landing):
+    if not (has_erp or has_ecommerce or has_landing or has_courses):
         return _templates().TemplateResponse(
             "registro.html", {"request": request, "error": "Elegí al menos un producto"}, status_code=400
         )
@@ -190,6 +191,7 @@ def signup_submit(
         has_erp=has_erp,
         has_ecommerce=has_ecommerce,
         has_landing=has_landing,
+        has_courses=has_courses,
     )
     session.add(tenant)
     try:
@@ -243,6 +245,9 @@ def signup_submit(
 
     session.refresh(admin_user)
 
+    from services.funnel_service import track_event
+    track_event(session, tenant.id, "registro", user_id=admin_user.id)
+
     # Solicitud de dominio propio -- nunca se compra en el acto (nunca se
     # llama a GoDaddyClient.register_domain acá). Queda pendiente para que
     # el SuperAdmin la confirme y compre a mano desde /tenants/{id}/domains.
@@ -275,13 +280,16 @@ def signup_submit(
         )
 
     request.session["user_id"] = admin_user.id
-    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing}
+    tenant_flags = {"erp": has_erp, "ecommerce": has_ecommerce, "landing": has_landing, "courses": has_courses}
     request.session["tenant_flags"] = tenant_flags
+    request.session["tenant_nivel"] = 1
     modules = []
     if has_ecommerce:
         modules.append("ecommerce")
     if has_landing:
         modules.append("landing")
+    if has_courses:
+        modules.append("courses")
     if not modules:
         modules = ["ecommerce", "landing"]
     request.session["nav_view"] = modules
@@ -314,6 +322,7 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
         "erp": tenant.has_erp if tenant else True,
         "ecommerce": tenant.has_ecommerce if tenant else True,
         "landing": tenant.has_landing if tenant else True,
+        "courses": tenant.has_courses if tenant else False,
     }
     request.session["tenant_flags"] = tenant_flags
     modules = []
@@ -321,6 +330,8 @@ def confirm_email(request: Request, token: str, session: Session = Depends(get_s
         modules.append("ecommerce")
     if tenant_flags.get("landing"):
         modules.append("landing")
+    if tenant_flags.get("courses"):
+        modules.append("courses")
     if not modules:
         modules = ["ecommerce", "landing"]
     request.session["nav_view"] = modules

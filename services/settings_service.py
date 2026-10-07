@@ -143,7 +143,8 @@ class SettingsService:
             settings.ui_theme = ui_theme
 
         if storefront_template is not None:
-            if storefront_template not in ("elegante", "urbano", "natural", "tech"):
+            from services.storefront_renderer import VALID_TEMPLATE_NAMES
+            if storefront_template not in VALID_TEMPLATE_NAMES:
                 raise HTTPException(status_code=400, detail="Invalid storefront_template value")
             settings.storefront_template = storefront_template
 

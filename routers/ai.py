@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/ai", tags=["AI Services"])
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+DEFAULT_GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 class CopyRequest(BaseModel):
     product_name: str
@@ -113,7 +113,7 @@ async def predict_product(
     from decimal import Decimal
     from services.ai_gateway_service import AIGatewayService
 
-    return await AIGatewayService.predict_product_success(
+    result = await AIGatewayService.predict_product_success(
         session=db,
         tenant_id=current_user.tenant_id,
         name=req.name,
@@ -121,6 +121,13 @@ async def predict_product(
         price=Decimal(str(req.price)),
         description=req.description,
     )
+
+    if result.get("available"):
+        explanation = await AIGatewayService.explain_results(result, "viability")
+        if explanation:
+            result["explanation"] = explanation
+
+    return result
 
 
 # Basic in-memory rate limiting for AI calls per tenant
@@ -167,7 +174,7 @@ async def get_onboarding_texts(
         raise HTTPException(status_code=500, detail="Error interno del servicio de IA")
 
 @router.post("/image")
-async def generate_image(req: ImageRequest, db: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+def generate_image(req: ImageRequest, db: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     if not current_user:
         raise HTTPException(status_code=401, detail="Autenticación requerida.")
     if current_user.tenant_id:
@@ -424,7 +431,7 @@ async def ai_template_studio(
         raise HTTPException(status_code=500, detail=f"Error en Template Studio: {str(e)}")
 
 @router.get("/credits")
-async def get_tenant_credits(
+def get_tenant_credits(
     db: Session = Depends(get_session),
     tenant_id: int = Depends(get_current_tenant)
 ):
@@ -437,68 +444,15 @@ async def get_tenant_credits(
         "ai_credits": tenant.ai_credits
     }
 
-class CreditPurchaseRequest(BaseModel):
-    amount: int = 100
-    payment_reference: str  # external_id de un PlatformPayment completado
-
-
 @router.post("/credits/buy")
-async def buy_tenant_credits(
-    req: CreditPurchaseRequest,
-    db: Session = Depends(get_session),
+def buy_tenant_credits(
     current_user: User = Depends(require_auth),
-    tenant_id: int = Depends(get_current_tenant),
 ):
-    # 1. Solo admin puede comprar créditos
-    from services.settings_service import SettingsService
-    SettingsService.ensure_admin(current_user)
-
-    # 2. Verificar pago real completado y no reutilizado
-    from database.models import PlatformPayment
-    payment = db.exec(
-        select(PlatformPayment).where(
-            PlatformPayment.tenant_id == tenant_id,
-            PlatformPayment.external_id == req.payment_reference,
-            PlatformPayment.status == "completed",
-            PlatformPayment.payment_type == "credit_purchase",
-        )
-    ).first()
-
-    if not payment:
-        raise HTTPException(
-            status_code=402,
-            detail="Referencia de pago inválida, no completada o no encontrada.",
-        )
-
-    # 3. Idempotencia: verificar que no se acreditaron créditos ya con este pago
-    meta = json.loads(payment.metadata_json or "{}")
-    if meta.get("credits_applied"):
-        raise HTTPException(
-            status_code=409,
-            detail="Los créditos de este pago ya fueron acreditados.",
-        )
-
-    # 4. Acreditar créditos
-    tenant = db.get(Tenant, tenant_id)
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant no encontrado.")
-
-    tenant.ai_credits += req.amount
-    meta["credits_applied"] = True
-    meta["credits_amount"] = req.amount
-    payment.metadata_json = json.dumps(meta)
-    db.add(tenant)
-    db.add(payment)
-    db.commit()
-
-    logger.info(
-        "Credits purchased: tenant_id=%s amount=%s payment=%s",
-        tenant_id, req.amount, req.payment_reference,
-    )
-
+    """Deprecated — usar POST /api/v1/payments/credits/create con un provider."""
     return {
-        "success": True,
-        "message": f"Se agregaron {req.amount} créditos con éxito.",
-        "ai_credits": tenant.ai_credits,
+        "success": False,
+        "message": "Este endpoint fue reemplazado. Usá POST /api/v1/payments/credits/create.",
+        "redirect": "/api/v1/payments/credits/create",
+        "packs_url": "/api/v1/payments/credits/packs",
     }
 

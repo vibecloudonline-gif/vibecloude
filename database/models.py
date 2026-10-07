@@ -80,6 +80,11 @@ class Tenant(SQLModel, table=True):
     has_erp: bool = Field(default=False)
     has_ecommerce: bool = Field(default=True)
     has_landing: bool = Field(default=True)
+    has_courses: bool = Field(default=False)
+    nivel: int = Field(default=1)
+    nivel_since: datetime = Field(default_factory=_utcnow)
+    platform_commission_pct: Decimal = Field(default=Decimal("5.00"), sa_column=Column(Numeric(5, 2), nullable=False))
+    landing_regen_count: int = Field(default=0)
     users: List["User"] = Relationship(sa_relationship=relationship("User", back_populates="tenant"))
     settings: List["Settings"] = Relationship(sa_relationship=relationship("Settings", back_populates="tenant"))
 
@@ -128,6 +133,33 @@ class SupportTicket(SQLModel, table=True):
     response: Optional[str] = None
     created_at: datetime = Field(default_factory=_utcnow)
     responded_at: Optional[datetime] = None
+
+
+# ===========================================================================
+# TENANT PROFILE — contexto de negocio para alimentar toda la IA
+# ===========================================================================
+
+class TenantProfile(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenantprofile_tenant"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+
+    elevator_pitch: str = Field(default="")
+    business_type: str = Field(default="other")
+    business_stage: str = Field(default="idea")
+    target_audience: str = Field(default="")
+    target_market: str = Field(default="local")
+    monthly_revenue_target: Optional[Decimal] = Field(
+        default=None, sa_column=Column(Numeric(12, 2), nullable=True)
+    )
+    main_challenge: str = Field(default="")
+    competitors: Optional[str] = Field(default=None)
+
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime = Field(default_factory=_utcnow)
 
 
 # ===========================================================================
@@ -199,6 +231,7 @@ class Client(SQLModel, table=True):
 
     is_deleted: bool = Field(default=False)
     deleted_at: Optional[datetime] = Field(default=None)
+    crm_external_id: Optional[str] = Field(default=None, index=True)
 
     sales: List["Sale"] = Relationship(sa_relationship=relationship("Sale", back_populates="client"))
     payments: List["Payment"] = Relationship(sa_relationship=relationship("Payment", back_populates="client"))
@@ -300,7 +333,6 @@ class Product(SQLModel, table=True):
     price_bulk: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
     price_retail: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
 
-    medusa_product_id: Optional[str] = Field(default=None, index=True)
     cost_price: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2), nullable=False))
 
     # ELIMINADO: stock_quantity — fuente única de verdad es BinStock
@@ -368,10 +400,15 @@ class SyncQueue(SQLModel, table=True):
 
 class ProcessedWebhook(SQLModel, table=True):
     __tablename__ = "processed_webhooks"
+    __table_args__ = (
+        UniqueConstraint("event_id", "source", "status_transition", name="uq_webhook_event_transition"),
+    )
 
-    event_id: str = Field(primary_key=True)
-    source: str = Field(default="medusa")
-    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event_id: str = Field(index=True)
+    source: str = Field(default="internal")
+    status_transition: str = Field(default="")  # e.g. "pending→paid"
+    processed_at: datetime = Field(default_factory=_utcnow)
     status: str = Field(default="processed")
 
 # ===========================================================================
@@ -402,6 +439,11 @@ class Sale(SQLModel, table=True):
 
     client_id: Optional[int] = Field(default=None, foreign_key="client.id")
     client: Optional["Client"] = Relationship(sa_relationship=relationship("Client", back_populates="sales"))
+
+    platform_commission: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2), nullable=False))
+    fraud_flag: Optional[str] = None
+
+    crm_external_id: Optional[str] = Field(default=None, index=True)
 
     items: List["SaleItem"] = Relationship(sa_relationship=relationship("SaleItem", back_populates="sale"))
     payment_allocations: List["PaymentAllocation"] = Relationship(sa_relationship=relationship("PaymentAllocation", back_populates="sale"))
@@ -729,8 +771,11 @@ class AICredential(SQLModel, table=True):
     """
     FIX #7: api_key_enc reemplaza api_key (texto plano eliminado).
     """
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "provider", name="uq_aicredential_tenant_provider"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
-    tenant_id: int = Field(foreign_key="tenant.id", unique=True, index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
     provider: str = Field(default="gemini")
 
     # NUNCA guardar la clave original. Guardar encrypt_api_key(plain).
@@ -755,6 +800,24 @@ class RefreshToken(SQLModel, table=True):
 # UI CONFIG (FASE 2: GESTOR DE UI)
 # ===========================================================================
 
+class TenantPaymentConfig(SQLModel, table=True):
+    """Credenciales de la pasarela del COMERCIO (no de la plataforma).
+    Sin config → sin checkout. Tokens cifrados con Fernet."""
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "provider", name="uq_tenantpaymentconfig_tenant_provider"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    provider: str  # "mercadopago", "stripe"
+    access_token_enc: str  # encrypt_api_key(token)
+    refresh_token_enc: Optional[str] = None
+    merchant_id: Optional[str] = None  # MP user_id or Stripe account id
+    is_active: bool = Field(default=True)
+    connected_at: datetime = Field(default_factory=_utcnow)
+    expires_at: Optional[datetime] = None
+
+
 class PlatformPayment(SQLModel, table=True):
     __table_args__ = (
         Index("ix_platformpayment_tenant", "tenant_id"),
@@ -765,12 +828,14 @@ class PlatformPayment(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenant.id", index=True)
     provider: str = Field(index=True)
     external_id: str = Field(default="")
+    external_ref: Optional[str] = None  # UUID no adivinable
     payment_type: str
     amount: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(12, 2)))
     currency: str = Field(default="USD")
-    status: str = Field(default="pending")
+    status: str = Field(default="pending")  # pending, paid, failed, cancelled, refunded, charged_back
     description: str = Field(default="")
     metadata_json: str = Field(default="{}")
+    commission_amount: Decimal = Field(default=Decimal("0"), sa_column=Column(Numeric(12, 2), nullable=False, server_default="0"))
     created_at: datetime = Field(default_factory=_utcnow)
     completed_at: Optional[datetime] = Field(default=None)
     sale_id: Optional[int] = Field(default=None, foreign_key="sale.id")
@@ -830,6 +895,10 @@ class ResearchListing(SQLModel, table=True):
     rating: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(3, 2), nullable=True))
     review_count: Optional[int] = None
     is_demo: bool = Field(default=False)
+
+    source_date: Optional[datetime] = None
+    verified: bool = Field(default=False)
+    verification_details: Optional[str] = Field(default=None, sa_column=Column(Text))
 
     created_at: datetime = Field(default_factory=_utcnow)
 
@@ -906,6 +975,7 @@ class ValidationDebate(SQLModel, table=True):
     completed_at: Optional[datetime] = None
     final_verdict: Optional[str] = None  # approved, needs_revision
     arbiter_summary: Optional[str] = None
+    action_plan_json: Optional[str] = None
 
     offer: Optional[Offer] = Relationship(sa_relationship=relationship("Offer", back_populates="debate"))
     objections: List["DebateObjection"] = Relationship(sa_relationship=relationship("DebateObjection", back_populates="debate"))
@@ -1000,6 +1070,7 @@ class ResearchForecast(SQLModel, table=True):
     trend_direction: str = Field(default="estable")  # alcista, bajista, estable
     launch_window: Optional[str] = None       # "Q4 2026", "Enero-Febrero 2027"
     recommendation: Optional[str] = None      # texto de recomendacion de lanzamiento
+    explanation: Optional[str] = Field(default=None, sa_column=Column(Text))  # traduccion GPT-4o para inversores
     provider: str = Field(default="timesfm_simulated")  # timesfm_api, timesfm_simulated
 
     created_at: datetime = Field(default_factory=_utcnow)
@@ -1041,3 +1112,354 @@ class ForecastProfile(SQLModel, table=True):
     project: Optional["ResearchProject"] = Relationship(
         sa_relationship=relationship("ResearchProject", backref="forecast_profile")
     )
+
+
+# ---------------------------------------------------------------------------
+# Cursos
+# ---------------------------------------------------------------------------
+
+class Course(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_course_tenant_slug"),
+        Index("ix_course_tenant_status", "tenant_id", "status"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    instructor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    title: str
+    slug: str = Field(index=True)
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    price: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(12, 2), nullable=False))
+    category: Optional[str] = None
+    status: str = Field(default="draft")
+    is_featured: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: Optional[datetime] = None
+
+    lessons: List["Lesson"] = Relationship(
+        sa_relationship=relationship("Lesson", back_populates="course")
+    )
+    enrollments: List["Enrollment"] = Relationship(
+        sa_relationship=relationship("Enrollment", back_populates="course")
+    )
+
+
+class Lesson(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_lesson_course_order", "course_id", "order"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    course_id: int = Field(foreign_key="course.id", index=True)
+    title: str
+    content_type: str = Field(default="text")
+    content_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    order: int = Field(default=0)
+    duration_minutes: Optional[int] = None
+    is_free_preview: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    course: Optional["Course"] = Relationship(
+        sa_relationship=relationship("Course", back_populates="lessons")
+    )
+    progress_records: List["LessonProgress"] = Relationship(
+        sa_relationship=relationship("LessonProgress", back_populates="lesson")
+    )
+
+
+class Enrollment(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("course_id", "user_id", name="uq_enrollment_course_user"),
+        Index("ix_enrollment_tenant", "tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    course_id: int = Field(foreign_key="course.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id")
+    enrolled_at: datetime = Field(default_factory=_utcnow)
+    completed_at: Optional[datetime] = None
+
+    course: Optional["Course"] = Relationship(
+        sa_relationship=relationship("Course", back_populates="enrollments")
+    )
+    progress: List["LessonProgress"] = Relationship(
+        sa_relationship=relationship("LessonProgress", back_populates="enrollment")
+    )
+
+
+class LessonProgress(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("enrollment_id", "lesson_id", name="uq_progress_enrollment_lesson"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    enrollment_id: int = Field(foreign_key="enrollment.id", index=True)
+    lesson_id: int = Field(foreign_key="lesson.id", index=True)
+    completed: bool = Field(default=False)
+    score: Optional[int] = None
+    last_position: Optional[str] = None
+
+    enrollment: Optional["Enrollment"] = Relationship(
+        sa_relationship=relationship("Enrollment", back_populates="progress")
+    )
+    lesson: Optional["Lesson"] = Relationship(
+        sa_relationship=relationship("Lesson", back_populates="progress_records")
+    )
+
+
+# ---------------------------------------------------------------------------
+# VibeNet — Red de Negocios B2B
+# ---------------------------------------------------------------------------
+
+class BusinessCategory(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("slug", name="uq_businesscategory_slug"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    slug: str = Field(index=True)
+    icon: Optional[str] = None
+    parent_id: Optional[int] = Field(default=None, foreign_key="businesscategory.id")
+
+    profiles: List["BusinessProfile"] = Relationship(
+        sa_relationship=relationship("BusinessProfile", back_populates="category")
+    )
+
+
+class BusinessProfile(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_businessprofile_tenant"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    display_name: str
+    tagline: Optional[str] = None
+    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    logo_url: Optional[str] = None
+    banner_url: Optional[str] = None
+    category_id: Optional[int] = Field(default=None, foreign_key="businesscategory.id")
+    city: Optional[str] = None
+    country: str = Field(default="AR")
+    website_url: Optional[str] = None
+    social_links_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    is_verified: bool = Field(default=False)
+    is_featured: bool = Field(default=False)
+    avg_rating: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(3, 2), nullable=False))
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    category: Optional["BusinessCategory"] = Relationship(
+        sa_relationship=relationship("BusinessCategory", back_populates="profiles")
+    )
+    reviews: List["BusinessReview"] = Relationship(
+        sa_relationship=relationship("BusinessReview", back_populates="profile")
+    )
+
+
+class Connection(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("from_tenant_id", "to_tenant_id", name="uq_connection_pair"),
+        CheckConstraint("from_tenant_id != to_tenant_id", name="ck_connection_no_self"),
+        Index("ix_connection_from", "from_tenant_id"),
+        Index("ix_connection_to", "to_tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    from_tenant_id: int = Field(foreign_key="tenant.id")
+    to_tenant_id: int = Field(foreign_key="tenant.id")
+    connection_type: str = Field(default="partner")
+    status: str = Field(default="pending")
+    message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_utcnow)
+    accepted_at: Optional[datetime] = None
+
+
+class Conversation(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_a_id", "tenant_b_id", name="uq_conversation_pair"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_a_id: int = Field(foreign_key="tenant.id", index=True)
+    tenant_b_id: int = Field(foreign_key="tenant.id", index=True)
+    last_message_at: Optional[datetime] = None
+    unread_a: int = Field(default=0)
+    unread_b: int = Field(default=0)
+
+    messages: List["NetMessage"] = Relationship(
+        sa_relationship=relationship("NetMessage", back_populates="conversation")
+    )
+
+
+class NetMessage(SQLModel, table=True):
+    __tablename__ = "netmessage"
+    __table_args__ = (
+        Index("ix_netmessage_conversation", "conversation_id", "created_at"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    conversation_id: int = Field(foreign_key="conversation.id", index=True)
+    sender_tenant_id: int = Field(foreign_key="tenant.id")
+    body: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=_utcnow)
+    read_at: Optional[datetime] = None
+
+    conversation: Optional["Conversation"] = Relationship(
+        sa_relationship=relationship("Conversation", back_populates="messages")
+    )
+
+
+class BusinessReview(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_businessreview_profile", "profile_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(foreign_key="businessprofile.id", index=True)
+    reviewer_tenant_id: int = Field(foreign_key="tenant.id")
+    rating: int = Field(ge=1, le=5)
+    title: Optional[str] = None
+    comment: Optional[str] = Field(default=None, sa_column=Column(Text))
+    is_verified_connection: bool = Field(default=False)
+    is_verified_purchase: bool = Field(default=False)
+    owner_response: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    profile: Optional["BusinessProfile"] = Relationship(
+        sa_relationship=relationship("BusinessProfile", back_populates="reviews")
+    )
+
+
+class FeedPost(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_feedpost_tenant", "tenant_id"),
+        Index("ix_feedpost_created", "created_at"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    post_type: str = Field(default="article")
+    title: str
+    body: Optional[str] = Field(default=None, sa_column=Column(Text))
+    image_url: Optional[str] = None
+    likes_count: int = Field(default=0)
+    is_pinned: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# CRM Integration
+# ---------------------------------------------------------------------------
+
+class CRMSyncLog(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_crmsynclog_tenant", "tenant_id", "created_at"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    sync_type: str = Field(default="full")
+    direction: str = Field(default="pull")
+    status: str = Field(default="running")
+    contacts_synced: int = Field(default=0)
+    sales_synced: int = Field(default=0)
+    errors: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_utcnow)
+    finished_at: Optional[datetime] = None
+
+
+# ---------------------------------------------------------------------------
+# Anti-fraude y confianza
+# ---------------------------------------------------------------------------
+
+class OrderFingerprint(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_orderfingerprint_sale", "sale_id"),
+        Index("ix_orderfingerprint_tenant", "tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sale_id: int = Field(foreign_key="sale.id", index=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    buyer_ip: Optional[str] = None
+    buyer_user_agent: Optional[str] = None
+    buyer_session_id: Optional[str] = None
+    buyer_device_hash: Optional[str] = None
+    buyer_email: Optional[str] = None
+    buyer_cuit: Optional[str] = None
+    is_self_purchase: bool = Field(default=False)
+    fraud_score: int = Field(default=0)
+    fraud_reasons: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+class ReturnRequest(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_returnrequest_tenant", "tenant_id"),
+        Index("ix_returnrequest_sale", "sale_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    sale_id: int = Field(foreign_key="sale.id", index=True)
+    reason: str
+    detail: Optional[str] = Field(default=None, sa_column=Column(Text))
+    status: str = Field(default="pending")  # pending, approved, rejected, refunded
+    refund_amount: Optional[Decimal] = Field(default=None, sa_column=Column(Numeric(12, 2), nullable=True))
+    resolution_note: Optional[str] = None
+    created_at: datetime = Field(default_factory=_utcnow)
+    resolved_at: Optional[datetime] = None
+
+
+class TrustMetrics(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    total_sales: int = Field(default=0)
+    unique_buyers: int = Field(default=0)
+    total_revenue: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(14, 2), nullable=False))
+    total_commission: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(14, 2), nullable=False))
+    return_count: int = Field(default=0)
+    complaint_count: int = Field(default=0)
+    self_purchase_count: int = Field(default=0)
+    fraud_flags_count: int = Field(default=0)
+    return_rate_pct: Decimal = Field(default=Decimal("0.00"), sa_column=Column(Numeric(5, 2), nullable=False))
+    updated_at: datetime = Field(default_factory=_utcnow)
+
+
+# ===========================================================================
+# TENANT FILE (registro de archivos subidos — quota tracking)
+# ===========================================================================
+
+class TenantFile(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_tenantfile_tenant", "tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    storage_key: str = Field(unique=True)
+    file_type: str = Field(default="image")
+    original_name: str = Field(default="")
+    content_type: str = Field(default="image/jpeg")
+    size_bytes: int = Field(default=0)
+    public_url: str = Field(default="")
+    created_at: datetime = Field(default_factory=_utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Embudo de conversión
+# ---------------------------------------------------------------------------
+
+FUNNEL_EVENT_TYPES = (
+    "registro",
+    "sitio_generado",
+    "primer_producto",
+    "tienda_publicada",
+    "checkout_conectado",
+    "primer_pago",
+    "activo_dia_30",
+)
+
+class FunnelEvent(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "event_type", name="uq_funnelevent_tenant_type"),
+        Index("ix_funnelevent_tenant", "tenant_id"),
+    )
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenant.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    event_type: str
+    metadata_json: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=_utcnow)

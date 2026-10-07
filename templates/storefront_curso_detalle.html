@@ -1,0 +1,175 @@
+{% extends "storefront_base.html" %}
+{% block title %}{{ course.title }} - {{ settings.company_name }}{% endblock %}
+
+{% block head %}
+<style>
+.course-detail { max-width: 800px; margin: 0 auto; }
+.course-detail-header { margin-bottom: 24px; }
+.course-detail-header h1 {
+    font-family: var(--sf-heading-font);
+    font-weight: var(--sf-heading-weight);
+    font-size: 1.8rem; margin-bottom: 8px;
+}
+.course-detail-meta {
+    display: flex; gap: 16px; font-size: 0.88rem; color: var(--sf-muted);
+    flex-wrap: wrap; margin-bottom: 16px;
+}
+.course-detail-desc {
+    font-size: 1rem; line-height: 1.7; color: var(--sf-text);
+    margin-bottom: 24px;
+}
+.course-detail-price {
+    font-size: 1.8rem; font-weight: 700; color: var(--sf-accent);
+    margin-bottom: 16px;
+}
+.btn-enroll {
+    display: inline-block; padding: 14px 32px;
+    background: var(--sf-accent); color: #fff;
+    border-radius: var(--sf-btn-radius); font-weight: 600;
+    font-size: 1rem; border: none; cursor: pointer;
+    text-decoration: none; transition: opacity 0.15s;
+}
+.btn-enroll:hover { opacity: 0.9; }
+.btn-enrolled {
+    background: #D1FAE5; color: #065F46; cursor: default;
+}
+.progress-section {
+    margin-top: 20px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+}
+.progress-track {
+    flex: 1; height: 8px; background: var(--sf-border);
+    border-radius: 4px; overflow: hidden;
+}
+.progress-fill {
+    height: 100%; background: var(--sf-accent); border-radius: 4px;
+    transition: width 0.3s;
+}
+.progress-label { font-size: 0.85rem; font-weight: 600; color: var(--sf-muted); white-space: nowrap; }
+.btn-certificate {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; background: #065F46; color: #fff;
+    border-radius: var(--sf-btn-radius, 8px); font-weight: 600;
+    font-size: 0.9rem; text-decoration: none; margin-top: 16px;
+    transition: opacity 0.15s;
+}
+.btn-certificate:hover { opacity: 0.9; }
+.lessons-section { margin-top: 32px; }
+.lessons-section h2 {
+    font-size: 1.2rem; margin-bottom: 16px;
+    font-family: var(--sf-heading-font);
+}
+.lesson-list { display: flex; flex-direction: column; gap: 6px; }
+.lesson-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--sf-surface);
+    border: 1px solid var(--sf-border); border-radius: 8px;
+    text-decoration: none; color: inherit;
+    transition: border-color 0.15s;
+}
+.lesson-row:hover { border-color: var(--sf-accent); }
+.lesson-row.locked { opacity: 0.6; pointer-events: none; }
+.lesson-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--sf-accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+}
+.lesson-num.done {
+    background: #D1FAE5; color: #065F46;
+}
+.lesson-row-info { flex: 1; }
+.lesson-row-title { font-weight: 600; font-size: 0.9rem; }
+.lesson-row-meta { font-size: 0.78rem; color: var(--sf-muted); }
+.lesson-row-badges { display: flex; gap: 6px; }
+.badge-sm {
+    font-size: 0.68rem; padding: 2px 8px; border-radius: 4px;
+    font-weight: 600;
+}
+.badge-free { background: #D1FAE5; color: #065F46; }
+.badge-lock { background: #FEF3C7; color: #92400E; }
+.badge-done { background: #D1FAE5; color: #065F46; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="course-detail">
+    <div class="course-detail-header">
+        <a href="/tienda/cursos" style="font-size: 0.85rem; color: var(--sf-muted); display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Todos los cursos
+        </a>
+        <h1>{{ course.title }}</h1>
+        <div class="course-detail-meta">
+            {% if course.category %}<span>{{ course.category }}</span>{% endif %}
+            <span>{{ lessons|length }} lecciones</span>
+            <span>{{ total_students }} alumnos</span>
+        </div>
+    </div>
+
+    {% if course.description %}
+    <p class="course-detail-desc">{{ course.description }}</p>
+    {% endif %}
+
+    <div class="course-detail-price">
+        {% if course.price > 0 %}${{ "%.2f"|format(course.price) }}{% else %}Gratis{% endif %}
+    </div>
+
+    {% if enrolled %}
+    <span class="btn-enroll btn-enrolled">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline; vertical-align: -2px;"><polyline points="20 6 9 17 4 12"/></svg>
+        Ya estas inscripto
+    </span>
+
+    <div class="progress-section">
+        <div class="progress-track">
+            <div class="progress-fill" style="width: {{ progress_pct }}%"></div>
+        </div>
+        <span class="progress-label">{{ progress_pct }}%</span>
+    </div>
+
+    {% if course_completed %}
+    <a href="/tienda/cursos/{{ course.id }}/certificado" class="btn-certificate">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l-2 5 2-1.5L14 20l-2-5z"/><circle cx="12" cy="9" r="6"/></svg>
+        Ver certificado
+    </a>
+    {% endif %}
+    {% else %}
+    <form action="/tienda/cursos/{{ course.id }}/inscribir" method="post" style="display: inline;">
+        <button type="submit" class="btn-enroll">Inscribirme</button>
+    </form>
+    {% endif %}
+
+    <div class="lessons-section">
+        <h2>Temario</h2>
+        <div class="lesson-list">
+            {% for l in lessons %}
+            {% set can_view = enrolled or l.is_free_preview %}
+            {% set is_done = l.id in completed_lessons %}
+            <a href="{% if can_view %}/tienda/cursos/{{ course.id }}/leccion/{{ l.order }}{% else %}#{% endif %}"
+               class="lesson-row {% if not can_view %}locked{% endif %}">
+                <div class="lesson-num {% if is_done %}done{% endif %}">
+                    {% if is_done %}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    {% else %}
+                    {{ l.order }}
+                    {% endif %}
+                </div>
+                <div class="lesson-row-info">
+                    <div class="lesson-row-title">{{ l.title }}</div>
+                    <div class="lesson-row-meta">
+                        {{ l.content_type }}
+                        {% if l.duration_minutes %} · {{ l.duration_minutes }} min{% endif %}
+                    </div>
+                </div>
+                <div class="lesson-row-badges">
+                    {% if is_done %}<span class="badge-sm badge-done">Completada</span>{% endif %}
+                    {% if l.is_free_preview %}<span class="badge-sm badge-free">Gratis</span>{% endif %}
+                    {% if not can_view %}<span class="badge-sm badge-lock">Bloqueado</span>{% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

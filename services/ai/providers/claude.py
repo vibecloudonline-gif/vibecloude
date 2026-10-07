@@ -97,7 +97,7 @@ class ClaudeAdapter(AIProviderAdapter):
             total_tokens=getattr(response.usage, "input_tokens", 0) + getattr(response.usage, "output_tokens", 0),
         )
 
-        return AIResponse(
+        result = AIResponse(
             request_id=request.request_id,
             provider=self.provider_name,
             model=model,
@@ -106,6 +106,8 @@ class ClaudeAdapter(AIProviderAdapter):
             latency_ms=latency_ms,
             finish_reason=response.stop_reason or "",
         )
+        self.log_call(request, result)
+        return result
 
     @staticmethod
     def _build_image_block(path: str) -> dict[str, Any]:

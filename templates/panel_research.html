@@ -125,15 +125,16 @@
     <h2><span class="sec-icon">&#128202;</span> Listados comparables ({{ project.listings|length }})</h2>
     <div style="overflow-x: auto;">
     <table class="listings-table">
-        <thead><tr><th>Fuente</th><th>Titulo</th><th>Precio</th><th>Rating</th><th>Reviews</th></tr></thead>
+        <thead><tr><th>Fuente</th><th>Titulo</th><th>Precio</th><th>Rating</th><th>Reviews</th><th>Estado</th></tr></thead>
         <tbody>
         {% for l in project.listings %}
-        <tr>
-            <td>{{ l.source }}</td>
+        <tr{% if not l.verified and not l.is_demo %} style="opacity: 0.6;"{% endif %}>
+            <td>{% if l.url %}<a href="{{ l.url }}" target="_blank" style="color:var(--accent-color);">{{ l.source }}</a>{% else %}{{ l.source }}{% endif %}</td>
             <td>{{ l.title[:50] }}{% if l.title|length > 50 %}...{% endif %}</td>
             <td>{% if l.price %}<strong>${{ "%.2f"|format(l.price) }}</strong>{% else %}-{% endif %}</td>
             <td>{% if l.rating %}{{ l.rating }}{% else %}-{% endif %}</td>
             <td>{% if l.review_count %}{{ l.review_count }}{% else %}-{% endif %}</td>
+            <td>{% if l.is_demo %}<span style="color:var(--text-muted); font-size:0.8rem;">Demo</span>{% elif l.verified %}<span style="color:#16a34a; font-size:0.8rem;" title="Verificado por 2 LLMs contra la fuente">&#10003; Verificado</span>{% else %}<span style="color:#d97706; font-size:0.8rem;" title="No se pudo verificar con la fuente original">&#9888; Sin verificar</span>{% endif %}</td>
         </tr>
         {% endfor %}
         </tbody>

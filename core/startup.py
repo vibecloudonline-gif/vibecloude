@@ -39,6 +39,10 @@ def _repair_schema(eng):
             "competitoranalysis", "offer", "validationdebate",
             "debateobjection", "expertdebate", "expertopinion",
             "forecastprofile",
+            "course", "lesson", "enrollment", "lessonprogress",
+            "businesscategory", "businessprofile", "connection",
+            "conversation", "netmessage", "businessreview", "feedpost",
+            "crmsynclog", "tenantprofile",
         ]:
             if tbl not in existing_tables:
                 create_db_and_tables()
@@ -86,6 +90,13 @@ async def lifespan(app: FastAPI):
             run_seed_if_configured(engine)
     except Exception as e:
         logger.error(f"Session setup failed (non-fatal): {e}")
+
+    try:
+        from core.tenant_filter import register_tenant_filter
+        register_tenant_filter()
+    except Exception as e:
+        logger.error(f"Tenant filter registration failed: {e}")
+        raise
 
     # Start background daily theme scheduler
     try:

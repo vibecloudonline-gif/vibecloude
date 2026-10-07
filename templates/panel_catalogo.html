@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Catálogo de Tienda - VibeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.catalog-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+}
+.catalog-stats { display: flex; gap: 16px; }
+.catalog-stat {
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 8px; padding: 12px 20px; text-align: center;
+}
+.catalog-stat .num { font-size: 1.5rem; font-weight: 700; color: var(--primary-color, #FF6A00); }
+.catalog-stat .lbl { font-size: 0.75rem; color: var(--text-muted, #888); }
+.catalog-search {
+    width: 100%; max-width: 360px; padding: 10px 14px; border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 8px; font-size: 0.9rem; background: var(--card-bg, #fff);
+    color: var(--text-color, #1a1a1a);
+}
+.catalog-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px; margin-top: 16px;
+}
+.catalog-item {
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 10px; padding: 16px; display: flex; align-items: center; gap: 12px;
+    cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+}
+.catalog-item:hover { border-color: var(--primary-color, #FF6A00); }
+.catalog-item.selected {
+    border-color: var(--primary-color, #FF6A00);
+    box-shadow: 0 0 0 2px rgba(255, 106, 0, 0.2);
+}
+.catalog-item .check-circle {
+    width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border-color, #ddd);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    transition: all 0.15s;
+}
+.catalog-item.selected .check-circle {
+    background: var(--primary-color, #FF6A00); border-color: var(--primary-color, #FF6A00);
+}
+.catalog-item.selected .check-circle svg { display: block; }
+.catalog-item .check-circle svg { display: none; }
+.catalog-item-info { flex: 1; min-width: 0; }
+.catalog-item-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.catalog-item-meta { font-size: 0.78rem; color: var(--text-muted, #888); margin-top: 2px; }
+.catalog-item-price { font-weight: 700; font-size: 0.9rem; color: var(--primary-color, #FF6A00); white-space: nowrap; }
+.catalog-actions {
+    position: sticky; bottom: 0; background: var(--main-bg, #F4EDE4);
+    padding: 16px 0; border-top: 1px solid var(--border-color, #e5e5e5);
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 24px; z-index: 10;
+}
+.catalog-actions .selection-count { font-size: 0.9rem; color: var(--text-muted, #888); }
+.catalog-actions .selection-count strong { color: var(--primary-color, #FF6A00); }
+.btn-save-catalog {
+    background: var(--primary-color, #FF6A00); color: #fff; border: none;
+    padding: 10px 28px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; transition: opacity 0.15s;
+}
+.btn-save-catalog:hover { opacity: 0.9; }
+.btn-save-catalog:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-select-all {
+    background: transparent; border: 1px solid var(--border-color, #ddd);
+    padding: 8px 16px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;
+    color: var(--text-color, #1a1a1a);
+}
+.toast {
+    position: fixed; bottom: 24px; right: 24px; background: #16a34a; color: #fff;
+    padding: 12px 24px; border-radius: 8px; font-weight: 600; z-index: 100;
+    transform: translateY(100px); opacity: 0; transition: all 0.3s;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.empty-state {
+    text-align: center; padding: 48px 24px; color: var(--text-muted, #888);
+}
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="catalog-header">
+        <div>
+            <h2 style="margin: 0;">Catálogo de la Tienda</h2>
+            <p style="margin: 4px 0 0; font-size: 0.85rem; color: var(--text-muted, #888);">
+                Seleccioná qué productos aparecen en tu tienda online. Si no seleccionás ninguno, se muestran todos.
+            </p>
+        </div>
+        <div class="catalog-stats">
+            <div class="catalog-stat">
+                <div class="num" id="selectedCount">{{ total_curated }}</div>
+                <div class="lbl">En catálogo</div>
+            </div>
+            <div class="catalog-stat">
+                <div class="num">{{ total_products }}</div>
+                <div class="lbl">Total productos</div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <input type="text" class="catalog-search" id="catalogSearch" placeholder="Buscar productos..." oninput="filterProducts()">
+        <button class="btn-select-all" onclick="toggleSelectAll()">Seleccionar todos</button>
+        <button class="btn-select-all" onclick="clearAll()">Limpiar selección</button>
+    </div>
+
+    {% if products %}
+    <div class="catalog-grid" id="catalogGrid">
+        {% for p in products %}
+        <div class="catalog-item {% if p.id in curated_ids %}selected{% endif %}"
+             data-product-id="{{ p.id }}"
+             data-name="{{ p.name|lower }}"
+             onclick="toggleProduct(this)">
+            <div class="check-circle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </div>
+            <div class="catalog-item-info">
+                <div class="catalog-item-name">{{ p.name }}</div>
+                <div class="catalog-item-meta">
+                    {% if p.sku %}SKU: {{ p.sku }}{% endif %}
+                    {% if p.category %} · {{ p.category }}{% endif %}
+                </div>
+            </div>
+            <div class="catalog-item-price">${{ "%.2f"|format(p.price_1) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>
+        </svg>
+        <p>No tenés productos cargados.<br>Agregá productos primero desde el módulo ERP o importá un catálogo.</p>
+    </div>
+    {% endif %}
+
+    <div class="catalog-actions">
+        <div class="selection-count">
+            <strong id="selectionLabel">{{ total_curated }}</strong> productos seleccionados para la tienda
+        </div>
+        <button class="btn-save-catalog" id="btnSave" onclick="saveCatalog()">Guardar catálogo</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.catalog-item.selected'))
+        .map(el => parseInt(el.dataset.productId));
+}
+
+function updateCount() {
+    const count = getSelectedIds().length;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('selectionLabel').textContent = count;
+}
+
+function toggleProduct(el) {
+    el.classList.toggle('selected');
+    updateCount();
+}
+
+function toggleSelectAll() {
+    const items = document.querySelectorAll('.catalog-item:not([style*="display: none"])');
+    const allSelected = Array.from(items).every(i => i.classList.contains('selected'));
+    items.forEach(i => {
+        if (allSelected) i.classList.remove('selected');
+        else i.classList.add('selected');
+    });
+    updateCount();
+}
+
+function clearAll() {
+    document.querySelectorAll('.catalog-item.selected').forEach(i => i.classList.remove('selected'));
+    updateCount();
+}
+
+function filterProducts() {
+    const q = document.getElementById('catalogSearch').value.toLowerCase();
+    document.querySelectorAll('.catalog-item').forEach(el => {
+        el.style.display = el.dataset.name.includes(q) ? '' : 'none';
+    });
+}
+
+async function saveCatalog() {
+    const btn = document.getElementById('btnSave');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+    try {
+        const res = await fetch('/api/v1/store/catalog', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ product_ids: getSelectedIds() })
+        });
+        if (!res.ok) throw new Error('Error al guardar');
+        const toast = document.getElementById('toast');
+        toast.textContent = 'Catálogo guardado correctamente';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    } catch (e) {
+        const toast = document.getElementById('toast');
+        toast.style.background = '#dc2626';
+        toast.textContent = 'Error al guardar el catálogo';
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); toast.style.background = ''; }, 3000);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Guardar catálogo';
+    }
+}
+</script>
+{% endblock %}

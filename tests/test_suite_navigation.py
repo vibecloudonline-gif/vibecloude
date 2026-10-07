@@ -42,7 +42,7 @@ def client(test_db):
 
 def test_no_checkboxes_in_suite_switcher(client, test_db):
     """Verifica que no existan checkboxes crudos (type='checkbox') en la navegacion."""
-    tenant = Tenant(name="T1", subdomain="t1", has_erp=True, has_ecommerce=True, has_landing=True)
+    tenant = Tenant(name="T1", subdomain="t1", has_erp=True, has_ecommerce=True, has_landing=True, nivel=2)
     test_db.add(tenant)
     test_db.commit()
     test_db.refresh(tenant)
@@ -76,7 +76,7 @@ def test_no_checkboxes_in_suite_switcher(client, test_db):
 
 def test_erp_isolation_on_research_page(client, test_db):
     """Verifica que en /panel/research NO se rendericen en el menu operativo los enlaces del ERP (POS, Caja, Proveedores, WMS)."""
-    tenant = Tenant(name="T1", subdomain="t1", has_erp=True, has_ecommerce=True, has_landing=True)
+    tenant = Tenant(name="T1", subdomain="t1", has_erp=True, has_ecommerce=True, has_landing=True, nivel=2)
     test_db.add(tenant)
     test_db.commit()
     test_db.refresh(tenant)
@@ -93,6 +93,7 @@ def test_erp_isolation_on_research_page(client, test_db):
             "ecommerce": tenant.has_ecommerce,
             "landing": tenant.has_landing,
         }
+        request.session["tenant_nivel"] = tenant.nivel
         return user
 
     from fastapi import Request
@@ -206,7 +207,7 @@ def test_nav_view_post_coexistence(client, test_db):
 
 def test_research_page_renders_scripts_and_creates_project(client, test_db):
     """Verifica que /panel/research renderice los bloques extra_css y extra_js, y que el flujo de creacion funcione."""
-    tenant = Tenant(name="T5", subdomain="t5", has_erp=True, has_ecommerce=True, has_landing=True)
+    tenant = Tenant(name="T5", subdomain="t5", has_erp=True, has_ecommerce=True, has_landing=True, nivel=2)
     test_db.add(tenant)
     test_db.commit()
     test_db.refresh(tenant)

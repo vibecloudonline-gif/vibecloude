@@ -32,11 +32,11 @@ def get_cash_book(
     session: Session = Depends(get_session),
 ):
     try:
-        target_date = datetime.fromisoformat(date_filter).date() if date_filter else date.today()
+        target_date = datetime.fromisoformat(date_filter).date() if date_filter else datetime.now(timezone.utc).date()
     except ValueError:
-        target_date = date.today()
+        target_date = datetime.now(timezone.utc).date()
 
-    day_start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+    day_start = datetime.combine(target_date, datetime.min.time())
     day_end = day_start + timedelta(days=1)
 
     movements = session.exec(

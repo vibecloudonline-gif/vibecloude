@@ -1,0 +1,44 @@
+{# Block: contact_info — Address, hours, WhatsApp contact #}
+<section class="sf-section" id="contacto">
+    {% if section.data.get('title') %}
+    <h2 class="sf-section-title">{{ section.data.title }}</h2>
+    {% endif %}
+    <div class="sf-contact-grid">
+        {% if section.data.get('address') %}
+        <div class="sf-contact-item">
+            <span class="sf-contact-icon">📍</span>
+            <div>
+                <strong>Dirección</strong>
+                <p>{{ section.data.address }}</p>
+            </div>
+        </div>
+        {% endif %}
+        {% if section.data.get('hours') %}
+        <div class="sf-contact-item">
+            <span class="sf-contact-icon">🕐</span>
+            <div>
+                <strong>Horarios</strong>
+                <p>{{ section.data.hours }}</p>
+            </div>
+        </div>
+        {% endif %}
+        {% if section.data.get('whatsapp') %}
+        <div class="sf-contact-item">
+            <span class="sf-contact-icon">💬</span>
+            <div>
+                <strong>WhatsApp</strong>
+                <p>{{ section.data.whatsapp }}</p>
+            </div>
+        </div>
+        {% endif %}
+        {% if section.data.get('email') %}
+        <div class="sf-contact-item">
+            <span class="sf-contact-icon">✉️</span>
+            <div>
+                <strong>Email</strong>
+                <p>{{ section.data.email }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>

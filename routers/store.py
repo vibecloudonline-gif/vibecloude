@@ -1,18 +1,54 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 from pydantic import BaseModel
 from typing import List
 from database.session import get_session
 from database.models import Settings, User, TenantCatalog, Product
-from web.dependencies import get_current_user, require_roles, get_public_tenant
+from web.dependencies import get_current_user, require_roles, get_public_tenant, require_auth, get_tenant, get_settings
+from web.compat_templates import CompatTemplates
 
 router = APIRouter(prefix="/api/v1/store", tags=["Store Settings"])
+panel_router = APIRouter(tags=["Store Panel"])
+
+def _templates():
+    return CompatTemplates(directory="templates")
+
+
+# ---------- Panel: Catalog Management ----------
+
+@panel_router.get("/panel/tienda/catalogo", response_class=HTMLResponse)
+def catalog_panel_page(
+    request: Request,
+    user: User = Depends(require_auth),
+    settings: Settings = Depends(get_settings),
+    tenant_id: int = Depends(get_tenant),
+    session: Session = Depends(get_session),
+):
+    products = session.exec(
+        select(Product)
+        .where(Product.tenant_id == tenant_id, Product.is_deleted == False)
+        .order_by(Product.name)
+    ).all()
+    curated_ids = set(session.exec(
+        select(TenantCatalog.product_id).where(TenantCatalog.tenant_id == tenant_id)
+    ).all())
+    return _templates().TemplateResponse("panel_catalogo.html", {
+        "request": request,
+        "user": user,
+        "settings": settings,
+        "active_page": "catalog_manage",
+        "products": products,
+        "curated_ids": curated_ids,
+        "total_products": len(products),
+        "total_curated": len(curated_ids),
+    })
 
 class ThemeUpdateRequest(BaseModel):
     theme_id: str
 
 @router.put("/theme")
-async def update_store_theme(req: ThemeUpdateRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
+def update_store_theme(req: ThemeUpdateRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
     settings = db.exec(select(Settings).where(Settings.tenant_id == current_user.tenant_id)).first()
     if not settings:
         settings = Settings(tenant_id=current_user.tenant_id, company_name="VibeCloud", ui_theme=req.theme_id)
@@ -28,7 +64,7 @@ class OnboardingProgressRequest(BaseModel):
     description: str = None
 
 @router.put("/onboarding-progress")
-async def update_onboarding_progress(req: OnboardingProgressRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
+def update_onboarding_progress(req: OnboardingProgressRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
     settings = db.exec(select(Settings).where(Settings.tenant_id == current_user.tenant_id)).first()
     if not settings:
         settings = Settings(tenant_id=current_user.tenant_id, company_name=req.company_name or "VibeCloud", onboarding_step=req.step)
@@ -44,7 +80,7 @@ class CatalogSelectionRequest(BaseModel):
     product_ids: List[int]
 
 @router.post("/catalog")
-async def save_tenant_catalog(req: CatalogSelectionRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
+def save_tenant_catalog(req: CatalogSelectionRequest, db: Session = Depends(get_session), current_user: User = Depends(require_roles(["admin", "superadmin"]))):
     # Full override logic
     existing = db.exec(select(TenantCatalog).where(TenantCatalog.tenant_id == current_user.tenant_id)).all()
     for item in existing:
@@ -64,7 +100,7 @@ async def save_tenant_catalog(req: CatalogSelectionRequest, db: Session = Depend
     return {"success": True, "is_onboarded": True, "products_count": len(req.product_ids)}
 
 @router.get("/catalog")
-async def get_tenant_catalog(db: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+def get_tenant_catalog(db: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     # Get active products for this tenant
     results = db.exec(
         select(Product)
@@ -81,7 +117,7 @@ async def get_tenant_catalog(db: Session = Depends(get_session), current_user: U
 
 
 @router.get("/public-info")
-async def get_public_store_info(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
+def get_public_store_info(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
     settings = db.exec(select(Settings).where(Settings.tenant_id == tenant_id)).first()
     if not settings:
         return {
@@ -99,7 +135,7 @@ async def get_public_store_info(db: Session = Depends(get_session), tenant_id: i
 
 
 @router.get("/public-catalog")
-async def get_public_catalog(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
+def get_public_catalog(db: Session = Depends(get_session), tenant_id: int = Depends(get_public_tenant)):
     # Si el tenant curo su catalogo (TenantCatalog), mostrar solo esos productos;
     # si todavia no curo ninguno, mostrar todo su catalogo activo por default.
     curated_ids = db.exec(

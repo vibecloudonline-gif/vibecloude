@@ -159,7 +159,7 @@ class AIGatewayService:
             if os.getenv("GEMINI_API_KEY"):
                 try:
                     request.provider = "gemini"
-                    request.model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+                    request.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
                     response = await ai_gateway.generate(request)
                 except Exception:
                     raise AIGatewayError(str(exc)) from exc
@@ -205,7 +205,9 @@ class AIGatewayService:
 
     @staticmethod
     async def generate_landing_content_cascade(
-        prompt: str, reference_image_path: Optional[str] = None
+        prompt: str,
+        reference_image_path: Optional[str] = None,
+        storefront_template: Optional[str] = None,
     ):
         from services.ai.contracts import AIMessage, AIRequest
         from services.ai.gateway import ai_gateway
@@ -218,7 +220,20 @@ class AIGatewayService:
 
         errors: list[str] = []
 
-        # --- Claude (primary) via Gateway ---
+        # --- Gemini (primary — más barato) ---
+        try:
+            api_key = os.getenv("GEMINI_API_KEY", "")
+            if not api_key:
+                raise AIGatewayError("GEMINI_API_KEY no configurada")
+            content = await _generate_with_gemini(
+                prompt, api_key, reference_image_path,
+                storefront_template=storefront_template,
+            )
+            return content, "gemini"
+        except Exception as exc:
+            errors.append(f"Gemini: {exc}")
+
+        # --- Claude (fallback) via Gateway ---
         claude_adapter = ai_gateway.get_adapter("claude")
         if claude_adapter.validate_config():
             try:
@@ -236,16 +251,6 @@ class AIGatewayService:
                 errors.append(f"Claude: {exc}")
         else:
             errors.append("Claude: no configurado o sin crédito disponible")
-
-        # --- Gemini (fallback) via Gateway ---
-        try:
-            api_key = os.getenv("GEMINI_API_KEY", "")
-            if not api_key:
-                raise AIGatewayError("GEMINI_API_KEY no configurada")
-            content = await _generate_with_gemini(prompt, api_key, reference_image_path)
-            return content, "gemini"
-        except Exception as exc:
-            errors.append(f"Gemini: {exc}")
 
         # --- Qwen (third fallback) via Gateway ---
         qwen_adapter = ai_gateway.get_adapter("qwen")
@@ -430,7 +435,7 @@ class AIGatewayService:
                         messages=[AIMessage(role="user", content=user_prompt)],
                         system_prompt=system_prompt,
                         provider="gemini",
-                        model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                        model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
                         timeout=20.0,
                     )
                     response = await ai_gateway.generate(request)
@@ -505,6 +510,99 @@ class AIGatewayService:
             "perfiles": successful,
             "category_context": category_context,
         }
+
+
+    @staticmethod
+    async def explain_results(
+        results_data: dict,
+        context_type: str = "general",
+    ) -> Optional[str]:
+        """Traduce resultados técnicos a lenguaje de negocio usando GPT-4o.
+
+        Degradación elegante: si OpenAI no está configurado, retorna None
+        y el caller muestra los datos crudos como antes.
+        """
+        from services.ai.contracts import AIError, AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
+        openai_adapter = ai_gateway.get_adapter("openai")
+        if not openai_adapter or not openai_adapter.validate_config():
+            return None
+
+        _CONTEXT_PROMPTS = {
+            "viability": (
+                "Te dan los resultados de un análisis de viabilidad de producto con scores "
+                "de 0-100 de distintos perfiles de comprador. Explicá en 3-4 oraciones qué "
+                "significan para el dueño del negocio y cerrá con 2 acciones concretas."
+            ),
+            "debate": (
+                "Te dan el resultado de un debate adversarial sobre una oferta comercial, "
+                "con objeciones y un veredicto. Resumí en 3-4 oraciones qué encontraron "
+                "los evaluadores y cerrá con 2 acciones concretas para mejorar la oferta."
+            ),
+            "forecast": (
+                "Te dan datos de una predicción de ventas (forecast). Explicá la tendencia "
+                "en 3-4 oraciones simples y cerrá con 2 acciones concretas."
+            ),
+            "general": (
+                "Te dan resultados de un análisis de negocio. Explicá en 3-4 oraciones "
+                "qué significan y cerrá con 2 acciones concretas."
+            ),
+        }
+
+        system_prompt = (
+            "Sos un consultor de negocios que traduce datos técnicos a lenguaje simple "
+            "para un dueño de negocio que no sabe de datos ni estadística. "
+            "Usá analogías cotidianas, evitá jerga técnica. Hablá en español rioplatense "
+            "(vos, no tú). Sé directo y práctico. "
+            + _CONTEXT_PROMPTS.get(context_type, _CONTEXT_PROMPTS["general"])
+        )
+
+        user_prompt = json.dumps(results_data, ensure_ascii=False, default=str)
+
+        request = AIRequest(
+            task="explain_results",
+            messages=[AIMessage(role="user", content=user_prompt)],
+            system_prompt=system_prompt,
+            provider="openai",
+            model="gpt-4o",
+            max_tokens=500,
+            timeout=15.0,
+        )
+
+        try:
+            response = await ai_gateway.generate(request)
+            return response.content.strip()
+        except (AIError, Exception) as exc:
+            logger.info("explain_results: GPT-4o no disponible (%s), omitiendo explicación", exc)
+            return None
+
+
+    @staticmethod
+    async def call_llm_simple(prompt: str, provider: str = "gemini") -> Optional[str]:
+        """Llamada simple a un LLM — una pregunta, una respuesta corta."""
+        from services.ai.contracts import AIError, AIMessage, AIRequest
+        from services.ai.gateway import ai_gateway
+
+        adapter = ai_gateway.get_adapter(provider)
+        if not adapter or not adapter.validate_config():
+            return None
+
+        request = AIRequest(
+            task="simple_verification",
+            messages=[AIMessage(role="user", content=prompt)],
+            system_prompt="Responde de forma concisa.",
+            provider=provider,
+            max_tokens=50,
+            timeout=10.0,
+        )
+
+        try:
+            response = await ai_gateway.generate(request)
+            return response.content.strip()
+        except (AIError, Exception) as exc:
+            logger.info("call_llm_simple (%s): %s", provider, exc)
+            return None
 
 
 ai_gateway_service = AIGatewayService()

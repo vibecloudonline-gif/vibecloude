@@ -1,6 +1,6 @@
 """routers/products.py — Productos, Etiquetas, Importación"""
 from __future__ import annotations
-import io, os, re, shutil, uuid, json, logging
+import io, os, re, uuid, json, logging
 from typing import List, Optional
 from io import BytesIO
 import pandas as pd
@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select, col
-from database.models import Product, Settings, User
+from database.models import Product, Settings, Tenant, User
 from database.session import get_session
 from services.stock_service import StockService
 from services.settings_service import SettingsService
@@ -97,15 +97,33 @@ def validate_image_magic_bytes(upload_file: UploadFile) -> None:
 
 @router.post("/api/products")
 def create_product_api(name: str = Form(...), price: float = Form(...), stock: int = Form(...), description: Optional[str] = Form(None), barcode_val: Optional[str] = Form(None, alias="barcode"), category: Optional[str] = Form(None), item_number: Optional[str] = Form(None), cant_bulto: Optional[int] = Form(None), numeracion: Optional[str] = Form(None), price_bulk: Optional[float] = Form(None), price_retail: Optional[float] = Form(None), image: Optional[UploadFile] = File(None), session: Session = Depends(get_session), user: User = Depends(require_auth), tenant_id: int = Depends(get_tenant)):
+    from services.plan_service import check_product_limit
+    tenant = session.get(Tenant, tenant_id)
+    ai_tier = tenant.ai_tier if tenant else "inicial"
+    if not check_product_limit(session, tenant_id, ai_tier):
+        from services.plan_service import get_max_products
+        raise HTTPException(
+            403,
+            f"Alcanzaste el límite de {get_max_products(ai_tier)} productos de tu plan. Upgrade para agregar más.",
+        )
+
     product = Product(tenant_id=tenant_id, name=name, price=price, description=description, barcode=barcode_val or "", category=category, item_number=item_number, cant_bulto=cant_bulto, numeracion=numeracion, price_bulk=price_bulk, price_retail=price_retail)
     if image and image.filename:
         validate_image_magic_bytes(image)
-        ext = image.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        file_location = f"static/product_images/{filename}"
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        product.image_url = f"/{file_location}"
+        from services.storage_service import upload_image_sync
+        from database.models import TenantFile
+        file_data = image.file.read()
+        ct = image.content_type or "image/jpeg"
+        try:
+            key, url, size = upload_image_sync(tenant_id, file_data, ct, "product", image.filename)
+            product.image_url = url
+            session.add(TenantFile(
+                tenant_id=tenant_id, storage_key=key, file_type="product",
+                original_name=image.filename or "", content_type=ct,
+                size_bytes=size, public_url=url,
+            ))
+        except ValueError:
+            pass
     session.add(product)
     session.commit()
     session.refresh(product)
@@ -115,6 +133,10 @@ def create_product_api(name: str = Form(...), price: float = Form(...), stock: i
         session.commit()
     if stock > 0:
         stock_service.add_stock(session, product.id, tenant_id, stock, "Ingreso inicial", None, user.id)
+
+    from services.funnel_service import track_event
+    track_event(session, tenant_id, "primer_producto", user_id=user.id)
+
     return product
 
 @router.put("/api/products/{id}")
@@ -127,12 +149,20 @@ def update_product_api(id: int, name: str = Form(...), price: float = Form(...),
     if barcode_val: product.barcode = barcode_val
     if image and image.filename:
         validate_image_magic_bytes(image)
-        ext = image.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        file_location = f"static/product_images/{filename}"
-        with open(file_location, "wb") as buffer:
-            shutil.copyfileobj(image.file, buffer)
-        product.image_url = f"/{file_location}"
+        from services.storage_service import upload_image_sync
+        from database.models import TenantFile
+        file_data = image.file.read()
+        ct = image.content_type or "image/jpeg"
+        try:
+            key, url, size = upload_image_sync(tenant_id, file_data, ct, "product", image.filename)
+            product.image_url = url
+            session.add(TenantFile(
+                tenant_id=tenant_id, storage_key=key, file_type="product",
+                original_name=image.filename or "", content_type=ct,
+                size_bytes=size, public_url=url,
+            ))
+        except ValueError:
+            pass
     session.add(product)
     session.commit()
     return product
@@ -174,9 +204,9 @@ def bulk_update_price(data: BulkPriceUpdate, session: Session = Depends(get_sess
 
 # ---------- Import / Export ----------
 @router.post("/api/products/import")
-async def import_products_excel(file: UploadFile = File(...), session: Session = Depends(get_session), tenant_id: int = Depends(get_tenant), user: User = Depends(require_auth)):
+def import_products_excel(file: UploadFile = File(...), session: Session = Depends(get_session), tenant_id: int = Depends(get_tenant), user: User = Depends(require_auth)):
     SettingsService.ensure_admin(user)
-    contents = await file.read()
+    contents = file.file.read()
     
     # S2.3: Validate magic bytes / file signatures to prevent dangerous file uploads
     # ZIP/XLSX: PK\x03\x04, OLE2 XLS: \xd0\xcf\x11\xe0, CSV/Text: printable ascii / utf-8

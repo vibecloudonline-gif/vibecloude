@@ -748,14 +748,14 @@ label {
     font-weight: 600;
 }
 
-/* --- Header Right: Notification & Medusa Status --- */
+/* --- Header Right: Notification & Status --- */
 .header-right {
     display: flex;
     align-items: center;
     gap: 16px;
 }
 
-.medusa-status {
+.connection-status {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1139,7 +1139,7 @@ label {
         display: none;
     }
 
-    .medusa-status .status-label {
+    .connection-status .status-label {
         display: none;
     }
 }

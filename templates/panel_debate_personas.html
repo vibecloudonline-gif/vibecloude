@@ -9,8 +9,8 @@
         <a href="/panel/oferta/{{ offer.project_id }}" style="color: var(--text-muted);">{{ offer.title[:40] }}</a> /
         <strong>Debate de Personas</strong>
     </div>
-    <h1>Debate de Personas Calificadas</h1>
-    <p style="color: var(--text-muted); margin-top: 4px;">Opiniones de expertos reales sobre tu oferta: <strong>{{ offer.title }}</strong></p>
+    <h1>Debate en Tiempo Real</h1>
+    <p style="color: var(--text-muted); margin-top: 4px;">{{ expert_profiles|length }} expertos analizando: <strong>{{ offer.title }}</strong></p>
 </div>
 
 <div class="glass-card" style="margin-bottom: 20px; padding: 16px 20px;">
@@ -26,12 +26,24 @@
     </div>
 </div>
 
+<!-- Progress bar -->
+<div id="debate-progress" style="display: none; margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 600; font-size: 0.9rem;" id="progress-label">Iniciando debate...</span>
+        <span style="color: var(--text-muted); font-size: 0.85rem;" id="progress-count">0 / {{ expert_profiles|length }}</span>
+    </div>
+    <div style="background: var(--border-color); border-radius: 8px; height: 6px; overflow: hidden;">
+        <div id="progress-bar" style="height: 100%; background: var(--accent-color, #FF6A00); border-radius: 8px; transition: width 0.6s ease; width: 0%;"></div>
+    </div>
+</div>
+
 {% if not debate %}
+<!-- Pre-debate: expert panel intro -->
 <div id="expert-panel-intro">
     <div class="glass-card" style="margin-bottom: 20px;">
-        <h3 style="margin: 0 0 16px;">Panel de Expertos</h3>
+        <h3 style="margin: 0 0 8px;">Panel de {{ expert_profiles|length }} Expertos</h3>
         <p style="color: var(--text-muted); margin-bottom: 20px;">
-            5 profesionales de diferentes áreas evaluarán tu oferta y darán su opinión calificada con sugerencias concretas.
+            Cada experto analizará tu oferta desde su perspectiva y podrá referenciar opiniones anteriores, creando un debate profesional real.
         </p>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
             {% for ep in expert_profiles %}
@@ -43,24 +55,59 @@
             {% endfor %}
         </div>
         <button type="button" id="btn-start-debate" class="btn btn-primary" style="width: 100%;">
-            Iniciar Debate de Personas
+            Iniciar Debate en Tiempo Real
         </button>
     </div>
 </div>
-
-<div id="debate-loading" style="display: none; text-align: center; padding: 48px 24px;">
-    <div style="display: inline-flex; gap: 6px; align-items: center; margin-bottom: 16px;">
-        <span class="dot-pulse"></span>
-        <span class="dot-pulse" style="animation-delay: 0.2s;"></span>
-        <span class="dot-pulse" style="animation-delay: 0.4s;"></span>
-    </div>
-    <p style="color: var(--text-muted);">Los expertos están analizando tu oferta...</p>
-    <p style="color: var(--text-muted); font-size: 0.85rem;">Esto puede tardar 30-60 segundos</p>
-</div>
 {% endif %}
 
-<div id="debate-results" {% if not debate %}style="display:none;"{% endif %}>
-    {% if debate %}
+<!-- Live debate area -->
+<div id="debate-live-area" style="{% if not debate or debate.status == 'completed' %}display:none;{% endif %}">
+    {% for ep in expert_profiles %}
+    <div class="expert-slot" id="slot-{{ ep.role }}" data-role="{{ ep.role }}" style="display:none;">
+        <div class="glass-card opinion-card" style="margin-bottom: 16px; overflow: hidden;">
+            <div style="display: flex; gap: 14px; align-items: start;">
+                <div class="expert-avatar" data-role="{{ ep.role }}">{{ ep.name[0] }}</div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div>
+                            <strong>{{ ep.name }}</strong>
+                            <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 6px;">{{ ep.title }}</span>
+                        </div>
+                        <span class="verdict-badge verdict-waiting" id="verdict-{{ ep.role }}">Esperando</span>
+                    </div>
+
+                    <!-- Thinking state -->
+                    <div class="thinking-state" id="thinking-{{ ep.role }}" style="display: none;">
+                        <div class="typing-indicator">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 8px;">{{ ep.name.split(' ')[0] }} está analizando tu oferta...</span>
+                    </div>
+
+                    <!-- Opinion content (hidden until generated) -->
+                    <div class="opinion-content" id="opinion-{{ ep.role }}" style="display: none;">
+                        <p class="opinion-text" style="margin: 0 0 10px; line-height: 1.6;"></p>
+                        <div class="suggestion-box" style="background: var(--surface-color); border-radius: 8px; padding: 12px; border-left: 3px solid var(--accent-color);">
+                            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Sugerencias</div>
+                            <div class="suggestion-text" style="font-size: 0.9rem; line-height: 1.5;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Idle state (before this expert's turn) -->
+                    <div class="idle-state" id="idle-{{ ep.role }}">
+                        <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">En espera...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Completed debate results (for page reload on completed debates) -->
+<div id="debate-results" {% if not debate or debate.status != 'completed' %}style="display:none;"{% endif %}>
+    {% if debate and debate.status == 'completed' %}
     {% for op in debate.opinions %}
     <div class="glass-card opinion-card" style="margin-bottom: 16px;">
         <div style="display: flex; gap: 14px; align-items: start;">
@@ -70,12 +117,7 @@
                     <div>
                         <strong>{{ op.expert_name }}</strong>
                         <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 6px;">
-                            {% if op.expert_role == 'marketing' %}Directora de Marketing Digital
-                            {% elif op.expert_role == 'finance' %}Analista Financiero Senior
-                            {% elif op.expert_role == 'operations' %}Consultora de Operaciones
-                            {% elif op.expert_role == 'industry' %}Experto en el Sector
-                            {% elif op.expert_role == 'ux' %}Diseñadora UX/CX
-                            {% else %}{{ op.expert_role }}{% endif %}
+                            {% for ep in expert_profiles %}{% if ep.role == op.expert_role %}{{ ep.title }}{% endif %}{% endfor %}
                         </span>
                         {% if op.source == 'manual' %}
                         <span class="status-badge" style="font-size: 0.7rem; margin-left: 6px;">Manual</span>
@@ -98,7 +140,33 @@
         </div>
     </div>
     {% endfor %}
+    {% endif %}
+</div>
 
+<!-- Debate summary (shown when complete) -->
+<div id="debate-summary" {% if not debate or debate.status != 'completed' %}style="display:none;"{% endif %}>
+    <div class="glass-card" style="margin-bottom: 20px; border-left: 4px solid var(--accent-color);">
+        <h3 style="margin: 0 0 12px;">Resumen del Debate</h3>
+        <div id="summary-stats" style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;">
+            <div class="summary-stat">
+                <span style="color: #28a745; font-size: 1.1rem;">&#10003;</span>
+                <span id="count-approve">0</span> Aprueban
+            </div>
+            <div class="summary-stat">
+                <span style="color: #ffc107; font-size: 1.1rem;">&#8212;</span>
+                <span id="count-neutral">0</span> Neutral
+            </div>
+            <div class="summary-stat">
+                <span style="color: #dc3545; font-size: 1.1rem;">&#10007;</span>
+                <span id="count-reject">0</span> Rechazan
+            </div>
+        </div>
+        <p id="summary-text" style="color: var(--text-muted); font-size: 0.9rem;"></p>
+    </div>
+</div>
+
+<!-- Manual opinion form (shown when complete) -->
+<div id="manual-form-area" {% if not debate or debate.status != 'completed' %}style="display:none;"{% endif %}>
     <div class="glass-card" style="margin-bottom: 20px;">
         <h3 style="margin: 0 0 16px;">Agregar Opinión Manual</h3>
         <form id="form-manual-opinion">
@@ -115,6 +183,8 @@
                         <option value="operations">Operaciones</option>
                         <option value="industry">Industria</option>
                         <option value="ux">UX / Experiencia</option>
+                        <option value="skeptic">Escéptico</option>
+                        <option value="compulsive_buyer">Comprador Compulsivo</option>
                     </select>
                 </div>
             </div>
@@ -139,7 +209,6 @@
             <button type="submit" class="btn btn-primary">Agregar Opinión</button>
         </form>
     </div>
-    {% endif %}
 </div>
 
 <style>
@@ -159,7 +228,9 @@
 .expert-preview-card {
     background: var(--surface-color); border: 1px solid var(--border-color);
     border-radius: 10px; padding: 14px; text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
+.expert-preview-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .expert-preview-card .expert-avatar { margin: 0 auto 8px; }
 .expert-name { font-weight: 600; font-size: 0.9rem; }
 .expert-title { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
@@ -167,10 +238,12 @@
 .verdict-badge {
     font-size: 0.75rem; font-weight: 600; padding: 3px 10px;
     border-radius: 20px; text-transform: uppercase; letter-spacing: 0.3px;
+    transition: all 0.3s ease;
 }
 .verdict-approve { background: #d4edda; color: #155724; }
 .verdict-reject { background: #f8d7da; color: #721c24; }
 .verdict-neutral { background: #fff3cd; color: #856404; }
+.verdict-waiting { background: var(--surface-color); color: var(--text-muted); border: 1px dashed var(--border-color); }
 
 @media (prefers-color-scheme: dark) {
     .verdict-approve { background: rgba(40, 167, 69, 0.2); color: #81c784; }
@@ -178,52 +251,297 @@
     .verdict-neutral { background: rgba(255, 193, 7, 0.2); color: #ffe082; }
 }
 
-.dot-pulse {
-    width: 10px; height: 10px; background: var(--accent-color);
-    border-radius: 50%; display: inline-block;
-    animation: bounce 0.6s infinite alternate;
+.typing-indicator {
+    display: inline-flex; align-items: center; gap: 4px;
 }
-@keyframes bounce {
-    from { transform: translateY(0); }
-    to { transform: translateY(-8px); }
+.typing-indicator span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-color, #FF6A00);
+    animation: typing-bounce 1.4s infinite both;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
 }
 
-.opinion-card { animation: fadeIn 0.4s ease-out; }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+.expert-slot.generating .opinion-card { border-left: 3px solid var(--accent-color, #FF6A00); }
+.expert-slot.done .thinking-state,
+.expert-slot.done .idle-state,
+.expert-slot.generating .idle-state,
+.expert-slot.waiting .thinking-state { display: none !important; }
+
+.opinion-content.reveal {
+    display: block !important;
+    animation: opinionReveal 0.6s ease-out;
+}
+@keyframes opinionReveal {
+    from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+.expert-slot.entering { animation: slotEnter 0.4s ease-out; }
+@keyframes slotEnter {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.summary-stat {
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 600; font-size: 0.95rem;
+}
+
+#progress-bar.pulsing {
+    animation: progressPulse 2s ease-in-out infinite;
+}
+@keyframes progressPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.opinion-card { transition: border-left 0.3s ease; }
 </style>
 
 <script>
-{% if not debate %}
+const OFFER_ID = {{ offer.id }};
+const EXPERT_PROFILES = {{ expert_profiles | tojson }};
+const TOTAL_EXPERTS = EXPERT_PROFILES.length;
+let debateActive = false;
+let generatedCount = 0;
+
+{% if debate and debate.status == 'in_progress' %}
+debateActive = true;
+document.getElementById('debate-progress').style.display = 'block';
+resumeDebate();
+{% elif debate and debate.status == 'completed' %}
+showCompletedSummary();
+{% endif %}
+
 document.getElementById('btn-start-debate')?.addEventListener('click', async function() {
     this.disabled = true;
-    document.getElementById('expert-panel-intro').style.display = 'none';
-    document.getElementById('debate-loading').style.display = 'block';
+    this.textContent = 'Iniciando...';
 
     try {
-        const res = await fetch('/panel/oferta/{{ offer.id }}/debate-personas/iniciar', {method: 'POST'});
+        const res = await fetch('/panel/oferta/' + OFFER_ID + '/debate-personas/iniciar', {method: 'POST'});
         const json = await res.json();
         if (!res.ok) throw new Error(json.detail || 'Error');
-        window.location.reload();
+
+        document.getElementById('expert-panel-intro').style.display = 'none';
+        document.getElementById('debate-progress').style.display = 'block';
+        document.getElementById('debate-live-area').style.display = 'block';
+        document.getElementById('progress-bar').classList.add('pulsing');
+
+        showAllSlots();
+        debateActive = true;
+        generateNextOpinion();
     } catch (err) {
-        document.getElementById('debate-loading').innerHTML =
-            '<p style="color:var(--danger-color);">Error: ' + err.message + '</p>' +
-            '<button class="btn btn-primary" onclick="window.location.reload()">Reintentar</button>';
+        this.disabled = false;
+        this.textContent = 'Iniciar Debate en Tiempo Real';
+        alert('Error: ' + err.message);
     }
 });
-{% endif %}
+
+function showAllSlots() {
+    EXPERT_PROFILES.forEach(function(ep, i) {
+        var slot = document.getElementById('slot-' + ep.role);
+        if (slot) {
+            slot.style.display = 'block';
+            slot.classList.add('waiting', 'entering');
+            slot.style.animationDelay = (i * 0.1) + 's';
+        }
+    });
+}
+
+async function resumeDebate() {
+    try {
+        var res = await fetch('/panel/oferta/' + OFFER_ID + '/debate-personas/estado');
+        var json = await res.json();
+
+        document.getElementById('debate-live-area').style.display = 'block';
+        showAllSlots();
+
+        json.opinions.forEach(function(op) {
+            if (op.source === 'ai_generated') {
+                revealOpinion(op.expert_role, op);
+            }
+        });
+        generatedCount = json.generated_count;
+        updateProgress(generatedCount);
+
+        if (!json.is_complete) {
+            generateNextOpinion();
+        } else {
+            debateComplete();
+        }
+    } catch (err) {
+        console.error('Error resuming debate:', err);
+    }
+}
+
+async function generateNextOpinion() {
+    if (!debateActive) return;
+
+    var currentProfile = EXPERT_PROFILES[generatedCount];
+    if (currentProfile) {
+        markExpertGenerating(currentProfile.role);
+        updateProgressLabel(currentProfile.name);
+    }
+
+    try {
+        var res = await fetch('/panel/oferta/' + OFFER_ID + '/debate-personas/siguiente', {method: 'POST'});
+        var json = await res.json();
+
+        if (json.opinion) {
+            generatedCount = json.generated_count;
+            revealOpinion(json.opinion.expert_role, json.opinion);
+            updateProgress(generatedCount);
+        }
+
+        if (json.status === 'completed') {
+            debateComplete();
+        } else {
+            setTimeout(function() { generateNextOpinion(); }, 800);
+        }
+    } catch (err) {
+        console.error('Error generating opinion:', err);
+        setTimeout(function() { generateNextOpinion(); }, 3000);
+    }
+}
+
+function markExpertGenerating(role) {
+    var slot = document.getElementById('slot-' + role);
+    if (!slot) return;
+    slot.classList.remove('waiting');
+    slot.classList.add('generating');
+    var thinking = document.getElementById('thinking-' + role);
+    if (thinking) thinking.style.display = 'flex';
+    var idle = document.getElementById('idle-' + role);
+    if (idle) idle.style.display = 'none';
+    slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function revealOpinion(role, data) {
+    var slot = document.getElementById('slot-' + role);
+    if (!slot) return;
+
+    slot.classList.remove('waiting', 'generating');
+    slot.classList.add('done');
+
+    var thinking = document.getElementById('thinking-' + role);
+    if (thinking) thinking.style.display = 'none';
+
+    var badge = document.getElementById('verdict-' + role);
+    if (badge) {
+        badge.className = 'verdict-badge verdict-' + data.verdict;
+        badge.textContent = data.verdict === 'approve' ? 'Aprueba' :
+                           data.verdict === 'reject' ? 'Rechaza' : 'Neutral';
+    }
+
+    var content = document.getElementById('opinion-' + role);
+    if (content) {
+        content.querySelector('.opinion-text').textContent = data.opinion_text;
+        var sugText = content.querySelector('.suggestion-text');
+        var sugBox = content.querySelector('.suggestion-box');
+        if (data.suggestions) {
+            sugText.textContent = data.suggestions;
+            sugBox.style.display = 'block';
+        } else {
+            sugBox.style.display = 'none';
+        }
+        content.classList.add('reveal');
+    }
+}
+
+function updateProgress(count) {
+    var pct = Math.round((count / TOTAL_EXPERTS) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-count').textContent = count + ' / ' + TOTAL_EXPERTS;
+}
+
+function updateProgressLabel(name) {
+    document.getElementById('progress-label').textContent = name + ' está analizando...';
+}
+
+function debateComplete() {
+    debateActive = false;
+    document.getElementById('progress-bar').classList.remove('pulsing');
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-label').textContent = 'Debate completado';
+    document.getElementById('progress-count').textContent = TOTAL_EXPERTS + ' / ' + TOTAL_EXPERTS;
+
+    var approves = 0, rejects = 0, neutrals = 0;
+    EXPERT_PROFILES.forEach(function(ep) {
+        var badge = document.getElementById('verdict-' + ep.role);
+        if (badge) {
+            var text = badge.textContent.trim().toLowerCase();
+            if (text === 'aprueba') approves++;
+            else if (text === 'rechaza') rejects++;
+            else if (text === 'neutral') neutrals++;
+        }
+    });
+
+    document.getElementById('count-approve').textContent = approves;
+    document.getElementById('count-neutral').textContent = neutrals;
+    document.getElementById('count-reject').textContent = rejects;
+
+    var summary = '';
+    if (approves > rejects && approves > neutrals) {
+        summary = 'La mayoría de expertos (' + approves + '/' + TOTAL_EXPERTS + ') aprueba la oferta. Tu propuesta tiene buena recepción profesional.';
+    } else if (rejects > approves) {
+        summary = 'Los expertos identificaron preocupaciones significativas (' + rejects + ' rechazos). Revisa las sugerencias antes de lanzar.';
+    } else {
+        summary = 'Opiniones divididas entre los expertos. Considera las sugerencias para fortalecer tu oferta.';
+    }
+    document.getElementById('summary-text').textContent = summary;
+
+    setTimeout(function() {
+        var el = document.getElementById('debate-summary');
+        el.style.display = 'block';
+        el.style.animation = 'opinionReveal 0.5s ease-out';
+    }, 500);
+    setTimeout(function() {
+        document.getElementById('manual-form-area').style.display = 'block';
+    }, 800);
+}
+
+function showCompletedSummary() {
+    document.getElementById('debate-results').style.display = 'block';
+    document.getElementById('debate-summary').style.display = 'block';
+    document.getElementById('manual-form-area').style.display = 'block';
+
+    var approves = 0, rejects = 0, neutrals = 0;
+    document.querySelectorAll('#debate-results .verdict-badge').forEach(function(badge) {
+        var text = badge.textContent.trim().toLowerCase();
+        if (text === 'aprueba') approves++;
+        else if (text === 'rechaza') rejects++;
+        else neutrals++;
+    });
+    document.getElementById('count-approve').textContent = approves;
+    document.getElementById('count-neutral').textContent = neutrals;
+    document.getElementById('count-reject').textContent = rejects;
+
+    var total = approves + rejects + neutrals;
+    var summary = '';
+    if (approves > rejects && approves > neutrals) {
+        summary = 'La mayoría de expertos (' + approves + '/' + total + ') aprueba la oferta.';
+    } else if (rejects > approves) {
+        summary = 'Los expertos identificaron preocupaciones significativas (' + rejects + ' rechazos).';
+    } else {
+        summary = 'Opiniones divididas entre los expertos. Revisa las sugerencias.';
+    }
+    document.getElementById('summary-text').textContent = summary;
+}
 
 document.getElementById('form-manual-opinion')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    const fd = new FormData(this);
+    var fd = new FormData(this);
     try {
-        const res = await fetch('/panel/oferta/{{ offer.id }}/debate-personas/opinion', {
+        var res = await fetch('/panel/oferta/' + OFFER_ID + '/debate-personas/opinion', {
             method: 'POST', body: fd
         });
         if (!res.ok) {
-            const json = await res.json();
+            var json = await res.json();
             throw new Error(json.detail || 'Error');
         }
         window.location.reload();

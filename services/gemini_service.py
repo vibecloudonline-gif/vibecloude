@@ -71,8 +71,8 @@ class GeminiService:
         Calls Google Gemini API via native HTTP request using httpx.
         Tries preferred model first, with fallback to standard candidate models if 404 occurs.
         """
-        preferred = model or os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        candidates = [preferred, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        preferred = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        candidates = [preferred, "gemini-2.5-flash", "gemini-2.0-flash"]
         models_to_try = []
         for m in candidates:
             if m and m not in models_to_try:
@@ -376,8 +376,8 @@ class GeminiService:
         """
         Handles chatbot multi-turn conversation.
         """
-        preferred = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-        candidates = [preferred, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]
+        preferred = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        candidates = [preferred, "gemini-2.5-flash", "gemini-2.0-flash"]
         models_to_try = []
         for m in candidates:
             if m and m not in models_to_try:

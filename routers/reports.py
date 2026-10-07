@@ -37,13 +37,13 @@ from services.cash_service import CashService
 
 @router.get("/reports/cash-flow", response_class=HTMLResponse)
 def get_cash_flow_report(request: Request, date_filter: Optional[str] = None, user: User = Depends(require_auth), tenant_id: int = Depends(get_tenant), session: Session = Depends(get_session), settings: Settings = Depends(get_settings)):
-    if not date_filter: date_filter = date.today().strftime("%Y-%m-%d")
+    if not date_filter: date_filter = datetime.now(timezone.utc).date().strftime("%Y-%m-%d")
     try: target_day = datetime.strptime(date_filter, "%Y-%m-%d").date()
     except ValueError:
-        target_day = date.today()
+        target_day = datetime.now(timezone.utc).date()
         date_filter = target_day.strftime("%Y-%m-%d")
-    
-    start = datetime.combine(target_day, datetime.min.time()).replace(tzinfo=timezone.utc)
+
+    start = datetime.combine(target_day, datetime.min.time())
     end = start + timedelta(days=1)
     
     movements = session.exec(select(CashMovement).where(CashMovement.tenant_id == tenant_id, CashMovement.timestamp >= start, CashMovement.timestamp < end).order_by(CashMovement.timestamp.desc())).all()

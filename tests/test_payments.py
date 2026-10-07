@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from database.models import PlatformPayment, Sale, SaleItem, Settings, Tenant, User
+from database.models import PlatformPayment, Sale, SaleItem, Settings, Tenant, TenantPaymentConfig, User, encrypt_api_key
 from database.session import get_session
 from main import app
 from services.auth_service import AuthService
@@ -137,7 +137,7 @@ def test_create_credits_invalid_pack(authed_client):
     assert resp.status_code == 400
 
 
-def test_capture_credits_adds_credits(authed_client, session):
+def test_capture_credits_sets_captured(authed_client, session):
     client, tenant = authed_client
 
     client.post("/api/v1/payments/credits/create", json={"credits": 500, "provider": "paypal"})
@@ -147,11 +147,15 @@ def test_capture_credits_adds_credits(authed_client, session):
         follow_redirects=False,
     )
     assert resp.status_code == 303
-    assert "status=success" in resp.headers["location"]
-    assert "credits=500" in resp.headers["location"]
+    assert "status=processing" in resp.headers["location"]
+
+    payment = session.exec(
+        select(PlatformPayment).where(PlatformPayment.tenant_id == tenant.id)
+    ).first()
+    assert payment.status == "captured"
 
     session.refresh(tenant)
-    assert tenant.ai_credits == 600  # 100 original + 500
+    assert tenant.ai_credits == 100  # credits NOT added yet (webhook does that)
 
 
 def test_capture_credits_failed(authed_client, session, mock_paypal_provider):
@@ -175,12 +179,16 @@ def test_capture_credits_idempotent(authed_client, session):
     client, tenant = authed_client
     client.post("/api/v1/payments/credits/create", json={"credits": 100, "provider": "paypal"})
 
-    client.get("/payments/credits/capture?token=PAYPAL-ORDER-123&provider=paypal", follow_redirects=False)
-    resp = client.get("/payments/credits/capture?token=PAYPAL-ORDER-123&provider=paypal", follow_redirects=False)
-    assert "already_completed" in resp.headers["location"]
+    resp1 = client.get("/payments/credits/capture?token=PAYPAL-ORDER-123&provider=paypal", follow_redirects=False)
+    assert "status=processing" in resp1.headers["location"]
+
+    # Second capture: payment is now "captured", not "paid", so it won't hit already_completed
+    # The provider will return COMPLETED again, but payment is already captured
+    resp2 = client.get("/payments/credits/capture?token=PAYPAL-ORDER-123&provider=paypal", follow_redirects=False)
+    assert "status=processing" in resp2.headers["location"]
 
     session.refresh(tenant)
-    assert tenant.ai_credits == 200  # solo se sumó una vez
+    assert tenant.ai_credits == 100  # no credits added (webhook responsibility)
 
 
 # ── Planes ──────────────────────────────────────────────────────────────────
@@ -189,7 +197,7 @@ def test_create_plan_order(authed_client, session):
     client, tenant = authed_client
     resp = client.post(
         "/api/v1/payments/plan/create",
-        json={"plan": "starter", "provider": "paypal"},
+        json={"plan": "tienda", "provider": "paypal"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -198,46 +206,62 @@ def test_create_plan_order(authed_client, session):
     payment = session.exec(
         select(PlatformPayment).where(
             PlatformPayment.tenant_id == tenant.id,
-            PlatformPayment.payment_type == "plan_upgrade",
+            PlatformPayment.payment_type == "subscription",
         )
     ).first()
     assert payment is not None
-    assert payment.amount == Decimal("15.00")
+    assert payment.amount == Decimal("19.00")
 
 
 def test_plan_upgrade_already_on_plan(authed_client, session):
     client, tenant = authed_client
-    tenant.ai_tier = "starter"
+    tenant.ai_tier = "tienda"
     session.add(tenant)
     session.commit()
 
     resp = client.post(
         "/api/v1/payments/plan/create",
-        json={"plan": "starter", "provider": "paypal"},
+        json={"plan": "tienda", "provider": "paypal"},
     )
     assert resp.status_code == 400
 
 
-def test_capture_plan_upgrades_tenant(authed_client, session):
+def test_capture_plan_sets_captured(authed_client, session):
     client, tenant = authed_client
-    client.post("/api/v1/payments/plan/create", json={"plan": "growth", "provider": "paypal"})
+    client.post("/api/v1/payments/plan/create", json={"plan": "comercio", "provider": "paypal"})
 
     resp = client.get(
         "/payments/plan/capture?token=PAYPAL-ORDER-123&provider=paypal",
         follow_redirects=False,
     )
     assert resp.status_code == 303
-    assert "status=success" in resp.headers["location"]
+    assert "status=processing" in resp.headers["location"]
+
+    payment = session.exec(
+        select(PlatformPayment).where(
+            PlatformPayment.tenant_id == tenant.id,
+            PlatformPayment.payment_type == "subscription",
+        )
+    ).first()
+    assert payment.status == "captured"
 
     session.refresh(tenant)
-    assert tenant.ai_tier == "growth"
-    assert tenant.ai_credits == 2100  # 100 original + 2000 de growth
+    assert tenant.ai_tier == "free"  # NOT upgraded yet (webhook does that)
+    assert tenant.ai_credits == 100  # credits NOT added yet
 
 
 # ── Storefront checkout ─────────────────────────────────────────────────────
 
 def test_storefront_checkout_payment(session, client, tenant_and_user, mock_paypal_provider):
     tenant, user = tenant_and_user
+
+    config = TenantPaymentConfig(
+        tenant_id=tenant.id,
+        provider="paypal",
+        access_token_enc=encrypt_api_key("TEST-paypal-token"),
+    )
+    session.add(config)
+
     sale = Sale(
         tenant_id=tenant.id,
         total_amount=Decimal("50.00"),
@@ -264,7 +288,7 @@ def test_storefront_checkout_payment(session, client, tenant_and_user, mock_payp
     assert payment.amount == Decimal("50.00")
 
 
-def test_storefront_capture_marks_sale_paid(session, client, tenant_and_user, mock_paypal_provider):
+def test_storefront_capture_sets_captured(session, client, tenant_and_user, mock_paypal_provider):
     tenant, user = tenant_and_user
     sale = Sale(
         tenant_id=tenant.id,
@@ -293,10 +317,13 @@ def test_storefront_capture_marks_sale_paid(session, client, tenant_and_user, mo
         follow_redirects=False,
     )
     assert resp.status_code == 303
-    assert "status=paid" in resp.headers["location"]
+    assert "status=processing" in resp.headers["location"]
+
+    session.refresh(payment)
+    assert payment.status == "captured"
 
     session.refresh(sale)
-    assert sale.payment_status == "pagado"
+    assert sale.payment_status == "pendiente"  # NOT changed yet — webhook does that
 
 
 # ── Info endpoints ──────────────────────────────────────────────────────────
@@ -319,6 +346,9 @@ def test_list_plans(client):
     resp = client.get("/api/v1/payments/plans")
     assert resp.status_code == 200
     plans = resp.json()["plans"]
-    assert "starter" in plans
-    assert "growth" in plans
-    assert plans["starter"]["price"] == "15.00"
+    assert "inicial" in plans
+    assert "tienda" in plans
+    assert "comercio" in plans
+    assert plans["inicial"]["price"] == "3.97"
+    assert plans["tienda"]["price"] == "19.00"
+    assert plans["comercio"]["price"] == "49.00"

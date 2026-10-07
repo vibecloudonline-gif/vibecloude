@@ -177,7 +177,10 @@ def _validate(raw_text: str) -> LandingPageContent:
 
 
 async def generate_landing_content(
-    prompt: str, api_key: str, reference_image_path: Optional[str] = None
+    prompt: str,
+    api_key: str,
+    reference_image_path: Optional[str] = None,
+    storefront_template: Optional[str] = None,
 ) -> LandingPageContent:
     """Llama a Gemini y valida contra el schema estricto. Un reintento si
     la primera respuesta no valida; si el segundo intento tampoco valida,
@@ -185,11 +188,32 @@ async def generate_landing_content(
 
     reference_image_path: imagen de referencia estética opcional (Fase 4,
     wizard de onboarding) -- se le manda a Gemini como input multimodal,
-    nunca se persiste en la DB ni se reenvía tal cual al frontend."""
+    nunca se persiste en la DB ni se reenvía tal cual al frontend.
+
+    storefront_template: nombre del preset de storefront del tenant. Si se
+    pasa, Gemini recibe los colores y la fuente del preset como restricción
+    para mantener coherencia visual entre landing y tienda."""
+    enriched_prompt = prompt
+    if storefront_template:
+        from services.storefront_renderer import THEME_PRESETS
+        preset = THEME_PRESETS.get(storefront_template)
+        if preset:
+            font = preset.get("heading_font", "Inter")
+            if font not in ALLOWED_FONTS:
+                font = "Inter"
+            enriched_prompt = (
+                f"{prompt}\n\n"
+                f"IMPORTANTE: Usá exactamente estos colores y fuente para "
+                f"mantener coherencia con la tienda online:\n"
+                f"- primary_color: {preset['accent']}\n"
+                f"- secondary_color: {preset['primary']}\n"
+                f"- font_family: {font}\n"
+            )
+
     last_error: Exception | None = None
     for attempt in range(2):
         try:
-            raw_text = await _call_gemini(prompt, api_key, reference_image_path)
+            raw_text = await _call_gemini(enriched_prompt, api_key, reference_image_path)
             return _validate(raw_text)
         except Exception as exc:  # noqa: BLE001 - queremos capturar json/pydantic/http por igual
             last_error = exc

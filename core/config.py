@@ -12,6 +12,7 @@ try:
         ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
         DATABASE_URL: str = os.getenv("DATABASE_URL", "")
         GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+        OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
         AI_RATE_LIMIT_PER_HOUR: int = 20
         CORS_ORIGINS: str = os.getenv("CORS_ORIGINS", "")
         RATE_LIMIT_LOGIN: str = "5/minute"
@@ -30,6 +31,7 @@ except ImportError:
         ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
         DATABASE_URL = os.getenv("DATABASE_URL", "")
         GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
         AI_RATE_LIMIT_PER_HOUR = int(os.getenv("AI_RATE_LIMIT_PER_HOUR", "20"))
         CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
         RATE_LIMIT_LOGIN = os.getenv("RATE_LIMIT_LOGIN", "5/minute")
@@ -43,6 +45,16 @@ except ImportError:
 settings = Settings()
 
 if os.getenv("ENVIRONMENT", "development").lower() == "production":
+    _missing = []
     if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
-        raise ValueError("SECRET_KEY debe tener al menos 32 caracteres en producción por razones de seguridad.")
+        _missing.append("SECRET_KEY (mínimo 32 caracteres)")
+    if not settings.VIBECLOUD_API_KEY:
+        _missing.append("VIBECLOUD_API_KEY")
+    if not settings.DATABASE_URL:
+        _missing.append("DATABASE_URL")
+    if _missing:
+        raise ValueError(
+            f"Secretos obligatorios faltantes en producción: {', '.join(_missing)}. "
+            "La app NO puede arrancar sin ellos."
+        )
 

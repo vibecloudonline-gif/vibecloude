@@ -23,7 +23,7 @@ class SecurityAuditRequest(BaseModel):
     audit_logs: Optional[List[Dict[str, Any]]] = None
 
 @router.get("/dashboard")
-async def superadmin_dashboard(
+def superadmin_dashboard(
     session: Session = Depends(get_session),
     user: User = Depends(require_superadmin_jwt)
 ):
@@ -65,7 +65,7 @@ async def superadmin_dashboard(
     }
 
 @router.post("/tenants/{tenant_id}/toggle")
-async def toggle_tenant(
+def toggle_tenant(
     tenant_id: int,
     session: Session = Depends(get_session),
     user: User = Depends(require_superadmin_jwt)
@@ -141,3 +141,53 @@ async def security_audit(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en auditoría de seguridad: {str(e)}")
+
+
+@router.get("/tenant-levels")
+def tenant_levels_report(
+    session: Session = Depends(get_session),
+    user: User = Depends(require_superadmin_jwt),
+):
+    """Reporte de niveles por tenant — solo lectura.
+
+    Muestra nivel actual, nivel al que calificaría, y módulos habilitados/bloqueados.
+    """
+    from services.entitlements import (
+        check_upgrade_eligibility,
+        get_disabled_modules,
+        get_enabled_modules,
+        LEVEL_NAMES,
+    )
+
+    tenants = session.exec(select(Tenant)).all()
+    report = []
+
+    for tenant in tenants:
+        sales_count = session.exec(
+            select(func.count(Sale.id)).where(Sale.tenant_id == tenant.id)
+        ).one() or 0
+
+        store_published = bool(tenant.has_ecommerce)
+        trust_score = 1.0
+
+        eligible_level = check_upgrade_eligibility(
+            tenant, sales_count, store_published, trust_score
+        )
+
+        report.append({
+            "tenant_id": tenant.id,
+            "name": tenant.name,
+            "subdomain": tenant.subdomain,
+            "is_active": tenant.is_active,
+            "nivel_actual": tenant.nivel,
+            "nivel_nombre": LEVEL_NAMES.get(tenant.nivel, f"Nivel {tenant.nivel}"),
+            "nivel_since": tenant.nivel_since.isoformat() if tenant.nivel_since else None,
+            "eligible_upgrade": eligible_level,
+            "eligible_upgrade_nombre": LEVEL_NAMES.get(eligible_level) if eligible_level else None,
+            "sales_count": sales_count,
+            "store_published": store_published,
+            "modules_enabled": get_enabled_modules(tenant),
+            "modules_disabled": get_disabled_modules(tenant),
+        })
+
+    return {"success": True, "tenants": report}

@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}Lecciones: {{ course.title }} - VibeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.lessons-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+}
+.lessons-header h2 { margin: 0; }
+.back-link {
+    font-size: 0.85rem; color: var(--text-muted, #888); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.back-link:hover { color: var(--primary-color, #FF6A00); }
+.lessons-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+.lesson-item {
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: grab; transition: box-shadow 0.15s, opacity 0.15s;
+}
+.lesson-item:active { cursor: grabbing; }
+.lesson-item.dragging { opacity: 0.5; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+.lesson-item.drag-over { border-color: var(--primary-color, #FF6A00); border-style: dashed; }
+.drag-handle {
+    color: var(--text-muted, #888); cursor: grab; flex-shrink: 0;
+    display: flex; align-items: center;
+}
+.drag-handle:active { cursor: grabbing; }
+.lesson-order {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--primary-color, #FF6A00); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+}
+.lesson-info { flex: 1; min-width: 0; }
+.lesson-name { font-weight: 600; font-size: 0.9rem; }
+.lesson-meta { font-size: 0.78rem; color: var(--text-muted, #888); margin-top: 2px; display: flex; gap: 10px; }
+.lesson-badges { display: flex; gap: 6px; align-items: center; }
+.badge-type {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+    background: #EFF6FF; color: #1D4ED8; font-weight: 600;
+}
+.badge-free {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+    background: #D1FAE5; color: #065F46; font-weight: 600;
+}
+.lesson-delete {
+    background: transparent; border: 1px solid #FECACA; color: #DC2626;
+    padding: 6px 12px; border-radius: 6px; font-size: 0.78rem;
+    cursor: pointer; font-family: inherit;
+}
+.lesson-delete:hover { background: #FEF2F2; }
+.add-lesson-form {
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 12px; padding: 20px;
+}
+.add-lesson-form h3 { margin: 0 0 16px; font-size: 1rem; }
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.form-row .field { flex: 1; min-width: 160px; margin-bottom: 0; }
+.field label {
+    display: block; margin-bottom: 5px;
+    font-size: 0.82rem; font-weight: 600;
+}
+.field input, .field select, .field textarea {
+    width: 100%; padding: 10px 12px; border-radius: 8px;
+    border: 1.5px solid var(--border-color, #e5e5e5); font-size: 0.88rem;
+    background: var(--card-bg, #fff); color: var(--text-color, #1a1a1a);
+    font-family: inherit; box-sizing: border-box;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: var(--primary-color, #FF6A00);
+}
+.field textarea { resize: vertical; min-height: 120px; }
+.checkbox-field { display: flex; align-items: center; gap: 8px; margin-top: 22px; }
+.checkbox-field input { width: auto; }
+.btn-add {
+    background: var(--primary-color, #FF6A00); color: #fff; border: none;
+    padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 0.88rem;
+    cursor: pointer; font-family: inherit; margin-top: 8px;
+}
+.btn-add:hover { opacity: 0.9; }
+.empty-lessons { text-align: center; padding: 32px; color: var(--text-muted, #888); font-size: 0.9rem; }
+.content-tabs { display: flex; gap: 0; margin-bottom: 8px; }
+.content-tab {
+    padding: 6px 14px; font-size: 0.78rem; font-weight: 600;
+    border: 1px solid var(--border-color, #e5e5e5); cursor: pointer;
+    background: transparent; color: var(--text-muted, #888); font-family: inherit;
+}
+.content-tab:first-child { border-radius: 6px 0 0 6px; }
+.content-tab:last-child { border-radius: 0 6px 6px 0; }
+.content-tab.active { background: var(--primary-color, #FF6A00); color: #fff; border-color: var(--primary-color, #FF6A00); }
+.preview-box {
+    border: 1px solid var(--border-color, #e5e5e5); border-radius: 8px;
+    padding: 16px; min-height: 120px; font-size: 0.88rem; line-height: 1.6;
+    display: none;
+}
+.preview-box.active { display: block; }
+.preview-box h1, .preview-box h2, .preview-box h3 { margin-top: 12px; margin-bottom: 6px; }
+.preview-box ul, .preview-box ol { padding-left: 20px; }
+.preview-box code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+.video-preview {
+    margin-top: 8px; border-radius: 8px; overflow: hidden;
+    aspect-ratio: 16/9; background: #000; display: none;
+}
+.video-preview.active { display: block; }
+.video-preview iframe { width: 100%; height: 100%; border: none; }
+.video-hint { font-size: 0.75rem; color: var(--text-muted, #888); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="lessons-header">
+        <div>
+            <a href="/panel/cursos/{{ course.id }}/editar" class="back-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                Volver al curso
+            </a>
+            <h2 style="margin-top: 8px;">Lecciones: {{ course.title }}</h2>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 0.85rem; color: var(--text-muted, #888);">{{ lessons|length }} lecciones</span>
+            <a href="/panel/cursos/{{ course.id }}/alumnos" class="back-link" style="font-weight: 600;">Ver alumnos</a>
+        </div>
+    </div>
+
+    {% if lessons %}
+    <div class="lessons-list" id="lessons-list">
+        {% for l in lessons %}
+        <div class="lesson-item" data-id="{{ l.id }}" draggable="true">
+            <div class="drag-handle" title="Arrastrá para reordenar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+            </div>
+            <div class="lesson-order">{{ l.order }}</div>
+            <div class="lesson-info">
+                <div class="lesson-name">{{ l.title }}</div>
+                <div class="lesson-meta">
+                    {% if l.duration_minutes %}<span>{{ l.duration_minutes }} min</span>{% endif %}
+                    {% if l.content_type == 'video' and l.content_json %}<span style="color: #3B82F6;">Video</span>{% endif %}
+                </div>
+            </div>
+            <div class="lesson-badges">
+                <span class="badge-type">{{ l.content_type }}</span>
+                {% if l.is_free_preview %}<span class="badge-free">Preview</span>{% endif %}
+            </div>
+            <form action="/panel/cursos/{{ course.id }}/lecciones/{{ l.id }}/eliminar" method="post" style="margin:0;">
+                <button type="submit" class="lesson-delete" onclick="return confirm('Eliminar esta leccion?')">Eliminar</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-lessons">No hay lecciones. Agrega la primera abajo.</div>
+    {% endif %}
+
+    <div class="add-lesson-form">
+        <h3>Agregar leccion</h3>
+        <form action="/panel/cursos/{{ course.id }}/lecciones" method="post">
+            <div class="form-row">
+                <div class="field" style="flex: 2;">
+                    <label for="title">Titulo</label>
+                    <input type="text" id="title" name="title" required placeholder="Nombre de la leccion">
+                </div>
+                <div class="field">
+                    <label for="content_type">Tipo</label>
+                    <select id="content_type" name="content_type" onchange="onTypeChange(this.value)">
+                        <option value="text">Texto</option>
+                        <option value="video">Video</option>
+                        <option value="quiz">Quiz</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="duration_minutes">Duracion (min)</label>
+                    <input type="number" id="duration_minutes" name="duration_minutes" min="0" placeholder="Ej: 15">
+                </div>
+            </div>
+
+            <div class="field" style="margin-bottom: 12px;" id="content-field">
+                <label for="content_json" id="content-label">Contenido</label>
+                <div class="content-tabs" id="content-tabs">
+                    <button type="button" class="content-tab active" onclick="showTab('write')">Escribir</button>
+                    <button type="button" class="content-tab" onclick="showTab('preview')">Vista previa</button>
+                </div>
+                <textarea id="content_json" name="content_json" placeholder="Escribi el contenido en Markdown...&#10;&#10;# Titulo&#10;## Subtitulo&#10;&#10;Texto normal con **negrita** y *italica*.&#10;&#10;- Item 1&#10;- Item 2"></textarea>
+                <div class="preview-box" id="preview-box"></div>
+            </div>
+
+            <div id="video-url-field" style="display: none; margin-bottom: 12px;">
+                <div class="field">
+                    <label for="video_url">URL del video</label>
+                    <input type="url" id="video_url" placeholder="https://www.youtube.com/watch?v=... o https://vimeo.com/..." oninput="previewVideo(this.value)">
+                    <div class="video-hint">YouTube o Vimeo. La URL se guarda como contenido de la leccion.</div>
+                </div>
+                <div class="video-preview" id="video-preview"></div>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <label class="checkbox-field" style="margin-top: 0;">
+                    <input type="checkbox" name="is_free_preview" value="true">
+                    <span style="font-size: 0.85rem;">Preview gratuito</span>
+                </label>
+                <button type="submit" class="btn-add">Agregar leccion</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function onTypeChange(type) {
+    var contentField = document.getElementById('content-field');
+    var videoField = document.getElementById('video-url-field');
+    var contentTabs = document.getElementById('content-tabs');
+    if (type === 'video') {
+        contentField.style.display = 'none';
+        videoField.style.display = 'block';
+    } else {
+        contentField.style.display = '';
+        videoField.style.display = 'none';
+        contentTabs.style.display = type === 'text' ? 'flex' : 'none';
+    }
+}
+
+function showTab(tab) {
+    var tabs = document.querySelectorAll('.content-tab');
+    tabs.forEach(function(t) { t.classList.remove('active'); });
+    var textarea = document.getElementById('content_json');
+    var preview = document.getElementById('preview-box');
+    if (tab === 'preview') {
+        tabs[1].classList.add('active');
+        textarea.style.display = 'none';
+        preview.classList.add('active');
+        preview.innerHTML = renderMarkdown(textarea.value);
+    } else {
+        tabs[0].classList.add('active');
+        textarea.style.display = '';
+        preview.classList.remove('active');
+    }
+}
+
+function renderMarkdown(md) {
+    if (!md.trim()) return '<span style="color: var(--text-muted, #888);">Nada que previsualizar.</span>';
+    var html = md
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+    return html;
+}
+
+function extractVideoId(url) {
+    if (!url) return null;
+    var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (yt) return { type: 'youtube', id: yt[1] };
+    var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    if (vm) return { type: 'vimeo', id: vm[1] };
+    return null;
+}
+
+function previewVideo(url) {
+    var box = document.getElementById('video-preview');
+    var contentInput = document.getElementById('content_json');
+    var info = extractVideoId(url);
+    if (!info) { box.classList.remove('active'); box.innerHTML = ''; return; }
+    contentInput.value = url;
+    var src = info.type === 'youtube'
+        ? 'https://www.youtube.com/embed/' + info.id
+        : 'https://player.vimeo.com/video/' + info.id;
+    box.innerHTML = '<iframe src="' + src + '" allowfullscreen></iframe>';
+    box.classList.add('active');
+}
+
+// Drag-to-reorder
+(function() {
+    var list = document.getElementById('lessons-list');
+    if (!list) return;
+    var dragged = null;
+
+    list.addEventListener('dragstart', function(e) {
+        dragged = e.target.closest('.lesson-item');
+        if (!dragged) return;
+        dragged.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    list.addEventListener('dragend', function() {
+        if (dragged) dragged.classList.remove('dragging');
+        list.querySelectorAll('.lesson-item').forEach(function(el) { el.classList.remove('drag-over'); });
+        dragged = null;
+    });
+
+    list.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        var target = e.target.closest('.lesson-item');
+        if (!target || target === dragged) return;
+        list.querySelectorAll('.lesson-item').forEach(function(el) { el.classList.remove('drag-over'); });
+        target.classList.add('drag-over');
+    });
+
+    list.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var target = e.target.closest('.lesson-item');
+        if (!target || !dragged || target === dragged) return;
+        var items = Array.from(list.querySelectorAll('.lesson-item'));
+        var fromIdx = items.indexOf(dragged);
+        var toIdx = items.indexOf(target);
+        if (fromIdx < toIdx) {
+            target.after(dragged);
+        } else {
+            target.before(dragged);
+        }
+        updateOrder();
+    });
+
+    function updateOrder() {
+        var items = list.querySelectorAll('.lesson-item');
+        var order = [];
+        items.forEach(function(el, i) {
+            el.querySelector('.lesson-order').textContent = i + 1;
+            order.push(parseInt(el.dataset.id));
+        });
+        fetch('/panel/cursos/{{ course.id }}/lecciones/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(order),
+        });
+    }
+})();
+</script>
+{% endblock %}

@@ -432,6 +432,88 @@
     .actions-bar { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 0 8px; }
     .actions-bar .btn-primary { padding: 11px 28px; font-weight: 600; }
 
+    /* Solución propuesta por la persona */
+    .solution-box {
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+        background: rgba(16, 185, 129, 0.06);
+        border-left: 3px solid var(--success-color);
+        margin-bottom: 14px;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 0.3s ease 0.35s, transform 0.3s ease 0.35s;
+    }
+    .obj-card.revealed .solution-box {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .solution-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--success-color);
+        margin-bottom: 4px;
+    }
+    .solution-text {
+        font-size: 0.88rem;
+        line-height: 1.5;
+        color: var(--text-main);
+    }
+
+    /* Plan de acción del árbitro */
+    .action-plan {
+        padding: 24px 28px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        background: var(--surface-color);
+        box-shadow: var(--shadow-sm);
+        margin-top: 20px;
+        margin-bottom: 24px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .action-plan.revealed {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .action-plan-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .action-step {
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .action-step:last-child { border-bottom: none; }
+    .step-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--accent-color);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.82rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .step-text {
+        font-size: 0.92rem;
+        line-height: 1.5;
+        color: var(--text-main);
+        padding-top: 3px;
+    }
+
     .empty-hero { text-align: center; padding: 64px 24px; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--surface-color); box-shadow: var(--shadow-sm); }
     .empty-hero p { font-size: 1rem; color: var(--text-muted); margin-bottom: 20px; }
 </style>
@@ -559,6 +641,12 @@
                 <span class="sev-pill sev-{{ obj.severity }}">{{ obj.severity }}</span>
             </div>
             <div class="obj-text">{{ obj.objection_text }}</div>
+            {% if obj.proposed_solution %}
+            <div class="solution-box">
+                <div class="solution-label">Solucion propuesta</div>
+                <div class="solution-text">{{ obj.proposed_solution }}</div>
+            </div>
+            {% endif %}
             {% if obj.resolved_text %}
             <div class="resolution-box {{ obj.resolution_status }}">
                 <div class="res-label">
@@ -608,6 +696,32 @@
     </div>
     {% endif %}
 
+    <!-- Plan de acción del árbitro -->
+    {% if debate.action_plan_json %}
+    {% set action_plan = debate.action_plan_json | tojson | safe %}
+    <div class="action-plan" id="action-plan">
+        <div class="action-plan-title">
+            <span>&#9889;</span> Plan de Accion
+        </div>
+        <div id="action-plan-steps"></div>
+    </div>
+    <script>
+    (function(){
+        try {
+            var raw = {{ debate.action_plan_json | safe }};
+            var steps = Array.isArray(raw) ? raw : JSON.parse(raw);
+            var container = document.getElementById('action-plan-steps');
+            steps.forEach(function(step, i){
+                var div = document.createElement('div');
+                div.className = 'action-step';
+                div.innerHTML = '<div class="step-number">' + (i+1) + '</div><div class="step-text">' + step + '</div>';
+                container.appendChild(div);
+            });
+        } catch(e) {}
+    })();
+    </script>
+    {% endif %}
+
 </div>
 
 <div class="actions-bar">
@@ -633,6 +747,7 @@
 (function() {
     const cards = Array.from(document.querySelectorAll('.obj-card'));
     const verdictBanner = document.getElementById('verdict-banner');
+    const actionPlan = document.getElementById('action-plan');
     const progressFill = document.getElementById('debate-progress-fill');
     const container = document.getElementById('objections-container');
     const PERSONA_NAMES = {
@@ -684,6 +799,7 @@
         });
         updateProgress(1, 1);
         if (verdictBanner) verdictBanner.classList.add('revealed');
+        if (actionPlan) setTimeout(() => actionPlan.classList.add('revealed'), 400);
         return;
     }
 
@@ -703,6 +819,9 @@
             updateProgress(currentStep, totalSteps);
             if (verdictBanner) {
                 setTimeout(() => verdictBanner.classList.add('revealed'), 300);
+            }
+            if (actionPlan) {
+                setTimeout(() => actionPlan.classList.add('revealed'), 700);
             }
             return;
         }

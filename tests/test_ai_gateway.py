@@ -399,6 +399,7 @@ async def test_alex_uses_gateway(monkeypatch):
         mock_session = MagicMock()
         mock_tenant = MagicMock()
         mock_tenant.ai_credits = 100
+        mock_tenant.nivel = 1
         mock_session.get.return_value = mock_tenant
 
         result = await AIBrainService.chat_response(

@@ -241,10 +241,10 @@ def delete_client_api(id: int, session: Session = Depends(get_session), user: Us
     return {"ok": True}
 
 @router.post("/api/import/clients")
-async def import_clients(file: UploadFile = File(...), session: Session = Depends(get_session), user: User = Depends(require_auth), tenant_id: int = Depends(get_tenant)):
+def import_clients(file: UploadFile = File(...), session: Session = Depends(get_session), user: User = Depends(require_auth), tenant_id: int = Depends(get_tenant)):
     SettingsService.ensure_admin(user)
     import io
-    contents = await file.read()
+    contents = file.file.read()
     df = pd.read_excel(io.BytesIO(contents))
     added, errors = 0, []
     for index, row in df.iterrows():

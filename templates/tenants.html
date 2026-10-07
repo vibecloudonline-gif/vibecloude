@@ -25,6 +25,7 @@
               <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_erp" onchange="cambiarPlan({{ t.id }})" {% if t.has_erp %}checked{% endif %}> ERP</label>
               <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_ecommerce" onchange="cambiarPlan({{ t.id }})" {% if t.has_ecommerce %}checked{% endif %}> Ecommerce</label>
               <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_landing" onchange="cambiarPlan({{ t.id }})" {% if t.has_landing %}checked{% endif %}> Landing</label>
+              <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" class="plan-check" data-flag="has_courses" onchange="cambiarPlan({{ t.id }})" {% if t.has_courses %}checked{% endif %}> Cursos</label>
             </div>
           </td>
           <td>{{ t.created_at }}</td>
@@ -49,6 +50,7 @@
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-erp" checked> ERP (POS, caja, WMS, proveedores...)</label>
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-ecommerce" checked> Ecommerce</label>
         <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-landing" checked> Landing con IA</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="new-has-courses"> Cursos</label>
       </div>
       <label>Usuario admin</label><input type="text" name="admin_username" required style="width:100%; margin-bottom:10px;">
       <label>Password admin</label><input type="password" name="admin_password" required style="width:100%; margin-bottom:10px;">
@@ -69,6 +71,7 @@ document.getElementById('tenant-form').addEventListener('submit', async (e)=>{
   data.append('has_erp', document.getElementById('new-has-erp').checked);
   data.append('has_ecommerce', document.getElementById('new-has-ecommerce').checked);
   data.append('has_landing', document.getElementById('new-has-landing').checked);
+  data.append('has_courses', document.getElementById('new-has-courses').checked);
   const res = await fetch('/api/tenants', {method:'POST', body:data});
   const payload = await res.json().catch(()=>({}));
   if(res.ok){window.location.reload();} else {alert(payload.detail || payload.error || 'Error al crear tenant');}

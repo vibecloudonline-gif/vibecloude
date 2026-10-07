@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Perfil de Negocio — {{ settings.company_name }}{% endblock %}
+
+{% block head %}
+<style>
+.perfil-header { margin-bottom: 24px; }
+.perfil-header h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+.perfil-header p { color: #888; font-size: 0.88rem; }
+
+.perfil-form { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px; max-width: 700px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: #333; }
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0; border-radius: 8px;
+    font-family: inherit; font-size: 0.9rem; transition: border-color 0.15s;
+}
+.form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--primary-color); outline: none; }
+.form-group textarea { resize: vertical; min-height: 100px; }
+.form-group .hint { font-size: 0.78rem; color: #999; margin-top: 4px; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+
+.form-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid #f0f0f0; }
+.form-section h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 14px; color: #333; }
+
+.form-actions { margin-top: 24px; display: flex; gap: 10px; }
+.btn-save { padding: 12px 28px; background: var(--primary-color); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+.btn-save:hover { opacity: 0.9; }
+.btn-cancel { padding: 12px 28px; background: #f5f5f5; color: #666; border: 1px solid #e5e5e5; border-radius: 8px; font-weight: 500; font-size: 0.9rem; text-decoration: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="perfil-header">
+    <h1>{{ 'Editar' if profile else 'Crear' }} Perfil de Negocio</h1>
+    <p>Este perfil será visible en el directorio público de VibeNet</p>
+</div>
+
+<form class="perfil-form" action="/panel/red/perfil" method="post">
+    <div class="form-group">
+        <label>Nombre del negocio *</label>
+        <input type="text" name="display_name" value="{{ profile.display_name if profile else settings.company_name }}" required>
+    </div>
+
+    <div class="form-group">
+        <label>Tagline</label>
+        <input type="text" name="tagline" value="{{ profile.tagline or '' }}" placeholder="Ej: Soluciones tecnológicas para PyMEs">
+        <div class="hint">Una línea que describe tu negocio</div>
+    </div>
+
+    <div class="form-group">
+        <label>Descripción</label>
+        <textarea name="description" placeholder="Contá más sobre tu negocio...">{{ profile.description or '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label>Categoría</label>
+        <select name="category_id">
+            <option value="">Sin categoría</option>
+            {% for c in categories %}
+            <option value="{{ c.id }}" {% if profile and profile.category_id == c.id %}selected{% endif %}>
+                {{ c.icon }} {{ c.name }}{% if c.parent_id %} (sub){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label>Ciudad</label>
+            <input type="text" name="city" value="{{ profile.city or '' }}" placeholder="Ej: Buenos Aires">
+        </div>
+        <div class="form-group">
+            <label>País</label>
+            <input type="text" name="country" value="{{ profile.country if profile else 'AR' }}" placeholder="AR">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Sitio web</label>
+        <input type="url" name="website_url" value="{{ profile.website_url or '' }}" placeholder="https://tuempresa.com">
+    </div>
+
+    <div class="form-section">
+        <h3>Redes sociales</h3>
+        <div class="form-group">
+            <label>Instagram</label>
+            <input type="text" name="social_instagram" value="{{ social_data.get('instagram', '') if social_data else '' }}" placeholder="@tunegocio">
+        </div>
+        <div class="form-group">
+            <label>LinkedIn</label>
+            <input type="text" name="social_linkedin" value="{{ social_data.get('linkedin', '') if social_data else '' }}" placeholder="URL o usuario">
+        </div>
+        <div class="form-group">
+            <label>Twitter / X</label>
+            <input type="text" name="social_twitter" value="{{ social_data.get('twitter', '') if social_data else '' }}" placeholder="@tunegocio">
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn-save">{{ 'Guardar cambios' if profile else 'Crear perfil' }}</button>
+        <a href="/panel/red" class="btn-cancel">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

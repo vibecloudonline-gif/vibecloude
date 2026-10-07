@@ -45,7 +45,7 @@ def _create_user(session: Session, username: str, password: str, tenant_id: int,
 
 
 def _make_tenant_with_admin(session):
-    tenant = Tenant(name="TestTenant", subdomain="test-timesfm", has_landing=True, has_ecommerce=True)
+    tenant = Tenant(name="TestTenant", subdomain="test-timesfm", has_landing=True, has_ecommerce=True, nivel=2)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -109,10 +109,19 @@ def test_forecast_endpoints_flow(client, session):
     assert "forecast_id" in fc_data
     assert "trend_direction" in fc_data
 
-    # 4. Ver panel HTML de forecast
+    # 4. Crear ForecastProfile para que el view muestre panel enterprise
+    from database.models import ForecastProfile
+    profile = ForecastProfile(
+        tenant_id=tenant.id, project_id=pid,
+        business_type="physical_product", business_stage="idea",
+    )
+    session.add(profile)
+    session.commit()
+
+    # 5. Ver panel HTML de forecast
     view_resp = client.get(f"/panel/forecast/{pid}")
     assert view_resp.status_code == 200
-    assert "Forecast de Mercado" in view_resp.text
+    assert "Forecast" in view_resp.text
     assert "mochila impermeable" in view_resp.text
 
 

@@ -2,8 +2,8 @@ import logging
 import os
 from datetime import datetime
 from sqlmodel import Session, select
-from sqlalchemy import func
-from database.models import Product, Sale, Tenant, User
+from sqlalchemy import func, update
+from database.models import Product, Sale, Tenant, TenantProfile, User
 
 logger = logging.getLogger("ai_brain")
 
@@ -17,10 +17,60 @@ class GeminiUnavailableError(ValueError):
     pass
 
 
+TOOL_MODULE_MAP: dict[str, str] = {
+    "consultar_stock": "wms",
+    "recomendar_productos": "products",
+    "obtener_metricas_ventas": "sales",
+}
+
+
+def _get_allowed_tools_for_tenant(tenant: "Tenant") -> list[str]:
+    """Devuelve solo los tools que el tenant puede usar según sus entitlements."""
+    from services.entitlements import can_use_module
+    return [tool for tool, module in TOOL_MODULE_MAP.items() if can_use_module(tenant, module)]
+
+
 class AIBrainService:
     @staticmethod
     def build_dynamic_prompt(session: Session, tenant_id: int) -> str | None:
-        return None
+        profile = session.exec(
+            select(TenantProfile).where(TenantProfile.tenant_id == tenant_id)
+        ).first()
+        if not profile or not profile.elevator_pitch:
+            return None
+
+        _STAGE_LABELS = {
+            "idea": "en etapa de idea",
+            "prototype": "con un prototipo",
+            "launched": "ya lanzado",
+            "scaling": "en fase de escalamiento",
+        }
+        _TYPE_LABELS = {
+            "physical_product": "producto fisico",
+            "digital_service": "servicio digital",
+            "saas": "SaaS",
+            "marketplace": "marketplace",
+            "gastro": "gastronomia",
+            "retail": "retail",
+        }
+
+        parts = [
+            f"CONTEXTO DEL NEGOCIO: {profile.elevator_pitch}.",
+            f"Tipo: {_TYPE_LABELS.get(profile.business_type, profile.business_type)},",
+            f"{_STAGE_LABELS.get(profile.business_stage, profile.business_stage)}.",
+        ]
+        if profile.target_audience:
+            parts.append(f"Audiencia: {profile.target_audience}.")
+        if profile.target_market:
+            parts.append(f"Mercado: {profile.target_market}.")
+        if profile.main_challenge:
+            parts.append(f"Desafio principal: {profile.main_challenge}.")
+        if profile.competitors:
+            parts.append(f"Competidores: {profile.competitors}.")
+        if profile.monthly_revenue_target:
+            parts.append(f"Meta de ingresos: USD {profile.monthly_revenue_target}/mes.")
+
+        return " ".join(parts)
 
     @staticmethod
     def _get_api_key(session: Session, tenant_id: int) -> str:
@@ -37,6 +87,14 @@ class AIBrainService:
         """
         logger.info(f"Executing tool '{name}' for tenant {tenant_id} with args: {args}")
         try:
+            required_module = TOOL_MODULE_MAP.get(name)
+            if required_module:
+                tenant = session.get(Tenant, tenant_id)
+                if tenant:
+                    from services.entitlements import can_use_module
+                    if not can_use_module(tenant, required_module):
+                        return {"error": f"Tu plan no incluye acceso a '{name}'. Necesitás habilitar el módulo '{required_module}'."}
+
             if name == "consultar_stock":
                 product_id = args.get("product_id")
                 if not product_id:
@@ -164,6 +222,14 @@ class AIBrainService:
         if not tenant:
             raise ValueError("Tenant no encontrado.")
 
+        from services.entitlements import can_use_module
+        if not can_use_module(tenant, "ai"):
+            raise ValueError("El módulo de IA no está habilitado para este tenant.")
+
+        business_context = cls.build_dynamic_prompt(session, tenant_id)
+        if business_context:
+            system_instruction = f"{system_instruction}\n\n{business_context}"
+
         cost = 10 if model_name == "gemini-3.1-pro" else 1
 
         if tenant.ai_credits < cost:
@@ -222,6 +288,11 @@ class AIBrainService:
             }
         ]
 
+        entitlement_tools = _get_allowed_tools_for_tenant(tenant)
+        tools[0]["functionDeclarations"] = [
+            decl for decl in tools[0]["functionDeclarations"] if decl["name"] in entitlement_tools
+        ]
+
         if allowed_tools is not None:
             tools[0]["functionDeclarations"] = [
                 decl for decl in tools[0]["functionDeclarations"] if decl["name"] in allowed_tools
@@ -278,9 +349,17 @@ class AIBrainService:
                 ))
                 continue
             else:
-                tenant.ai_credits -= cost
-                session.add(tenant)
+                result = session.execute(
+                    update(Tenant)
+                    .where(Tenant.id == tenant_id, Tenant.ai_credits >= cost)
+                    .values(ai_credits=Tenant.ai_credits - cost)
+                )
                 session.commit()
+                if result.rowcount == 0:
+                    raise ValueError(
+                        f"Créditos de IA insuficientes (atómico). Requiere {cost}."
+                    )
+                session.refresh(tenant)
                 return response.content
 
         raise ValueError("Excedido el límite máximo de llamadas a herramientas en un solo turno.")

@@ -1,22 +1,41 @@
-from passlib.context import CryptContext
-from sqlmodel import Session, select
-from database.models import User, Settings, Tenant
+import logging
 import os
 import secrets
 
-pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
-print(f"INFO: Password Context Schemes: {pwd_context.schemes()}")
+import argon2
+from sqlmodel import Session, select
+
+from database.models import Settings, Tenant, User
+
+logger = logging.getLogger("auth")
+
+_argon2_hasher = argon2.PasswordHasher()
+
+_bcrypt_fallback = None
+try:
+    import bcrypt as _bcrypt_mod
+    _bcrypt_fallback = _bcrypt_mod
+except ImportError:
+    pass
+
+
+def _verify_bcrypt_legacy(plain_password: str, hashed: str) -> bool:
+    if _bcrypt_fallback is None:
+        return False
+    try:
+        return _bcrypt_fallback.checkpw(
+            plain_password.encode("utf-8"),
+            hashed.encode("utf-8"),
+        )
+    except Exception:
+        return False
+
 
 def _get_secure_password(env_var: str, label: str) -> str:
-    """Get password from env var. If not set, generate a secure random one and warn."""
     password = os.getenv(env_var)
     if password:
         return password
     generated = secrets.token_urlsafe(16)
-    # Sin emojis: print() con caracteres fuera de ASCII rompe con
-    # UnicodeEncodeError ('charmap' codec) en consolas que no son UTF-8
-    # (Windows por default, algunos entornos de contenedor). Si esto lanza acá,
-    # el caller (create_default_user_and_settings) pierde el commit entero.
     print(f"\n{'='*60}")
     print(f"SEGURIDAD: No se encontro {env_var} en variables de entorno.")
     print(f"Se genero una contrasena segura para '{label}':")
@@ -28,12 +47,33 @@ def _get_secure_password(env_var: str, label: str) -> str:
 
 class AuthService:
     @staticmethod
-    def verify_password(plain_password, hashed_password):
-        return pwd_context.verify(plain_password, hashed_password)
+    def verify_password(plain_password: str, hashed_password: str) -> bool:
+        if hashed_password.startswith("$argon2"):
+            try:
+                result = _argon2_hasher.verify(hashed_password, plain_password)
+                if result and _argon2_hasher.check_needs_rehash(hashed_password):
+                    logger.info("Argon2 hash needs rehash (params updated)")
+                return result
+            except (argon2.exceptions.VerifyMismatchError, argon2.exceptions.VerificationError):
+                return False
+
+        if hashed_password.startswith("$2b$") or hashed_password.startswith("$2a$"):
+            ok = _verify_bcrypt_legacy(plain_password, hashed_password)
+            if ok:
+                logger.info("Verified bcrypt legacy hash — will rehash to argon2 on next save")
+            return ok
+
+        return False
 
     @staticmethod
-    def get_password_hash(password):
-        return pwd_context.hash(password)
+    def get_password_hash(password: str) -> str:
+        return _argon2_hasher.hash(password)
+
+    @staticmethod
+    def needs_rehash(hashed_password: str) -> bool:
+        if not hashed_password.startswith("$argon2"):
+            return True
+        return _argon2_hasher.check_needs_rehash(hashed_password)
 
     @staticmethod
     def create_default_user_and_settings(session: Session):
@@ -45,7 +85,6 @@ class AuthService:
             session.refresh(tenant)
             print(f"INFO: Created default Tenant (ID: {tenant.id})")
 
-        # 1. Create or sync admin
         user = session.exec(select(User).where(User.username == "admin", User.tenant_id == tenant.id)).first()
         admin_env_pw = os.getenv("ADMIN_PASSWORD")
         if not user:
@@ -65,9 +104,11 @@ class AuthService:
                 user.password_hash = AuthService.get_password_hash(admin_env_pw)
                 session.add(user)
                 print("INFO: Admin password synced from ADMIN_PASSWORD env var")
+            elif AuthService.needs_rehash(user.password_hash):
+                user.password_hash = AuthService.get_password_hash(admin_env_pw)
+                session.add(user)
+                print("INFO: Admin password rehashed to argon2")
 
-
-        # 2. Create or sync superadmin
         superadmin = session.exec(select(User).where(User.username == "superadmin")).first()
         superadmin_env_pw = os.getenv("SUPERADMIN_PASSWORD")
         if not superadmin:
@@ -81,14 +122,17 @@ class AuthService:
                 tenant_id=tenant.id,
             )
             session.add(superadmin)
-            print(f"INFO: Created default user 'superadmin'")
+            print("INFO: Created default user 'superadmin'")
         elif superadmin_env_pw:
             if not AuthService.verify_password(superadmin_env_pw, superadmin.password_hash):
                 superadmin.password_hash = AuthService.get_password_hash(superadmin_env_pw)
                 session.add(superadmin)
                 print("INFO: Superadmin password synced from SUPERADMIN_PASSWORD env var")
+            elif AuthService.needs_rehash(superadmin.password_hash):
+                superadmin.password_hash = AuthService.get_password_hash(superadmin_env_pw)
+                session.add(superadmin)
+                print("INFO: Superadmin password rehashed to argon2")
 
-        # 3. Create default settings
         settings = session.exec(select(Settings).where(Settings.tenant_id == tenant.id)).first()
         if not settings:
             default_settings = Settings(

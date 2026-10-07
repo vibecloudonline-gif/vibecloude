@@ -416,33 +416,149 @@
     <div class="ob-header">
         <div class="ob-header-logo">VIBECLOUD</div>
         <h1>Configuremos tu plataforma</h1>
-        <p>Personalizamos tu landing y tu tienda en minutos. Todo es editable despues desde el panel.</p>
+        <p>Contanos sobre tu negocio, personalizamos tu landing y tu tienda en minutos. Todo es editable despues desde el panel.</p>
     </div>
 
     <!-- Stepper -->
     <div class="ob-stepper">
+        {% set step_num = namespace(n=1) %}
+        <div class="ob-step active" data-step="negocio">
+            <div class="ob-step-num">{{ step_num.n }}</div>
+            <span class="ob-step-label">Negocio</span>
+        </div>
+        {% set step_num.n = step_num.n + 1 %}
         {% if tenant.has_landing %}
-        <div class="ob-step active" data-step="landing">
-            <div class="ob-step-num">1</div>
+        <div class="ob-step" data-step="landing">
+            <div class="ob-step-num">{{ step_num.n }}</div>
             <span class="ob-step-label">Landing</span>
         </div>
+        {% set step_num.n = step_num.n + 1 %}
         {% endif %}
         {% if tenant.has_ecommerce %}
-        <div class="ob-step {% if not tenant.has_landing %}active{% endif %}" data-step="ecommerce">
-            <div class="ob-step-num">{{ 2 if tenant.has_landing else 1 }}</div>
+        <div class="ob-step" data-step="ecommerce">
+            <div class="ob-step-num">{{ step_num.n }}</div>
             <span class="ob-step-label">Tienda</span>
         </div>
+        {% set step_num.n = step_num.n + 1 %}
+        {% endif %}
+        {% if tenant.has_ecommerce %}
+        <div class="ob-step" data-step="productos">
+            <div class="ob-step-num">{{ step_num.n }}</div>
+            <span class="ob-step-label">Productos</span>
+        </div>
+        {% set step_num.n = step_num.n + 1 %}
         {% endif %}
         <div class="ob-step" data-step="done">
-            <div class="ob-step-num">{{ (1 + (1 if tenant.has_landing else 0) + (1 if tenant.has_ecommerce else 0)) }}</div>
+            <div class="ob-step-num">{{ step_num.n }}</div>
             <span class="ob-step-label">Listo</span>
         </div>
     </div>
 
     <div class="ob-content">
+        <!-- STEP: Tu Negocio -->
+        <div class="ob-section active" id="section-negocio">
+            <div class="ob-card">
+                <div class="ob-card-header">
+                    <div class="ob-card-icon landing" style="background: #FFF3E0; color: #E65100;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                    </div>
+                    <div>
+                        <h2>Tu Negocio</h2>
+                        <p>Contanos sobre tu proyecto para que la IA te asista mejor</p>
+                    </div>
+                </div>
+
+                <form id="wizard-negocio-form" onsubmit="submitNegocio(event)">
+                    <div class="ob-field">
+                        <label>Elevator pitch</label>
+                        <input type="text" name="elevator_pitch" required
+                               placeholder="Ej: Vendemos ropa deportiva sustentable para jovenes de 18-30"
+                               value="{{ tenant_profile.elevator_pitch if tenant_profile else '' }}">
+                        <div class="field-hint">Describe tu negocio en una oracion</div>
+                    </div>
+
+                    <div class="ob-row">
+                        <div class="ob-field">
+                            <label>Tipo de negocio</label>
+                            <select name="business_type" style="width:100%; padding:10px 14px; font-size:0.9rem; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-color); color:var(--text-main); font-family:var(--font-sans);">
+                                {% set bt = tenant_profile.business_type if tenant_profile else 'other' %}
+                                <option value="physical_product" {{ 'selected' if bt == 'physical_product' }}>Producto fisico</option>
+                                <option value="digital_service" {{ 'selected' if bt == 'digital_service' }}>Servicio digital</option>
+                                <option value="saas" {{ 'selected' if bt == 'saas' }}>SaaS</option>
+                                <option value="marketplace" {{ 'selected' if bt == 'marketplace' }}>Marketplace</option>
+                                <option value="gastro" {{ 'selected' if bt == 'gastro' }}>Gastronomia</option>
+                                <option value="retail" {{ 'selected' if bt == 'retail' }}>Retail</option>
+                                <option value="other" {{ 'selected' if bt == 'other' }}>Otro</option>
+                            </select>
+                        </div>
+                        <div class="ob-field">
+                            <label>Etapa</label>
+                            <select name="business_stage" style="width:100%; padding:10px 14px; font-size:0.9rem; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-color); color:var(--text-main); font-family:var(--font-sans);">
+                                {% set bs = tenant_profile.business_stage if tenant_profile else 'idea' %}
+                                <option value="idea" {{ 'selected' if bs == 'idea' }}>Idea</option>
+                                <option value="prototype" {{ 'selected' if bs == 'prototype' }}>Prototipo</option>
+                                <option value="launched" {{ 'selected' if bs == 'launched' }}>Lanzado</option>
+                                <option value="scaling" {{ 'selected' if bs == 'scaling' }}>Escalando</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="ob-field">
+                        <label>A quien le vendes</label>
+                        <input type="text" name="target_audience" required
+                               placeholder="Ej: Mujeres de 25-45 que buscan moda sustentable"
+                               value="{{ tenant_profile.target_audience if tenant_profile else '' }}">
+                        <div class="field-hint">Describe tu cliente ideal</div>
+                    </div>
+
+                    <div class="ob-row">
+                        <div class="ob-field">
+                            <label>Mercado objetivo</label>
+                            <select name="target_market" style="width:100%; padding:10px 14px; font-size:0.9rem; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-color); color:var(--text-main); font-family:var(--font-sans);">
+                                {% set tm = tenant_profile.target_market if tenant_profile else 'local' %}
+                                <option value="local" {{ 'selected' if tm == 'local' }}>Local / Ciudad</option>
+                                <option value="national" {{ 'selected' if tm == 'national' }}>Nacional</option>
+                                <option value="regional" {{ 'selected' if tm == 'regional' }}>Regional / LATAM</option>
+                                <option value="international" {{ 'selected' if tm == 'international' }}>Internacional</option>
+                            </select>
+                        </div>
+                        <div class="ob-field">
+                            <label>Meta de ingresos mensual <span style="font-weight:400; text-transform:none;">(USD, opcional)</span></label>
+                            <input type="number" name="monthly_revenue_target" step="0.01" min="0"
+                                   placeholder="Ej: 5000"
+                                   value="{{ tenant_profile.monthly_revenue_target if tenant_profile and tenant_profile.monthly_revenue_target else '' }}"
+                                   style="width:100%; padding:10px 14px; font-size:0.9rem; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-color); color:var(--text-main); font-family:var(--font-sans); box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <div class="ob-field">
+                        <label>Mayor desafio actual</label>
+                        <input type="text" name="main_challenge" required
+                               placeholder="Ej: Conseguir los primeros 100 clientes"
+                               value="{{ tenant_profile.main_challenge if tenant_profile else '' }}">
+                        <div class="field-hint">Cual es el problema mas grande que necesitas resolver</div>
+                    </div>
+
+                    <div class="ob-field">
+                        <label>Competidores principales <span style="font-weight:400; text-transform:none;">(opcional)</span></label>
+                        <input type="text" name="competitors"
+                               placeholder="Ej: Nike, Adidas, marcas locales de ropa deportiva"
+                               value="{{ tenant_profile.competitors if tenant_profile else '' }}">
+                    </div>
+
+                    <div class="ob-error" id="negocio-error"></div>
+
+                    <div class="ob-actions">
+                        <a href="/" class="ob-btn-link">Saltar por ahora</a>
+                        <button type="submit" class="ob-btn ob-btn-primary" id="negocio-btn">Guardar y continuar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- STEP: Landing -->
         {% if tenant.has_landing %}
-        <div class="ob-section active" id="section-landing">
+        <div class="ob-section" id="section-landing">
             <div class="ob-card">
                 <div class="ob-card-header">
                     <div class="ob-card-icon landing">
@@ -484,7 +600,7 @@
                     <div class="ob-result" id="landing-result" style="display:none;"></div>
 
                     <div class="ob-actions">
-                        <a href="/" class="ob-btn-link">Saltar por ahora</a>
+                        <button type="button" class="ob-btn ob-btn-ghost" onclick="goToStep('negocio')">Volver</button>
                         <button type="submit" class="ob-btn ob-btn-primary" id="landing-btn">Generar landing con IA</button>
                     </div>
                 </form>
@@ -494,7 +610,7 @@
 
         <!-- STEP: Ecommerce -->
         {% if tenant.has_ecommerce %}
-        <div class="ob-section {% if not tenant.has_landing %}active{% endif %}" id="section-ecommerce">
+        <div class="ob-section" id="section-ecommerce">
             <div class="ob-card">
                 <div class="ob-card-header">
                     <div class="ob-card-icon store">
@@ -679,19 +795,386 @@
                                 <span class="tpl-font-tag" style="font-family:'JetBrains Mono',monospace;">JetBrains Mono + Inter</span>
                             </div>
                         </label>
+
+                        <!-- ── Templates por tipo de negocio ── -->
+
+                        <!-- Sabor (Gastro) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'sabor' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="sabor" {% if settings.storefront_template == 'sabor' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#FDF6F0;">
+                                <div class="tpl-preview-nav" style="background:#2D1810; color:#FDF6F0;">
+                                    <span style="font-family:'DM Serif Display',serif;">Mi Restaurante</span>
+                                    <div class="tpl-preview-nav-links"><span>Menu</span><span>Nosotros</span><span>Reservar</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'DM Serif Display',serif; color:#2D1810;">El sabor que te espera</h4>
+                                    <p style="color:#8B7355;">Ingredientes frescos y mucho cariño</p>
+                                    <span class="tpl-btn" style="background:#C75B39; color:#fff; border-radius:8px;">Ver menu</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(45,24,16,0.08); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#C75B39;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2D1810;"></div><div class="price" style="background:#C75B39;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(45,24,16,0.08); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#2D1810;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2D1810;"></div><div class="price" style="background:#C75B39;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(45,24,16,0.08); border-radius:12px;">
+                                        <div class="tpl-preview-product-img" style="background:#C75B39;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2D1810;"></div><div class="price" style="background:#C75B39;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Sabor</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#2D1810;"></span>
+                                        <span style="background:#C75B39;"></span>
+                                        <span style="background:#FDF6F0;"></span>
+                                    </div>
+                                </div>
+                                <p>Calido y apetitoso. Para restaurantes, cafes y food trucks.</p>
+                                <span class="tpl-font-tag" style="font-family:'DM Serif Display',serif;">DM Serif Display + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Vitrina (Moda) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'vitrina' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="vitrina" {% if settings.storefront_template == 'vitrina' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#ffffff;">
+                                <div class="tpl-preview-nav" style="background:#1a1a1a; color:#ffffff;">
+                                    <span style="font-family:'Cormorant Garamond',serif; text-transform:uppercase; letter-spacing:2px; font-size:9px;">Mi Tienda</span>
+                                    <div class="tpl-preview-nav-links"><span>Shop</span><span>Coleccion</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Cormorant Garamond',serif; color:#1a1a1a;">Nueva Coleccion</h4>
+                                    <p style="color:#737373;">Prendas que definen tu estilo</p>
+                                    <span class="tpl-btn" style="background:#B8860B; color:#fff; border-radius:0;">Comprar ahora</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#fafafa; border:1px solid rgba(0,0,0,0.06); border-radius:0;">
+                                        <div class="tpl-preview-product-img" style="background:#1a1a1a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1a1a1a;"></div><div class="price" style="background:#B8860B;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#fafafa; border:1px solid rgba(0,0,0,0.06); border-radius:0;">
+                                        <div class="tpl-preview-product-img" style="background:#1a1a1a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1a1a1a;"></div><div class="price" style="background:#B8860B;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#fafafa; border:1px solid rgba(0,0,0,0.06); border-radius:0;">
+                                        <div class="tpl-preview-product-img" style="background:#1a1a1a;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1a1a1a;"></div><div class="price" style="background:#B8860B;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Vitrina</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#1a1a1a;"></span>
+                                        <span style="background:#B8860B;"></span>
+                                        <span style="background:#ffffff; border-color:rgba(0,0,0,0.15);"></span>
+                                    </div>
+                                </div>
+                                <p>Editorial y aspiracional. Para moda, calzado y accesorios.</p>
+                                <span class="tpl-font-tag" style="font-family:'Cormorant Garamond',serif;">Cormorant Garamond + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Aura (Belleza/Spa) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'aura' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="aura" {% if settings.storefront_template == 'aura' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#FBF7F9;">
+                                <div class="tpl-preview-nav" style="background:#6B3A5D; color:#FBF7F9;">
+                                    <span style="font-family:'Outfit',sans-serif;">Mi Salon</span>
+                                    <div class="tpl-preview-nav-links"><span>Servicios</span><span>Turnos</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Outfit',sans-serif; color:#2D2030;">Tu momento de bienestar</h4>
+                                    <p style="color:#8B7B82;">Tratamientos pensados para vos</p>
+                                    <span class="tpl-btn" style="background:#D4A0A0; color:#fff; border-radius:999px;">Reservar turno</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(107,58,93,0.08); border-radius:20px;">
+                                        <div class="tpl-preview-product-img" style="background:#D4A0A0;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#6B3A5D;"></div><div class="price" style="background:#D4A0A0;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(107,58,93,0.08); border-radius:20px;">
+                                        <div class="tpl-preview-product-img" style="background:#6B3A5D;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#6B3A5D;"></div><div class="price" style="background:#D4A0A0;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(107,58,93,0.08); border-radius:20px;">
+                                        <div class="tpl-preview-product-img" style="background:#D4A0A0;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#6B3A5D;"></div><div class="price" style="background:#D4A0A0;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Aura</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#6B3A5D;"></span>
+                                        <span style="background:#D4A0A0;"></span>
+                                        <span style="background:#FBF7F9;"></span>
+                                    </div>
+                                </div>
+                                <p>Suave y premium. Para peluquerias, spas y cosmetica.</p>
+                                <span class="tpl-font-tag" style="font-family:'Outfit',sans-serif;">Outfit + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Impulso (Fitness) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'impulso' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="impulso" {% if settings.storefront_template == 'impulso' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#F5F5F5;">
+                                <div class="tpl-preview-nav" style="background:#1A1A1A; color:#F5F5F5;">
+                                    <span style="font-family:'Archivo',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:1px; font-size:8px;">FITNESS</span>
+                                    <div class="tpl-preview-nav-links"><span>Tienda</span><span>Planes</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Archivo',sans-serif; color:#1A1A1A; font-weight:700;">Supera tus limites</h4>
+                                    <p style="color:#6B6B6B;">Equipamiento para rendir al maximo</p>
+                                    <span class="tpl-btn" style="background:#84CC16; color:#1A1A1A; border-radius:4px; font-weight:700;">Ver productos</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.08); border-radius:6px;">
+                                        <div class="tpl-preview-product-img" style="background:#1A1A1A;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1A1A1A;"></div><div class="price" style="background:#84CC16;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.08); border-radius:6px;">
+                                        <div class="tpl-preview-product-img" style="background:#84CC16;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1A1A1A;"></div><div class="price" style="background:#84CC16;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(0,0,0,0.08); border-radius:6px;">
+                                        <div class="tpl-preview-product-img" style="background:#1A1A1A;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1A1A1A;"></div><div class="price" style="background:#84CC16;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Impulso</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#1A1A1A;"></span>
+                                        <span style="background:#84CC16;"></span>
+                                        <span style="background:#F5F5F5;"></span>
+                                    </div>
+                                </div>
+                                <p>Energico y bold. Para gyms, suplementos y ropa deportiva.</p>
+                                <span class="tpl-font-tag" style="font-family:'Archivo',sans-serif;">Archivo + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Nido (Hogar) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'nido' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="nido" {% if settings.storefront_template == 'nido' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#FAF8F5;">
+                                <div class="tpl-preview-nav" style="background:#4F6F52; color:#FAF8F5;">
+                                    <span style="font-family:'Nunito',sans-serif;">Mi Hogar</span>
+                                    <div class="tpl-preview-nav-links"><span>Ambientes</span><span>Ofertas</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Nunito',sans-serif; color:#2C2C2C;">Tu casa, tu hogar</h4>
+                                    <p style="color:#7A7264;">Muebles y decoracion para cada rincon</p>
+                                    <span class="tpl-btn" style="background:#C19A6B; color:#fff; border-radius:12px;">Explorar</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(79,111,82,0.08); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#4F6F52;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2C2C2C;"></div><div class="price" style="background:#C19A6B;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(79,111,82,0.08); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#C19A6B;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2C2C2C;"></div><div class="price" style="background:#C19A6B;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#ffffff; border:1px solid rgba(79,111,82,0.08); border-radius:16px;">
+                                        <div class="tpl-preview-product-img" style="background:#4F6F52;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#2C2C2C;"></div><div class="price" style="background:#C19A6B;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Nido</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#4F6F52;"></span>
+                                        <span style="background:#C19A6B;"></span>
+                                        <span style="background:#FAF8F5;"></span>
+                                    </div>
+                                </div>
+                                <p>Natural y acogedor. Para muebles, decoracion y hogar.</p>
+                                <span class="tpl-font-tag" style="font-family:'Nunito',sans-serif;">Nunito + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Estudio (Servicios Profesionales) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'estudio' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="estudio" {% if settings.storefront_template == 'estudio' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#ffffff;">
+                                <div class="tpl-preview-nav" style="background:#1E3A5F; color:#ffffff;">
+                                    <span style="font-family:'Montserrat',sans-serif; font-weight:700; font-size:8px;">CONSULTORÍA</span>
+                                    <div class="tpl-preview-nav-links"><span>Servicios</span><span>Nosotros</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Montserrat',sans-serif; color:#1a1a2e; font-weight:700;">Soluciones profesionales</h4>
+                                    <p style="color:#64748b;">Asesoria con resultados medibles</p>
+                                    <span class="tpl-btn" style="background:#E8634A; color:#fff; border-radius:6px;">Agendar consulta</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#F8F9FB; border:1px solid rgba(30,58,95,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#1E3A5F;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1E3A5F;"></div><div class="price" style="background:#E8634A;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#F8F9FB; border:1px solid rgba(30,58,95,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#E8634A;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1E3A5F;"></div><div class="price" style="background:#E8634A;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#F8F9FB; border:1px solid rgba(30,58,95,0.08); border-radius:8px;">
+                                        <div class="tpl-preview-product-img" style="background:#1E3A5F;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#1E3A5F;"></div><div class="price" style="background:#E8634A;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Estudio</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#1E3A5F;"></span>
+                                        <span style="background:#E8634A;"></span>
+                                        <span style="background:#ffffff; border-color:rgba(0,0,0,0.15);"></span>
+                                    </div>
+                                </div>
+                                <p>Profesional y moderno. Para consultoras, abogados y agencias.</p>
+                                <span class="tpl-font-tag" style="font-family:'Montserrat',sans-serif;">Montserrat + Inter</span>
+                            </div>
+                        </label>
+
+                        <!-- Mercado (Retail) -->
+                        <label class="tpl-card {% if settings.storefront_template == 'mercado' %}selected{% endif %}" onclick="selectTemplate(this)">
+                            <input type="radio" name="storefront_template" value="mercado" {% if settings.storefront_template == 'mercado' %}checked{% endif %}>
+                            <div class="tpl-card-check"></div>
+                            <div class="tpl-preview" style="background:#ffffff;">
+                                <div class="tpl-preview-nav" style="background:#D32F2F; color:#ffffff;">
+                                    <span style="font-family:'Poppins',sans-serif; font-weight:700; font-size:8px;">MI TIENDA</span>
+                                    <div class="tpl-preview-nav-links"><span>Ofertas</span><span>Categorias</span><span>Contacto</span></div>
+                                </div>
+                                <div class="tpl-preview-hero">
+                                    <h4 style="font-family:'Poppins',sans-serif; color:#212121; font-weight:700;">Todo en un solo lugar</h4>
+                                    <p style="color:#757575;">Precios bajos todos los dias</p>
+                                    <span class="tpl-btn" style="background:#FFC107; color:#212121; border-radius:10px; font-weight:700;">Ver ofertas</span>
+                                </div>
+                                <div class="tpl-preview-products">
+                                    <div class="tpl-preview-product" style="background:#FAFAFA; border:1px solid rgba(0,0,0,0.08); border-radius:14px;">
+                                        <div class="tpl-preview-product-img" style="background:#D32F2F;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#212121;"></div><div class="price" style="background:#FFC107;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#FAFAFA; border:1px solid rgba(0,0,0,0.08); border-radius:14px;">
+                                        <div class="tpl-preview-product-img" style="background:#FFC107;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#212121;"></div><div class="price" style="background:#D32F2F;"></div></div>
+                                    </div>
+                                    <div class="tpl-preview-product" style="background:#FAFAFA; border:1px solid rgba(0,0,0,0.08); border-radius:14px;">
+                                        <div class="tpl-preview-product-img" style="background:#D32F2F;"></div>
+                                        <div class="tpl-preview-product-info"><div class="name" style="background:#212121;"></div><div class="price" style="background:#FFC107;"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tpl-info">
+                                <div class="tpl-info-header">
+                                    <h3>Mercado</h3>
+                                    <div class="tpl-swatch">
+                                        <span style="background:#D32F2F;"></span>
+                                        <span style="background:#FFC107;"></span>
+                                        <span style="background:#ffffff; border-color:rgba(0,0,0,0.15);"></span>
+                                    </div>
+                                </div>
+                                <p>Vibrante y accesible. Para tiendas, minimarkets y retail.</p>
+                                <span class="tpl-font-tag" style="font-family:'Poppins',sans-serif;">Poppins + Inter</span>
+                            </div>
+                        </label>
                     </div>
 
                     <div class="ob-error" id="ecommerce-error"></div>
 
                     <div class="ob-actions">
-                        {% if tenant.has_landing %}
-                        <button type="button" class="ob-btn ob-btn-ghost" onclick="goToStep('landing')">Volver</button>
-                        {% else %}
-                        <a href="/" class="ob-btn-link">Saltar por ahora</a>
-                        {% endif %}
+                        <button type="button" class="ob-btn ob-btn-ghost" onclick="goToStep('{{ 'landing' if tenant.has_landing else 'negocio' }}')">Volver</button>
                         <div style="display:flex; gap:8px;">
                             <a href="/tienda" target="_blank" class="ob-btn ob-btn-ghost">Vista previa</a>
                             <button type="submit" class="ob-btn ob-btn-primary" id="ecommerce-btn">Guardar y continuar</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- STEP: Productos -->
+        {% if tenant.has_ecommerce %}
+        <div class="ob-section" id="section-productos">
+            <div class="ob-card">
+                <div class="ob-card-header">
+                    <div class="ob-card-icon" style="background: #EDE9FE; color: #7C3AED;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
+                    </div>
+                    <div>
+                        <h2>Tus primeros productos</h2>
+                        <p>Agrega hasta 5 productos para arrancar. Despues podes agregar mas desde el panel o importar un Excel.</p>
+                    </div>
+                </div>
+
+                <form id="wizard-productos-form" onsubmit="submitProductos(event)">
+                    <div id="productos-list">
+                        <div class="ob-product-row" data-idx="0">
+                            <div class="ob-row">
+                                <div class="ob-field" style="flex:2;">
+                                    <label>Nombre del producto *</label>
+                                    <input type="text" name="prod_name_0" required placeholder="Ej: Remera algodón premium">
+                                </div>
+                                <div class="ob-field" style="flex:1;">
+                                    <label>Precio *</label>
+                                    <input type="number" name="prod_price_0" required step="0.01" min="0" placeholder="Ej: 2500">
+                                </div>
+                            </div>
+                            <div class="ob-row">
+                                <div class="ob-field" style="flex:2;">
+                                    <label>Descripcion <span style="font-weight:400;">(opcional)</span></label>
+                                    <input type="text" name="prod_desc_0" placeholder="Ej: 100% algodón, corte regular">
+                                </div>
+                                <div class="ob-field" style="flex:1;">
+                                    <label>Categoria <span style="font-weight:400;">(opcional)</span></label>
+                                    <input type="text" name="prod_cat_0" placeholder="Ej: Remeras">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin: 12px 0 20px;">
+                        <button type="button" class="ob-btn ob-btn-ghost" id="add-product-btn" onclick="addProductRow()" style="font-size:0.85rem; padding:8px 16px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="vertical-align:middle; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            Agregar otro producto
+                        </button>
+                        <span style="color:var(--text-muted); font-size:0.8rem; margin-left:8px;" id="product-count-label">1 de 5</span>
+                    </div>
+
+                    <div style="padding:14px 18px; background:var(--surface-color); border:1px dashed var(--border-color); border-radius:var(--radius-sm); margin-bottom:20px;">
+                        <p style="margin:0; font-size:0.85rem; color:var(--text-muted);">
+                            <strong>Tenes muchos productos?</strong> Podes <a href="/catalog-import" style="color:var(--accent-color);">importar un Excel</a> con todo tu catalogo desde el panel.
+                        </p>
+                    </div>
+
+                    <div class="ob-error" id="productos-error"></div>
+
+                    <div class="ob-actions">
+                        <button type="button" class="ob-btn ob-btn-ghost" onclick="goToStep('ecommerce')">Volver</button>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="ob-btn ob-btn-ghost" onclick="nextStep()">Saltar</button>
+                            <button type="submit" class="ob-btn ob-btn-primary" id="productos-btn">Guardar productos</button>
                         </div>
                     </div>
                 </form>
@@ -724,20 +1207,15 @@
             </div>
         </div>
 
-        <!-- No modules -->
-        {% if not tenant.has_landing and not tenant.has_ecommerce %}
-        <div class="ob-card" style="text-align: center; padding: 40px;">
-            <p style="color: var(--text-muted);">Tu cuenta no tiene Landing con IA ni Ecommerce contratados. No hay nada que configurar aqui.</p>
-            <a href="/" class="ob-btn ob-btn-primary" style="text-decoration:none; margin-top: 16px; display: inline-block;">Volver al panel</a>
-        </div>
-        {% endif %}
+        <!-- No extra modules note removed: negocio step always exists -->
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-    const STEPS = [];
+    const STEPS = ['negocio'];
     {% if tenant.has_landing %}STEPS.push('landing');{% endif %}
     {% if tenant.has_ecommerce %}STEPS.push('ecommerce');{% endif %}
+    {% if tenant.has_ecommerce %}STEPS.push('productos');{% endif %}
     STEPS.push('done');
     let currentStep = STEPS[0];
 
@@ -774,6 +1252,30 @@
         document.querySelectorAll('.tpl-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         card.querySelector('input[type="radio"]').checked = true;
+    }
+
+    async function submitNegocio(event) {
+        event.preventDefault();
+        const btn = document.getElementById('negocio-btn');
+        const errEl = document.getElementById('negocio-error');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Guardando...';
+        errEl.style.display = 'none';
+
+        try {
+            const formData = new FormData(event.target);
+            const res = await fetch('/panel/onboarding/negocio', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Error al guardar el perfil');
+            nextStep();
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar y continuar';
+        }
     }
 
     async function submitLanding(event) {
@@ -834,6 +1336,94 @@
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'Guardar y continuar';
+        }
+    }
+
+    let productRowCount = 1;
+    const MAX_PRODUCTS = 5;
+
+    function addProductRow() {
+        if (productRowCount >= MAX_PRODUCTS) return;
+        const idx = productRowCount;
+        const container = document.getElementById('productos-list');
+        const row = document.createElement('div');
+        row.className = 'ob-product-row';
+        row.dataset.idx = idx;
+        row.style.borderTop = '1px solid var(--border-color)';
+        row.style.paddingTop = '16px';
+        row.style.marginTop = '16px';
+        row.innerHTML = `
+            <div class="ob-row">
+                <div class="ob-field" style="flex:2;">
+                    <label>Nombre del producto *</label>
+                    <input type="text" name="prod_name_${idx}" required placeholder="Ej: Producto ${idx+1}">
+                </div>
+                <div class="ob-field" style="flex:1;">
+                    <label>Precio *</label>
+                    <input type="number" name="prod_price_${idx}" required step="0.01" min="0" placeholder="Ej: 1500">
+                </div>
+            </div>
+            <div class="ob-row">
+                <div class="ob-field" style="flex:2;">
+                    <label>Descripcion <span style="font-weight:400;">(opcional)</span></label>
+                    <input type="text" name="prod_desc_${idx}" placeholder="Descripcion breve">
+                </div>
+                <div class="ob-field" style="flex:1;">
+                    <label>Categoria <span style="font-weight:400;">(opcional)</span></label>
+                    <input type="text" name="prod_cat_${idx}" placeholder="Ej: Categoria">
+                </div>
+            </div>`;
+        container.appendChild(row);
+        productRowCount++;
+        document.getElementById('product-count-label').textContent = productRowCount + ' de ' + MAX_PRODUCTS;
+        if (productRowCount >= MAX_PRODUCTS) {
+            document.getElementById('add-product-btn').style.display = 'none';
+        }
+    }
+
+    async function submitProductos(event) {
+        event.preventDefault();
+        const btn = document.getElementById('productos-btn');
+        const errEl = document.getElementById('productos-error');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Guardando...';
+        errEl.style.display = 'none';
+
+        const products = [];
+        for (let i = 0; i < productRowCount; i++) {
+            const name = (document.querySelector(`[name="prod_name_${i}"]`)?.value || '').trim();
+            const price = parseFloat(document.querySelector(`[name="prod_price_${i}"]`)?.value || '0');
+            const desc = (document.querySelector(`[name="prod_desc_${i}"]`)?.value || '').trim();
+            const cat = (document.querySelector(`[name="prod_cat_${i}"]`)?.value || '').trim();
+            if (name) {
+                products.push({ name, price: price || 0, description: desc, category: cat });
+            }
+        }
+
+        if (products.length === 0) {
+            errEl.textContent = 'Agrega al menos un producto con nombre';
+            errEl.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar productos';
+            return;
+        }
+
+        try {
+            const res = await fetch('/panel/onboarding/productos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ products })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Error al guardar productos');
+            nextStep();
+        } catch (err) {
+            errEl.textContent = err.message;
+            errEl.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Guardar productos';
         }
     }
 

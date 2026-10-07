@@ -292,6 +292,129 @@
         .sf-qty-input { width: 80px; padding: 10px; border: 1px solid var(--sf-border); border-radius: var(--sf-radius); background: var(--sf-surface); color: var(--sf-text); font-family: var(--sf-body-font); }
         .sf-product-detail-img { width: 100%; border-radius: var(--sf-card-radius); background: var(--sf-surface-alt); }
 
+        /* ── Menu Grid (gastro) ─────────────────────────────────── */
+        .sf-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 32px;
+        }
+        .sf-menu-category-title {
+            font-family: var(--sf-heading-font);
+            font-weight: var(--sf-heading-weight);
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--sf-accent);
+        }
+        .sf-menu-items { display: flex; flex-direction: column; gap: 12px; }
+        .sf-menu-item {
+            display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+            padding: 8px 0;
+            border-bottom: 1px dotted var(--sf-border);
+        }
+        .sf-menu-item:last-child { border-bottom: none; }
+        .sf-menu-item-name { font-weight: 600; font-size: 0.95rem; }
+        .sf-menu-item-desc { display: block; color: var(--sf-text-muted); font-size: 0.85rem; margin-top: 2px; }
+        .sf-menu-item-price { font-weight: 700; color: var(--sf-accent); white-space: nowrap; }
+
+        /* ── Services List ─────────────────────────────────────── */
+        .sf-services-list { display: flex; flex-direction: column; gap: 16px; }
+        .sf-service-card {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 24px;
+            background: var(--sf-surface);
+            border: 1px solid var(--sf-border);
+            border-radius: var(--sf-card-radius);
+            transition: box-shadow 0.2s;
+        }
+        .sf-service-card:hover { box-shadow: var(--sf-shadow-sm); }
+        .sf-service-name { font-weight: 600; font-size: 1rem; margin-bottom: 4px; }
+        .sf-service-desc { color: var(--sf-text-muted); font-size: 0.9rem; }
+        .sf-service-duration {
+            display: inline-block; margin-top: 6px;
+            font-size: 0.8rem; color: var(--sf-text-muted);
+            background: var(--sf-surface-alt);
+            padding: 2px 8px; border-radius: var(--sf-radius);
+        }
+        .sf-service-price {
+            font-weight: 700; color: var(--sf-accent);
+            font-size: 1.1rem; white-space: nowrap;
+            margin-left: 16px;
+        }
+
+        /* ── Gallery ───────────────────────────────────────────── */
+        .sf-gallery-grid {
+            display: grid; gap: 8px;
+        }
+        .sf-gallery-grid--cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .sf-gallery-grid--cols-3 { grid-template-columns: repeat(3, 1fr); }
+        .sf-gallery-grid--cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .sf-gallery-item {
+            aspect-ratio: 1; overflow: hidden;
+            border-radius: var(--sf-radius);
+        }
+        .sf-gallery-item img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.3s;
+        }
+        .sf-gallery-item:hover img { transform: scale(1.05); }
+        .sf-gallery-placeholder {
+            width: 100%; height: 100%;
+            background: var(--sf-surface-alt);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--sf-text-muted);
+        }
+
+        /* ── Testimonials ──────────────────────────────────────── */
+        .sf-testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .sf-testimonial-card {
+            padding: 24px;
+            background: var(--sf-surface);
+            border: 1px solid var(--sf-border);
+            border-radius: var(--sf-card-radius);
+        }
+        .sf-testimonial-stars {
+            color: var(--sf-accent);
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+        .sf-testimonial-text {
+            font-style: italic;
+            color: var(--sf-text);
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        .sf-testimonial-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--sf-text-muted);
+        }
+
+        /* ── Contact Info ──────────────────────────────────────── */
+        .sf-contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+        .sf-contact-item {
+            display: flex; gap: 12px; align-items: flex-start;
+            padding: 16px;
+            background: var(--sf-surface);
+            border: 1px solid var(--sf-border);
+            border-radius: var(--sf-card-radius);
+        }
+        .sf-contact-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .sf-contact-item strong {
+            display: block; font-size: 0.85rem;
+            color: var(--sf-text-muted); margin-bottom: 4px;
+        }
+        .sf-contact-item p { margin: 0; font-size: 0.95rem; }
+
         /* ── Responsive ─────────────────────────────────────────── */
         @media (max-width: 768px) {
             .sf-header { padding: 12px 16px; }
@@ -302,6 +425,12 @@
             .sf-product-detail-grid { grid-template-columns: 1fr; gap: 20px; }
             .sf-grid-2 { grid-template-columns: 1fr; }
             .sf-newsletter-form { flex-direction: column; }
+            .sf-menu-grid { grid-template-columns: 1fr; }
+            .sf-service-card { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .sf-service-price { margin-left: 0; }
+            .sf-gallery-grid--cols-3, .sf-gallery-grid--cols-4 { grid-template-columns: repeat(2, 1fr); }
+            .sf-testimonials-grid { grid-template-columns: 1fr; }
+            .sf-contact-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>

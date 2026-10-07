@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeCloud — Tu negocio, online y bajo control</title>
+    <meta name="description" content="Crea tu tienda con IA, vende por internet y administra stock, ventas y caja desde un solo lugar. Desde US$3,97/mes.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #080808;
+            --orange: #FF6A00;
+            --cream: #F4EDE4;
+            --gray: #6F6A65;
+            --white: #FFFFFF;
+            --orange-hover: #E85E00;
+            --card-border: rgba(8,8,8,0.06);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--black);
+            background: var(--cream);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .display { font-family: 'Space Grotesk', sans-serif; }
+
+        /* --- Nav --- */
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+        .nav-logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            text-decoration: none;
+            color: var(--black);
+        }
+        .nav-logo span { color: var(--orange); }
+        .nav-links { display: flex; gap: 24px; align-items: center; }
+        .nav-links a {
+            text-decoration: none;
+            color: var(--gray);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .nav-links a:hover { color: var(--black); }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 28px;
+            background: var(--orange);
+            color: var(--white);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.95rem;
+            transition: background 0.15s, transform 0.15s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background: var(--orange-hover);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            display: inline-block;
+            padding: 12px 28px;
+            background: transparent;
+            color: var(--black);
+            border: 1.5px solid var(--black);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: background 0.15s;
+        }
+        .btn-secondary:hover { background: rgba(8,8,8,0.05); }
+
+        /* --- Hero --- */
+        .hero {
+            background: var(--black);
+            padding: 64px 24px 72px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -15%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,106,0,0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -40%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,106,0,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-logo {
+            max-width: 420px;
+            width: 90%;
+            margin: 0 auto 32px;
+            display: block;
+        }
+        .hero h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: var(--cream);
+            line-height: 1.08;
+            max-width: 700px;
+            margin: 0 auto 20px;
+            letter-spacing: -0.02em;
+            text-wrap: balance;
+        }
+        .hero p {
+            font-size: 1.1rem;
+            color: rgba(244,237,228,0.75);
+            max-width: 560px;
+            margin: 0 auto 12px;
+            line-height: 1.6;
+        }
+        .hero-cta-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 28px;
+            flex-wrap: wrap;
+        }
+        .hero-note {
+            color: rgba(244,237,228,0.45);
+            font-size: 0.82rem;
+            margin-top: 20px;
+            letter-spacing: 0.02em;
+        }
+
+        /* --- Inner --- */
+        .inner {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* --- Pulse --- */
+        .pulse {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            padding: 40px 0 36px;
+            flex-wrap: wrap;
+        }
+        .pulse-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--gray);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--orange);
+        }
+        .pulse-step:not(:last-child)::after {
+            content: '\2192';
+            margin-left: 28px;
+            color: rgba(111,106,101,0.3);
+            font-size: 1rem;
+        }
+
+        /* --- Problem section --- */
+        .problem {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 48px 24px;
+            text-align: center;
+        }
+        .problem h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: var(--black);
+            margin-bottom: 28px;
+            text-wrap: balance;
+        }
+        .problem-lines {
+            text-align: left;
+            display: inline-block;
+        }
+        .problem-line {
+            color: var(--gray);
+            font-size: 1rem;
+            line-height: 2;
+            position: relative;
+            padding-left: 20px;
+        }
+        .problem-line::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(111,106,101,0.3);
+            transform: translateY(-50%);
+        }
+        .problem-answer {
+            margin-top: 28px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--orange);
+        }
+
+        /* --- Comparison table --- */
+        .comparison {
+            padding: 48px 0 56px;
+        }
+        .comparison h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 32px;
+            color: var(--black);
+        }
+        .comparison-table {
+            width: 100%;
+            max-width: 680px;
+            margin: 0 auto;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+        .comparison-table th {
+            background: var(--black);
+            color: var(--cream);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            padding: 16px 24px;
+            text-align: left;
+            font-size: 0.9rem;
+            letter-spacing: 0.02em;
+        }
+        .comparison-table th:last-child { color: var(--orange); }
+        .comparison-table td {
+            padding: 14px 24px;
+            background: var(--white);
+            font-size: 0.92rem;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
+        }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        .comparison-table td:first-child { color: var(--gray); }
+        .comparison-table td:last-child {
+            font-weight: 600;
+            color: var(--black);
+        }
+        .comparison-table tr:last-child td {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+        }
+        .comparison-table tr:last-child td:last-child { color: var(--orange); }
+
+        /* --- Features grid --- */
+        .features {
+            padding: 48px 0;
+        }
+        .features h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 12px;
+            color: var(--black);
+        }
+        .features > p {
+            text-align: center;
+            color: var(--gray);
+            margin-bottom: 36px;
+            font-size: 0.95rem;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .feature-card {
+            background: var(--white);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 28px 24px;
+        }
+        .feature-card h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--black);
+        }
+        .feature-card h3::before {
+            content: '';
+            display: inline-block;
+            width: 3px;
+            height: 16px;
+            background: var(--orange);
+            border-radius: 2px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .feature-card p {
+            color: var(--gray);
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+
+        /* --- Pricing --- */
+        .pricing {
+            padding: 56px 0 48px;
+        }
+        .pricing h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .pricing > p {
+            text-align: center;
+            color: var(--gray);
+            margin-bottom: 36px;
+            font-size: 0.95rem;
+        }
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .pricing-card {
+            background: var(--white);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 32px 24px;
+            text-align: center;
+            position: relative;
+        }
+        .pricing-card.featured {
+            border: 2px solid var(--orange);
+        }
+        .pricing-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--orange);
+            color: var(--white);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .pricing-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .pricing-price {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--orange);
+            margin-bottom: 4px;
+        }
+        .pricing-price small {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--gray);
+        }
+        .pricing-features {
+            list-style: none;
+            text-align: left;
+            margin: 20px 0 24px;
+        }
+        .pricing-features li {
+            font-size: 0.85rem;
+            color: var(--gray);
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+            line-height: 1.4;
+        }
+        .pricing-features li::before {
+            content: '\2713';
+            position: absolute;
+            left: 0;
+            color: var(--orange);
+            font-weight: 700;
+        }
+
+        /* --- Final CTA --- */
+        .final-cta {
+            background: var(--black);
+            border-radius: 16px;
+            text-align: center;
+            padding: 64px 24px;
+            margin: 24px 0 48px;
+            position: relative;
+            overflow: hidden;
+        }
+        .final-cta::before {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,106,0,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .final-cta h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--cream);
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            position: relative;
+            text-wrap: balance;
+        }
+        .final-cta p {
+            color: rgba(244,237,228,0.6);
+            font-size: 0.95rem;
+            margin-bottom: 28px;
+            position: relative;
+        }
+        .final-cta .btn-primary {
+            font-size: 1.05rem;
+            padding: 16px 44px;
+            position: relative;
+        }
+
+        /* --- Footer --- */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--gray);
+            font-size: 0.8rem;
+        }
+
+        /* --- Responsive --- */
+        @media (max-width: 640px) {
+            .hero { padding: 48px 20px 56px; }
+            .hero h1 { font-size: 1.85rem; }
+            .hero-logo { max-width: 280px; }
+            .nav-links a:not(.btn-primary) { display: none; }
+            .problem h2 { font-size: 1.4rem; }
+            .comparison-table th, .comparison-table td { padding: 12px 16px; font-size: 0.85rem; }
+            .pricing-grid { grid-template-columns: 1fr; max-width: 360px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .pulse { gap: 16px; }
+            .pulse-step:not(:last-child)::after { margin-left: 12px; }
+            .final-cta { border-radius: 12px; padding: 48px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+    <a href="/" class="nav-logo">Vibe<span>Cloud</span></a>
+    <div class="nav-links">
+        <a href="#planes">Planes</a>
+        <a href="/login">Ingresar</a>
+        <a href="/signup" class="btn-primary">Crear mi tienda</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <img src="/static/images/vibecloud-logo.webp" alt="VibeCloud" class="hero-logo">
+    <h1>Tu negocio merece algo mas que Instagram.</h1>
+    <p>Crea tu tienda online con IA, publica tus productos y administra ventas, stock y caja desde un solo lugar.</p>
+    <div class="hero-cta-row">
+        <a href="/signup" class="btn-primary">Crear mi tienda</a>
+        <a href="#como-funciona" class="btn-secondary" style="border-color: rgba(244,237,228,0.3); color: var(--cream);">Ver como funciona</a>
+    </div>
+    <p class="hero-note">Sin programar &middot; Sin complicaciones &middot; Sin plan gratis que te obligue a pagar despues</p>
+</section>
+
+<div class="inner">
+
+    <!-- Pulse -->
+    <div class="pulse">
+        <div class="pulse-step"><span class="pulse-dot"></span> Elegis</div>
+        <div class="pulse-step"><span class="pulse-dot"></span> Vendes</div>
+        <div class="pulse-step"><span class="pulse-dot"></span> Controlas</div>
+    </div>
+
+    <!-- Problem -->
+    <section class="problem" id="como-funciona">
+        <h2>Hoy vendes. Pero probablemente vendes demasiado a mano.</h2>
+        <div class="problem-lines">
+            <div class="problem-line">Instagram por un lado.</div>
+            <div class="problem-line">WhatsApp por otro.</div>
+            <div class="problem-line">Stock en Excel.</div>
+            <div class="problem-line">Precios en mensajes.</div>
+            <div class="problem-line">Ventas anotadas donde podes.</div>
+            <div class="problem-line">Y cuando alguien pregunta "cuanto sale?"... tenés que responder vos.</div>
+        </div>
+        <p class="problem-answer">VibeCloud junta todo.</p>
+    </section>
+
+    <!-- Comparison -->
+    <section class="comparison">
+        <h2>Una sola tienda. Un solo stock. Todo tu negocio conectado.</h2>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Antes</th>
+                    <th>Con VibeCloud</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Instagram</td><td>Tienda online</td></tr>
+                <tr><td>WhatsApp</td><td>Pedidos con checkout</td></tr>
+                <tr><td>Excel</td><td>Stock en tiempo real</td></tr>
+                <tr><td>Calculadora</td><td>Caja y reportes</td></tr>
+                <tr><td>Mensajes</td><td>Clientes organizados</td></tr>
+                <tr><td>Planillas</td><td>Metricas automaticas</td></tr>
+                <tr><td>Muchas herramientas</td><td>Una plataforma</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- AI Features -->
+    <section class="features">
+        <h2>Tu tienda tambien trabaja por vos.</h2>
+        <p>VibeCloud utiliza IA para ayudarte a vender mas y perder menos tiempo.</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>Crear</h3>
+                <p>Tu tienda y tu contenido se generan con inteligencia artificial. Sin saber programar, sin contratar disenadores.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Vender</h3>
+                <p>Recomendaciones automaticas y un asistente que atiende a tus clientes las 24 horas.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Analizar</h3>
+                <p>Ventas, productos estrella, stock critico y oportunidades que no estabas viendo.</p>
+            </div>
+            <div class="feature-card">
+                <h3>Decidir</h3>
+                <p>Investigacion de mercado, previsiones de demanda y debates con expertos virtuales.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section class="pricing" id="planes">
+        <h2>Empeza por lo que necesitas. Crece cuando quieras.</h2>
+        <p>Todos los planes incluyen tienda con IA, sin cargos ocultos.</p>
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <div class="pricing-name">Inicial</div>
+                <div class="pricing-price">US$3,97 <small>/mes</small></div>
+                <ul class="pricing-features">
+                    <li>Sitio generado con IA</li>
+                    <li>Catalogo de 30 productos</li>
+                    <li>Pedidos por WhatsApp</li>
+                    <li>30 creditos de IA/mes</li>
+                    <li>1 usuario</li>
+                </ul>
+                <a href="/signup" class="btn-primary" style="width: 100%; text-align: center;">Empezar</a>
+            </div>
+            <div class="pricing-card featured">
+                <span class="pricing-badge">Popular</span>
+                <div class="pricing-name">Tienda</div>
+                <div class="pricing-price">US$19 <small>/mes</small></div>
+                <ul class="pricing-features">
+                    <li>Todo lo de Inicial</li>
+                    <li>Tienda con checkout</li>
+                    <li>Productos ilimitados</li>
+                    <li>500 creditos de IA/mes</li>
+                    <li>Recomendaciones automaticas</li>
+                </ul>
+                <a href="/signup" class="btn-primary" style="width: 100%; text-align: center;">Empezar</a>
+            </div>
+            <div class="pricing-card">
+                <div class="pricing-name">Comercio</div>
+                <div class="pricing-price">US$49 <small>/mes</small></div>
+                <ul class="pricing-features">
+                    <li>Todo lo de Tienda</li>
+                    <li>POS, stock y caja</li>
+                    <li>Reportes y metricas</li>
+                    <li>2.000 creditos de IA/mes</li>
+                    <li>5 usuarios + dominio propio</li>
+                </ul>
+                <a href="/signup" class="btn-primary" style="width: 100%; text-align: center;">Empezar</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <h2>No necesitas cinco herramientas para manejar tu negocio.</h2>
+        <p>Necesitas VibeCloud.</p>
+        <a href="/signup" class="btn-primary">Crear mi tienda</a>
+    </section>
+
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+    VibeCloud &copy; 2026. Tu negocio, online y bajo control.
+</footer>
+
+
+</body>
+</html>

@@ -83,7 +83,7 @@ def require_auth(
     if user.tenant_id:
         tenant = session.get(Tenant, user.tenant_id)
         if tenant:
-            fresh_flags = {"erp": tenant.has_erp, "ecommerce": tenant.has_ecommerce, "landing": tenant.has_landing}
+            fresh_flags = {"erp": tenant.has_erp, "ecommerce": tenant.has_ecommerce, "landing": tenant.has_landing, "courses": tenant.has_courses}
             request.session["tenant_flags"] = fresh_flags
             current_view = request.session.get("nav_view")
             if current_view:
@@ -99,15 +99,14 @@ def get_tenant(
     session: Session = Depends(get_session),
     user: User = Depends(require_auth),
 ) -> int:
-    # Resolve tenant by host if configured
     host_tenant_id = _resolve_tenant_from_host(request.headers.get("host"), session)
     if host_tenant_id and user.tenant_id and user.tenant_id != host_tenant_id:
         raise HTTPException(status_code=403, detail="Tenant mismatch for this domain")
-    if host_tenant_id:
-        return host_tenant_id
-    if not user.tenant_id:
+    tenant_id = host_tenant_id or user.tenant_id
+    if not tenant_id:
         raise HTTPException(status_code=403, detail="No tenant associated")
-    return user.tenant_id
+    session.info["tenant_id"] = tenant_id
+    return tenant_id
 
 
 def get_current_tenant(
@@ -118,14 +117,13 @@ def get_current_tenant(
     Resolves tenant_id dynamically from session, headers, or subdomains.
     Secured by verification logic to prevent raw/arbitrary client inputs.
     """
-    # 1. Try to resolve via active session cookie user
     user_id = request.session.get("user_id")
     if user_id:
         user = session.get(User, user_id)
         if user and user.tenant_id and user.is_active and not user.is_deleted:
+            session.info["tenant_id"] = user.tenant_id
             return user.tenant_id
 
-    # 2. Try to resolve via JWT header
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         try:
@@ -135,18 +133,18 @@ def get_current_tenant(
             jwt_user_id = int(payload.get("sub"))
             jwt_user = session.get(User, jwt_user_id)
             if jwt_user and jwt_user.tenant_id and jwt_user.is_active and not jwt_user.is_deleted:
+                session.info["tenant_id"] = jwt_user.tenant_id
                 return jwt_user.tenant_id
         except Exception:
             pass
 
-    # 3. Try to resolve via host subdomain (valid for multi-tenant domains)
     host_tenant_id = _resolve_tenant_from_host(request.headers.get("host"), session)
     if host_tenant_id:
         host_tenant = session.get(Tenant, host_tenant_id)
         if host_tenant and host_tenant.is_active:
+            session.info["tenant_id"] = host_tenant.id
             return host_tenant.id
 
-    # Strict check: in production environment, do NOT allow fallback or unauthenticated header overrides
     is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
     if is_production:
         raise HTTPException(
@@ -154,9 +152,9 @@ def get_current_tenant(
             detail="Autenticación requerida para resolver el tenant en producción"
         )
 
-    # Fallback to the first active tenant ONLY in development environment
     fallback_tenant = session.exec(select(Tenant).order_by(Tenant.id)).first()
     if fallback_tenant and fallback_tenant.is_active:
+        session.info["tenant_id"] = fallback_tenant.id
         return fallback_tenant.id
 
     raise HTTPException(
@@ -180,6 +178,7 @@ def get_public_tenant(
     if host_tenant_id:
         host_tenant = session.get(Tenant, host_tenant_id)
         if host_tenant and host_tenant.is_active:
+            session.info["tenant_id"] = host_tenant.id
             return host_tenant.id
 
     user_id = request.session.get("user_id")
@@ -188,12 +187,14 @@ def get_public_tenant(
         if user and user.tenant_id:
             tenant = session.get(Tenant, user.tenant_id)
             if tenant and tenant.is_active:
+                session.info["tenant_id"] = tenant.id
                 return tenant.id
 
     is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
     if not is_production:
         fallback_tenant = session.exec(select(Tenant).order_by(Tenant.id)).first()
         if fallback_tenant and fallback_tenant.is_active:
+            session.info["tenant_id"] = fallback_tenant.id
             return fallback_tenant.id
 
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tienda no encontrada")

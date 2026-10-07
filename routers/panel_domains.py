@@ -21,6 +21,7 @@ from core.config import settings as app_settings
 from core.limiter import limiter
 from database.models import Settings, Tenant, TenantDomain, User
 from database.session import get_session
+from services.entitlements import can_use_module, get_blocked_message
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
 
@@ -40,8 +41,8 @@ def panel_domains_page(
     tenant_id: int = Depends(get_tenant),
 ):
     tenant = session.get(Tenant, tenant_id)
-    if not tenant or not (tenant.has_ecommerce or tenant.has_landing):
-        raise HTTPException(403, "Tu cuenta no tiene contratado Ecommerce ni Landing")
+    if not tenant or not can_use_module(tenant, "domains") or not (tenant.has_ecommerce or tenant.has_landing):
+        raise HTTPException(403, get_blocked_message("domains"))
 
     domains = session.exec(select(TenantDomain).where(TenantDomain.tenant_id == tenant_id)).all()
     return _templates().TemplateResponse(
@@ -88,8 +89,8 @@ def panel_domains_request(
     tenant_id: int = Depends(get_tenant),
 ):
     tenant = session.get(Tenant, tenant_id)
-    if not tenant or not (tenant.has_ecommerce or tenant.has_landing):
-        raise HTTPException(403, "Tu cuenta no tiene contratado Ecommerce ni Landing")
+    if not tenant or not can_use_module(tenant, "domains") or not (tenant.has_ecommerce or tenant.has_landing):
+        raise HTTPException(403, get_blocked_message("domains"))
 
     domain_clean = domain.strip().lower()
     if not domain_clean or "." not in domain_clean:

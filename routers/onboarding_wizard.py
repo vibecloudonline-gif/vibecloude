@@ -17,19 +17,35 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from decimal import Decimal, InvalidOperation
+
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 from fastapi.responses import HTMLResponse
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from database.models import Settings, Tenant, User
+from database.models import Product, Settings, Tenant, TenantProfile, User
 from database.session import get_session
 from services.ai_gateway_service import ai_gateway_service
 from services.landing_service import LandingGenerationError, get_landing, save_landing
 from services.settings_service import MAX_LOGO_SIZE_BYTES, SettingsService, _has_valid_image_signature
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
+
+MAX_ONBOARDING_PRODUCTS = 5
+
+
+class _OnboardingProductItem(BaseModel):
+    name: str = ""
+    price: float = 0.0
+    description: str = ""
+    category: str = ""
+
+
+class _OnboardingProductsBody(BaseModel):
+    products: List[_OnboardingProductItem] = []
 
 router = APIRouter(tags=["Onboarding Wizard"])
 
@@ -61,6 +77,9 @@ def onboarding_wizard_page(
     SettingsService.ensure_admin(user)
     tenant = _get_tenant_or_404(session, tenant_id)
     landing = get_landing(session, tenant_id)
+    tenant_profile = session.exec(
+        select(TenantProfile).where(TenantProfile.tenant_id == tenant_id)
+    ).first()
     return _templates().TemplateResponse(
         "onboarding_wizard.html",
         {
@@ -70,8 +89,87 @@ def onboarding_wizard_page(
             "active_page": "onboarding_wizard",
             "tenant": tenant,
             "landing": landing,
+            "tenant_profile": tenant_profile,
         },
     )
+
+
+@router.post("/panel/onboarding/negocio")
+def onboarding_wizard_negocio(
+    request: Request,
+    elevator_pitch: str = Form(...),
+    business_type: str = Form(...),
+    business_stage: str = Form(...),
+    target_audience: str = Form(...),
+    target_market: str = Form(...),
+    monthly_revenue_target: Optional[str] = Form(None),
+    main_challenge: str = Form(...),
+    competitors: Optional[str] = Form(None),
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+):
+    SettingsService.ensure_admin(user)
+
+    elevator_pitch = elevator_pitch.strip()
+    business_type = business_type.strip()
+    business_stage = business_stage.strip()
+    target_audience = target_audience.strip()
+    main_challenge = main_challenge.strip()
+
+    if not elevator_pitch or not target_audience or not main_challenge:
+        raise HTTPException(400, "Completa al menos el pitch, la audiencia y el desafio principal")
+
+    valid_types = ("physical_product", "digital_service", "saas", "marketplace", "gastro", "retail", "other")
+    if business_type not in valid_types:
+        business_type = "other"
+
+    valid_stages = ("idea", "prototype", "launched", "scaling")
+    if business_stage not in valid_stages:
+        business_stage = "idea"
+
+    valid_markets = ("local", "national", "regional", "international")
+    if target_market not in valid_markets:
+        target_market = "local"
+
+    revenue: Optional[Decimal] = None
+    if monthly_revenue_target and monthly_revenue_target.strip():
+        try:
+            revenue = Decimal(monthly_revenue_target.strip())
+        except InvalidOperation:
+            pass
+
+    from datetime import datetime, timezone
+    profile = session.exec(
+        select(TenantProfile).where(TenantProfile.tenant_id == tenant_id)
+    ).first()
+
+    if profile:
+        profile.elevator_pitch = elevator_pitch
+        profile.business_type = business_type
+        profile.business_stage = business_stage
+        profile.target_audience = target_audience
+        profile.target_market = target_market
+        profile.monthly_revenue_target = revenue
+        profile.main_challenge = main_challenge
+        profile.competitors = competitors.strip() if competitors else None
+        profile.updated_at = datetime.now(timezone.utc)
+    else:
+        profile = TenantProfile(
+            tenant_id=tenant_id,
+            elevator_pitch=elevator_pitch,
+            business_type=business_type,
+            business_stage=business_stage,
+            target_audience=target_audience,
+            target_market=target_market,
+            monthly_revenue_target=revenue,
+            main_challenge=main_challenge,
+            competitors=competitors.strip() if competitors else None,
+        )
+
+    session.add(profile)
+    session.commit()
+    return {"status": "success", "profile_id": profile.id}
 
 
 @router.post("/panel/onboarding/landing")
@@ -109,17 +207,19 @@ async def onboarding_wizard_landing(
         if not _has_valid_image_signature(file_content[:16]):
             raise HTTPException(400, "El archivo no es una imagen válida")
 
-        os.makedirs(REFERENCE_IMAGE_DIR, exist_ok=True)
-        _, ext = os.path.splitext(reference_image.filename)
-        ext = ext.lower() or ".jpg"
-        file_name = f"tenant{tenant_id}-{uuid.uuid4().hex}{ext}"
-        reference_image_path = os.path.join(REFERENCE_IMAGE_DIR, file_name)
-        with open(reference_image_path, "wb") as buffer:
-            buffer.write(file_content)
-        # URL publica con forward-slashes literal, independiente del path de
-        # filesystem -- os.path.join usa backslash en Windows, que rompería
-        # la URL servida por StaticFiles (siempre usa "/").
-        reference_image_url = f"/static/images/style-refs/{file_name}"
+        from services.storage_service import upload_image_sync
+        from database.models import TenantFile
+        ct = reference_image.content_type or "image/jpeg"
+        try:
+            key, url, size = upload_image_sync(tenant_id, file_content, ct, "style-ref", reference_image.filename)
+            reference_image_url = url
+            session.add(TenantFile(
+                tenant_id=tenant_id, storage_key=key, file_type="style-ref",
+                original_name=reference_image.filename or "", content_type=ct,
+                size_bytes=size, public_url=url,
+            ))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
     prompt_parts = [
         f"Negocio: {business_name}.",
@@ -130,14 +230,28 @@ async def onboarding_wizard_landing(
         prompt_parts.append(f"Preferencia de colores (orientativa, no obligatoria): {color_hint.strip()}.")
     prompt = " ".join(prompt_parts)
 
+    settings_obj = SettingsService.get_or_create_settings(session, tenant_id)
+    sf_template = getattr(settings_obj, "storefront_template", None)
+
     try:
         content, provider_used = await ai_gateway_service.generate_landing_content_cascade(
-            prompt, reference_image_path=reference_image_path
+            prompt,
+            reference_image_path=reference_image_path,
+            storefront_template=sf_template,
         )
     except LandingGenerationError as exc:
         raise HTTPException(422, str(exc))
 
     landing = save_landing(session, tenant_id, prompt, content, reference_image_url=reference_image_url)
+    from database.models import Tenant
+    tenant = session.get(Tenant, tenant_id)
+    if tenant:
+        tenant.landing_regen_count += 1
+        session.add(tenant)
+        session.commit()
+
+    from services.funnel_service import track_event
+    track_event(session, tenant_id, "sitio_generado", user_id=user.id)
     return {
         "status": "success",
         "landing_id": landing.id,
@@ -164,4 +278,65 @@ def onboarding_wizard_ecommerce(
 
     settings_obj = SettingsService.get_or_create_settings(session, tenant_id=tenant_id)
     SettingsService.apply_updates(session=session, settings=settings_obj, storefront_template=storefront_template)
+
+    from services.funnel_service import track_event
+    track_event(session, tenant_id, "tienda_publicada", user_id=user.id)
+
     return {"status": "success", "storefront_template": storefront_template, "store_url": "/tienda"}
+
+
+@router.post("/panel/onboarding/productos")
+def onboarding_wizard_productos(
+    user: User = Depends(require_auth),
+    session: Session = Depends(get_session),
+    tenant_id: int = Depends(get_tenant),
+    body: _OnboardingProductsBody = Body(...),
+):
+    SettingsService.ensure_admin(user)
+    tenant = _get_tenant_or_404(session, tenant_id)
+
+    products_data = body.products
+    if not products_data:
+        raise HTTPException(400, "Enviá al menos un producto")
+    if len(products_data) > MAX_ONBOARDING_PRODUCTS:
+        raise HTTPException(400, f"Máximo {MAX_ONBOARDING_PRODUCTS} productos en onboarding")
+
+    from services.plan_service import check_product_limit
+
+    created = []
+    for p in products_data:
+        name = (p.name or "").strip()
+        if not name:
+            continue
+
+        price = p.price if p.price >= 0 else 0.0
+
+        ai_tier = tenant.ai_tier if tenant else "inicial"
+        if not check_product_limit(session, tenant_id, ai_tier):
+            break
+
+        import uuid as _uuid
+        product = Product(
+            tenant_id=tenant_id,
+            name=name,
+            price=price,
+            description=(p.description or "").strip() or None,
+            category=(p.category or "").strip() or None,
+            barcode=f"OB-{_uuid.uuid4().hex[:8].upper()}",
+        )
+        session.add(product)
+        session.commit()
+        session.refresh(product)
+        created.append({"id": product.id, "name": product.name})
+
+    if created:
+        from services.funnel_service import track_event
+        track_event(session, tenant_id, "primer_producto", user_id=user.id)
+
+    return {
+        "status": "success",
+        "products_created": len(created),
+        "products": created,
+        "catalog_url": "/panel/productos",
+        "import_url": "/catalog-import",
+    }

@@ -1,0 +1,17 @@
+target-version = "py310"
+line-length = 120
+
+[lint]
+select = [
+    "E9",    # Runtime errors (syntax, etc.)
+    "F63",   # Invalid comparisons
+    "F7",    # Syntax errors in type annotations
+    "F82",   # Undefined names
+]
+ignore = [
+    "F821",  # Undefined name (too many false positives with conditional imports)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E9", "F63", "F7", "F82"]
+"alembic/*" = ["E9", "F63", "F7", "F82"]

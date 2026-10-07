@@ -72,3 +72,10 @@ def create_db_and_tables():
 def get_session():
     with Session(engine) as session:
         yield session
+
+
+def get_tenant_session(tenant_id: int):
+    """Yield a session with tenant_id set in info for automatic filtering."""
+    with Session(engine) as session:
+        session.info["tenant_id"] = tenant_id
+        yield session

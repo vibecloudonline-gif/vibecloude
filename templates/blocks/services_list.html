@@ -1,0 +1,28 @@
+{# Block: services_list — Service offerings with price and duration #}
+{% set items = section.data.get('items', []) %}
+
+{% if items %}
+<section class="sf-section" id="servicios">
+    {% if section.data.get('title') %}
+    <h2 class="sf-section-title">{{ section.data.title }}</h2>
+    {% endif %}
+    <div class="sf-services-list">
+        {% for item in items %}
+        <div class="sf-service-card">
+            <div class="sf-service-info">
+                <h3 class="sf-service-name">{{ item.get('name', '') }}</h3>
+                {% if item.get('desc') %}
+                <p class="sf-service-desc">{{ item.desc }}</p>
+                {% endif %}
+                {% if item.get('duration') %}
+                <span class="sf-service-duration">{{ item.duration }}</span>
+                {% endif %}
+            </div>
+            {% if item.get('price') %}
+            <span class="sf-service-price">{{ item.price }}</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

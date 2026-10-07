@@ -4,7 +4,7 @@ os.environ["SECRET_KEY"] = "testsecretkey123"
 os.environ["VIBECLOUD_API_KEY"] = "I9StON-hofzi783VWEhFYFM1DCXGJc08SBE1olJhDqI="
 os.environ["DATABASE_URL"] = "sqlite:///./test_cash_decimal.db"
 
-from datetime import date
+from datetime import date, datetime, timezone
 import pytest
 from decimal import Decimal
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -59,7 +59,7 @@ def test_cash_closure_decimal_execution(engine):
 
     # 2. Calcular balance previo al cierre
     with Session(engine) as s:
-        bal_before = CashService.calculate_daily_balance(s, tid, date.today())
+        bal_before = CashService.calculate_daily_balance(s, tid, datetime.now(timezone.utc).date())
         print(f"\n[BALANCE PRE-CIERRE] Total In: {bal_before['total_in']} | Total Out: {bal_before['total_out']} | Balance: {bal_before['balance']}")
         assert bal_before["balance"] == Decimal("1500.50")
         assert isinstance(bal_before["balance"], Decimal)
@@ -82,7 +82,7 @@ def test_cash_closure_decimal_execution(engine):
         assert cm_close.amount == Decimal("1500.50")
         assert isinstance(cm_close.amount, Decimal)
 
-        bal_after = CashService.calculate_daily_balance(s, tid, date.today())
+        bal_after = CashService.calculate_daily_balance(s, tid, datetime.now(timezone.utc).date())
         print(f"[BALANCE POST-CIERRE] Balance Remanente: {bal_after['balance']}")
         assert bal_after["balance"] == Decimal("0.00")
         assert isinstance(bal_after["balance"], Decimal)

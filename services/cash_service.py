@@ -10,7 +10,7 @@ class CashService:
     def calculate_daily_balance(session: Session, tenant_id: int, target_date: date) -> Dict[str, Any]:
         """Calcula el balance diario con precisión Decimal: ingresos (efectivo/transf), egresos y saldo."""
         from decimal import Decimal
-        day_start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+        day_start = datetime.combine(target_date, datetime.min.time())
         day_end = day_start + timedelta(days=1)
 
         movements = session.exec(
@@ -81,7 +81,8 @@ class CashService:
     def perform_cierre(session: Session, tenant_id: int, user_id: int) -> Dict[str, Any]:
         """Ejecuta el cierre de caja, retirando el saldo pendiente."""
         from decimal import Decimal
-        balance_data = CashService.calculate_daily_balance(session, tenant_id, date.today())
+        utc_today = datetime.now(timezone.utc).date()
+        balance_data = CashService.calculate_daily_balance(session, tenant_id, utc_today)
         current_balance = Decimal(str(balance_data["balance"]))
         
         open_sales = session.exec(select(Sale).where(Sale.tenant_id == tenant_id, Sale.is_closed == False)).all()

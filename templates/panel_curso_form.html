@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{% if course %}Editar Curso{% else %}Nuevo Curso{% endif %} - VibeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px;
+}
+.form-header h2 { margin: 0; }
+.form-back {
+    font-size: 0.85rem; color: var(--text-muted, #888); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.form-back:hover { color: var(--primary-color, #FF6A00); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field { margin-bottom: 0; }
+.field label {
+    display: block; margin-bottom: 6px;
+    font-size: 0.85rem; font-weight: 600; color: var(--text-color, #1a1a1a);
+}
+.field input, .field textarea, .field select {
+    width: 100%; padding: 12px 14px; border-radius: 8px;
+    border: 1.5px solid var(--border-color, #e5e5e5); font-size: 0.9rem;
+    background: var(--card-bg, #fff); color: var(--text-color, #1a1a1a);
+    font-family: inherit; transition: border-color 0.15s;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+    outline: none; border-color: var(--primary-color, #FF6A00);
+    box-shadow: 0 0 0 3px rgba(255,106,0,0.1);
+}
+.field textarea { resize: vertical; min-height: 100px; }
+.form-actions {
+    display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end;
+}
+.btn-save {
+    background: var(--primary-color, #FF6A00); color: #fff; border: none;
+    padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; font-family: inherit;
+}
+.btn-save:hover { opacity: 0.9; }
+.btn-cancel {
+    background: transparent; border: 1px solid var(--border-color, #ddd);
+    padding: 12px 20px; border-radius: 8px; font-size: 0.9rem;
+    cursor: pointer; text-decoration: none; color: var(--text-color, #1a1a1a);
+    font-family: inherit;
+}
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="form-header">
+        <h2>{% if course %}Editar Curso{% else %}Nuevo Curso{% endif %}</h2>
+        <a href="/panel/cursos" class="form-back">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+            Volver a cursos
+        </a>
+    </div>
+
+    <form action="{% if course %}/panel/cursos/{{ course.id }}/editar{% else %}/panel/cursos{% endif %}" method="post">
+        <div class="form-grid">
+            <div class="field full">
+                <label for="title">Título del curso</label>
+                <input type="text" id="title" name="title" required value="{{ course.title if course else '' }}" placeholder="Ej: Introducción al Marketing Digital">
+            </div>
+            <div class="field full">
+                <label for="description">Descripción</label>
+                <textarea id="description" name="description" placeholder="Describí de qué se trata el curso...">{{ course.description if course and course.description else '' }}</textarea>
+            </div>
+            <div class="field">
+                <label for="category">Categoría</label>
+                <input type="text" id="category" name="category" value="{{ course.category if course and course.category else '' }}" placeholder="Ej: Marketing, Ventas, Tecnología">
+            </div>
+            <div class="field">
+                <label for="price">Precio (0 = gratis)</label>
+                <input type="number" id="price" name="price" step="0.01" min="0" value="{{ course.price if course else '0' }}">
+            </div>
+        </div>
+        <div class="form-actions">
+            <a href="/panel/cursos" class="btn-cancel">Cancelar</a>
+            <button type="submit" class="btn-save">{% if course %}Guardar cambios{% else %}Crear curso{% endif %}</button>
+        </div>
+    </form>
+
+    {% if course %}
+    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border-color, #e5e5e5); display: flex; gap: 12px;">
+        <a href="/panel/cursos/{{ course.id }}/lecciones" class="btn-cancel" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
+            Gestionar lecciones
+        </a>
+        <a href="/panel/cursos/{{ course.id }}/alumnos" class="btn-cancel" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            Ver alumnos
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

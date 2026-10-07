@@ -1,0 +1,32 @@
+{# Block: menu_grid — Restaurant/gastro menu with categories and items #}
+{% set categories = section.data.get('categories', []) %}
+
+{% if categories %}
+<section class="sf-section" id="menu">
+    {% if section.data.get('title') %}
+    <h2 class="sf-section-title">{{ section.data.title }}</h2>
+    {% endif %}
+    <div class="sf-menu-grid">
+        {% for cat in categories %}
+        <div class="sf-menu-category">
+            <h3 class="sf-menu-category-title">{{ cat.get('name', '') }}</h3>
+            <div class="sf-menu-items">
+                {% for item in cat.get('items', []) %}
+                <div class="sf-menu-item">
+                    <div class="sf-menu-item-info">
+                        <span class="sf-menu-item-name">{{ item.get('name', '') }}</span>
+                        {% if item.get('desc') %}
+                        <span class="sf-menu-item-desc">{{ item.desc }}</span>
+                        {% endif %}
+                    </div>
+                    {% if item.get('price') %}
+                    <span class="sf-menu-item-price">{{ item.price }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}

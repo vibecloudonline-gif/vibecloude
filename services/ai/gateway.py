@@ -16,6 +16,7 @@ from services.ai.providers.base import AIProviderAdapter
 from services.ai.providers.gemini import GeminiAdapter
 from services.ai.providers.claude import ClaudeAdapter
 from services.ai.providers.qwen import QwenAdapter
+from services.ai.providers.openai_provider import OpenAIAdapter
 
 logger = logging.getLogger("ai.gateway")
 
@@ -29,6 +30,7 @@ class AIGateway:
         self.register("gemini", GeminiAdapter())
         self.register("claude", ClaudeAdapter())
         self.register("qwen", QwenAdapter())
+        self.register("openai", OpenAIAdapter())
 
     def register(self, name: str, adapter: AIProviderAdapter):
         self._adapters[name] = adapter
@@ -89,6 +91,8 @@ class AIGateway:
         m = model.lower()
         if "claude" in m:
             return "claude"
+        if "gpt" in m or "o1" in m or "o3" in m or "openai" in m:
+            return "openai"
         if "qwen" in m:
             return "qwen"
         if "gemini" in m:

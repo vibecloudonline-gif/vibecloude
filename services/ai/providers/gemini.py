@@ -53,7 +53,7 @@ class GeminiAdapter(AIProviderAdapter):
         api_key = self._get_api_key(request)
         preferred_model = request.model or os.getenv("GEMINI_MODEL", DEFAULT_MODEL)
         models_to_try = [preferred_model]
-        for fallback_m in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+        for fallback_m in ["gemini-2.5-flash", "gemini-2.0-flash"]:
             if fallback_m not in models_to_try:
                 models_to_try.append(fallback_m)
 
@@ -144,7 +144,7 @@ class GeminiAdapter(AIProviderAdapter):
 
         finish_reason = candidates[0].get("finishReason", "")
 
-        return AIResponse(
+        result = AIResponse(
             request_id=request.request_id,
             provider=self.provider_name,
             model=used_model,
@@ -154,3 +154,6 @@ class GeminiAdapter(AIProviderAdapter):
             latency_ms=latency_ms,
             finish_reason=finish_reason,
         )
+        is_fb = used_model != preferred_model
+        self.log_call(request, result, is_fallback=is_fb, fallback_reason=f"404 on {preferred_model}" if is_fb else "")
+        return result

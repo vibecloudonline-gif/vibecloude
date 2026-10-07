@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, select
 
+from core.limiter import limiter
 from database.models import Product, Sale, Settings, Tenant, TenantCatalog
 from database.session import get_session
 from services.ai_gateway_service import ai_gateway_service
@@ -81,6 +82,7 @@ def _get_products(session: Session, tenant_id: int) -> list:
 
 
 @router.get("/tienda", response_class=HTMLResponse)
+@limiter.limit("60/minute")
 def storefront_catalog(
     request: Request,
     session: Session = Depends(get_session),
@@ -103,6 +105,7 @@ def storefront_catalog(
 
 
 @router.get("/tienda/producto/{product_id}", response_class=HTMLResponse)
+@limiter.limit("60/minute")
 def storefront_product_detail(
     product_id: int,
     request: Request,
@@ -145,8 +148,10 @@ def _serialize_recommendation(product: Product) -> dict:
 
 
 @router.get("/tienda/producto/{product_id}/recomendados")
+@limiter.limit("10/minute")
 async def storefront_product_recommendations(
     product_id: int,
+    request: Request,
     session: Session = Depends(get_session),
     tenant_id: int = Depends(get_public_tenant),
 ):
@@ -157,6 +162,7 @@ async def storefront_product_recommendations(
 
 
 @router.get("/tienda/carrito/recomendados")
+@limiter.limit("10/minute")
 async def storefront_cart_recommendations(
     request: Request,
     session: Session = Depends(get_session),
@@ -169,6 +175,7 @@ async def storefront_cart_recommendations(
 
 
 @router.post("/tienda/carrito/agregar")
+@limiter.limit("30/minute")
 def storefront_cart_add(
     request: Request,
     product_id: int = Form(...),
@@ -190,6 +197,7 @@ def storefront_cart_add(
 
 
 @router.post("/tienda/carrito/quitar")
+@limiter.limit("30/minute")
 def storefront_cart_remove(
     request: Request,
     product_id: int = Form(...),
@@ -201,6 +209,7 @@ def storefront_cart_remove(
 
 
 @router.get("/tienda/carrito", response_class=HTMLResponse)
+@limiter.limit("30/minute")
 def storefront_cart_view(
     request: Request,
     session: Session = Depends(get_session),
@@ -221,6 +230,7 @@ def storefront_cart_view(
 
 
 @router.post("/tienda/checkout", response_class=HTMLResponse)
+@limiter.limit("5/minute")
 def storefront_checkout(
     request: Request,
     buyer_name: str = Form(...),

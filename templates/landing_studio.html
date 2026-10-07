@@ -6,7 +6,15 @@
 
 {% block content %}
 <div class="glass-card">
-    <h2>Generá tu landing con IA</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+        <h2 style="margin: 0;">Generá tu landing con IA</h2>
+        <div id="regen-counter" style="background: rgba(0,0,0,0.05); padding: 6px 14px; border-radius: 8px; font-size: 14px; color: #6b7280;">
+            Regeneraciones: <strong id="regen-used">{{ regen_used }}</strong> / <span id="regen-limit">{{ regen_limit }}</span>
+            {% if regen_remaining is defined and regen_remaining <= 3 and regen_limit < 999999 %}
+            <span style="color: #EF4444; margin-left: 6px;">Quedan {{ regen_remaining }}</span>
+            {% endif %}
+        </div>
+    </div>
     <p style="color: #6b7280; margin-bottom: 20px;">
         Contanos tu idea (a qué se dedica tu negocio, qué estilo te gusta, qué querés destacar) y la IA
         genera el contenido. No copies textos de otra marca — mejor describí el estilo/rubro y dejá que
@@ -84,6 +92,8 @@ async function generarLanding(event) {
             div.appendChild(document.createTextNode(s.body));
             sectionsEl.appendChild(div);
         });
+        const usedEl = document.getElementById('regen-used');
+        usedEl.textContent = parseInt(usedEl.textContent) + 1;
         Swal.fire('¡Listo!', 'Landing generada. Podés verla en "Ver landing pública".', 'success');
     } catch (err) {
         errorEl.textContent = err.message;

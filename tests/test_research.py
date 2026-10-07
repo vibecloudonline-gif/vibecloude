@@ -57,7 +57,7 @@ def reset_rate_limiter():
 
 
 def _make_tenant_with_admin(session):
-    tenant = Tenant(name="TestTenant", subdomain="test", has_landing=True, has_ecommerce=True)
+    tenant = Tenant(name="TestTenant", subdomain="test", has_landing=True, has_ecommerce=True, nivel=2)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)
@@ -157,8 +157,10 @@ def test_gemini_market_provider_search_and_demand(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
     monkeypatch.delenv("KEEPA_API_KEY", raising=False)
 
-    provider = _get_provider()
-    assert isinstance(provider, GeminiMarketProvider)
+    from services.research_service import _get_providers
+    providers = _get_providers()
+    provider = next((p for p in providers if isinstance(p, GeminiMarketProvider)), None)
+    assert provider is not None, "GeminiMarketProvider should be in the cascade"
 
     mock_listings_json = json.dumps([
         {

@@ -38,6 +38,8 @@
 .provider-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; background: var(--surface-alt, #f1f5f9); color: var(--text-muted); border: 1px solid var(--border-color); }
 .compare-bar { display: flex; height: 24px; border-radius: 4px; overflow: hidden; margin: 8px 0; font-size: 0.7rem; }
 .compare-bar .seg { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; white-space: nowrap; padding: 0 6px; }
+.explain-box { background: rgba(22,163,106,0.07); border: 1px solid rgba(22,163,106,0.2); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: 16px; font-size: 0.92rem; line-height: 1.7; color: var(--text-color); }
+.explain-box .explain-title { font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; color: rgba(22,163,106,0.85); margin-bottom: 8px; }
 .export-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 </style>
 {% endblock %}
@@ -122,6 +124,14 @@
                 <div style="font-size:0.85rem; color:var(--text-muted);" id="loadingText">Generando forecast...</div>
             </div>
         </div>
+
+        <!-- EXPLICACION SIMPLE (GPT-4o) -->
+        {% if active_forecast and active_forecast.explanation %}
+        <div class="explain-box" id="explainBox">
+            <div class="explain-title">&#x1F4AC; Que significa este forecast para tu negocio</div>
+            {{ active_forecast.explanation }}
+        </div>
+        {% endif %}
 
         <!-- RECOMMENDATION -->
         {% if active_forecast %}

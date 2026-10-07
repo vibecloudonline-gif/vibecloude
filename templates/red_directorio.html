@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directorio — VibeNet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',system-ui,sans-serif;background:#F5F5F5;color:#1a1a1a;line-height:1.6}
+        a{color:inherit;text-decoration:none}
+        .vn-header{background:#080808;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+        .vn-brand{font-weight:800;font-size:1.2rem;display:flex;align-items:center;gap:8px}
+        .vn-brand span{color:#FF6A00}
+        .vn-nav{display:flex;gap:16px;align-items:center}
+        .vn-nav a{font-size:0.88rem;font-weight:500;opacity:0.8;transition:opacity 0.15s}
+        .vn-nav a:hover,.vn-nav a.active{opacity:1;color:#FF6A00}
+        .vn-container{max-width:1100px;margin:0 auto;padding:24px 16px}
+
+        .dir-header{margin-bottom:24px}
+        .dir-header h1{font-size:1.6rem;font-weight:800;margin-bottom:16px}
+        .search-bar{display:flex;gap:10px;flex-wrap:wrap}
+        .search-bar input,.search-bar select{padding:10px 14px;border:1px solid #e5e5e5;border-radius:8px;font-size:0.9rem;font-family:inherit;background:#fff}
+        .search-bar input{flex:1;min-width:200px}
+        .search-bar select{min-width:160px}
+        .search-bar button{padding:10px 20px;background:#FF6A00;color:#fff;border:none;border-radius:8px;font-weight:600;font-size:0.9rem;cursor:pointer}
+        .search-bar button:hover{opacity:0.9}
+
+        .results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:24px}
+        .profile-card{background:#fff;border-radius:12px;border:1px solid #e5e5e5;padding:20px;transition:transform 0.15s,box-shadow 0.15s;display:flex;gap:14px;align-items:flex-start}
+        .profile-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.08)}
+        .profile-avatar{width:48px;height:48px;border-radius:50%;background:#FF6A00;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;flex-shrink:0}
+        .profile-info{flex:1;min-width:0}
+        .profile-name{font-weight:700;font-size:0.95rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+        .profile-tagline{font-size:0.82rem;color:#666;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .profile-meta{display:flex;gap:10px;margin-top:8px;font-size:0.78rem;color:#888;flex-wrap:wrap}
+        .badge-sm{font-size:0.68rem;padding:2px 8px;border-radius:4px;font-weight:600}
+        .badge-verified{background:#D1FAE5;color:#065F46}
+        .badge-cat{background:#EFF6FF;color:#1D4ED8}
+        .rating-stars{color:#F59E0B}
+        .empty-state{text-align:center;padding:48px;color:#999}
+        .results-count{font-size:0.85rem;color:#888;margin-top:16px}
+
+        .vn-footer{text-align:center;padding:32px;font-size:0.8rem;color:#999;border-top:1px solid #e5e5e5;margin-top:40px}
+
+        @media(max-width:640px){.search-bar{flex-direction:column}.results-grid{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+    <header class="vn-header">
+        <div class="vn-brand"><span>Vibe</span>Net</div>
+        <nav class="vn-nav">
+            <a href="/red">Feed</a>
+            <a href="/red/directorio" class="active">Directorio</a>
+        </nav>
+    </header>
+
+    <div class="vn-container">
+        <div class="dir-header">
+            <h1>Directorio de Negocios</h1>
+            <form class="search-bar" method="get" action="/red/directorio">
+                <input type="text" name="q" placeholder="Buscar por nombre..." value="{{ q }}">
+                <select name="cat">
+                    <option value="">Todas las categorías</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if cat == c.id %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" name="ciudad" placeholder="Ciudad" value="{{ ciudad }}" style="min-width:120px;flex:0">
+                <button type="submit">Buscar</button>
+            </form>
+        </div>
+
+        <div class="results-count">{{ profiles|length }} negocio{{ 's' if profiles|length != 1 else '' }} encontrado{{ 's' if profiles|length != 1 else '' }}</div>
+
+        {% if profiles %}
+        <div class="results-grid">
+            {% for p in profiles %}
+            <a href="/red/perfil/{{ p.id }}" class="profile-card">
+                <div class="profile-avatar">{{ p.display_name[0]|upper }}</div>
+                <div class="profile-info">
+                    <div class="profile-name">
+                        {{ p.display_name }}
+                        {% if p.is_verified %}<span class="badge-sm badge-verified">✓</span>{% endif %}
+                    </div>
+                    {% if p.tagline %}<p class="profile-tagline">{{ p.tagline }}</p>{% endif %}
+                    <div class="profile-meta">
+                        {% if p.city %}<span>📍 {{ p.city }}</span>{% endif %}
+                        {% if p.country %}<span>{{ p.country }}</span>{% endif %}
+                        {% if p.avg_rating > 0 %}<span class="rating-stars">★ {{ "%.1f"|format(p.avg_rating) }}</span>{% endif %}
+                        {% set pcat = cat_map.get(p.category_id) %}
+                        {% if pcat %}<span class="badge-sm badge-cat">{{ pcat.name }}</span>{% endif %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No se encontraron negocios con esos filtros.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer class="vn-footer">VibeNet — Red de Negocios B2B · Powered by VibeCloud</footer>
+</body>
+</html>

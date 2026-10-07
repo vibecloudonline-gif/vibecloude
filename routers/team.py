@@ -92,6 +92,16 @@ def team_create(
             status_code=status_code,
         )
 
+    from services.plan_service import check_user_limit
+    tenant = session.get(Tenant, tenant_id)
+    ai_tier = tenant.ai_tier if tenant else "inicial"
+    if not check_user_limit(session, tenant_id, ai_tier):
+        from services.plan_service import get_max_users
+        return _render_error(
+            f"Alcanzaste el límite de {get_max_users(ai_tier)} usuarios de tu plan. Upgrade para agregar más.",
+            403,
+        )
+
     username_clean = username.strip()
     if not username_clean:
         return _render_error("El usuario es obligatorio")

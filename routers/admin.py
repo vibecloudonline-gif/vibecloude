@@ -554,6 +554,7 @@ def create_tenant(
     has_erp: bool = Form(True),
     has_ecommerce: bool = Form(True),
     has_landing: bool = Form(True),
+    has_courses: bool = Form(False),
     session: Session = Depends(get_session),
     user: User = Depends(require_superadmin),
 ):
@@ -563,12 +564,12 @@ def create_tenant(
         if existing:
             raise HTTPException(400, "Subdomain already in use")
 
-    if not (has_erp or has_ecommerce or has_landing):
+    if not (has_erp or has_ecommerce or has_landing or has_courses):
         raise HTTPException(400, "El tenant necesita al menos un producto activado")
 
     tenant = Tenant(
         name=name.strip(), subdomain=sub,
-        has_erp=has_erp, has_ecommerce=has_ecommerce, has_landing=has_landing,
+        has_erp=has_erp, has_ecommerce=has_ecommerce, has_landing=has_landing, has_courses=has_courses,
     )
     session.add(tenant)
     session.commit()
@@ -772,10 +773,11 @@ def update_tenant_plan(
     has_erp: bool = Form(False),
     has_ecommerce: bool = Form(False),
     has_landing: bool = Form(False),
+    has_courses: bool = Form(False),
     user: User = Depends(require_superadmin),
     session: Session = Depends(get_session),
 ):
-    if not (has_erp or has_ecommerce or has_landing):
+    if not (has_erp or has_ecommerce or has_landing or has_courses):
         raise HTTPException(400, "El tenant necesita al menos un producto activado")
     tenant = session.get(Tenant, tenant_id)
     if not tenant:
@@ -783,9 +785,10 @@ def update_tenant_plan(
     tenant.has_erp = has_erp
     tenant.has_ecommerce = has_ecommerce
     tenant.has_landing = has_landing
+    tenant.has_courses = has_courses
     session.add(tenant)
     session.commit()
-    return {"status": "success", "has_erp": tenant.has_erp, "has_ecommerce": tenant.has_ecommerce, "has_landing": tenant.has_landing}
+    return {"status": "success", "has_erp": tenant.has_erp, "has_ecommerce": tenant.has_ecommerce, "has_landing": tenant.has_landing, "has_courses": tenant.has_courses}
 
 
 @router.get("/api/admin/backup")

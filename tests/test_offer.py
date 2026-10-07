@@ -55,7 +55,7 @@ def reset_rate_limiter():
 
 
 def _setup_tenant_with_project(session, project_status="completed"):
-    tenant = Tenant(name="OfferTest", subdomain="offertest", has_landing=True, has_ecommerce=True)
+    tenant = Tenant(name="OfferTest", subdomain="offertest", has_landing=True, has_ecommerce=True, nivel=2)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}VibeNet — {{ settings.company_name }}{% endblock %}
+
+{% block head %}
+<style>
+.net-header { margin-bottom: 24px; }
+.net-header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+.net-header p { color: #888; font-size: 0.9rem; }
+
+.net-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.net-stat { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 16px; }
+.net-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--primary-color); }
+.net-stat-label { font-size: 0.8rem; color: #888; margin-top: 2px; }
+
+.net-actions { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+.net-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; border: none; cursor: pointer; text-decoration: none; transition: opacity 0.15s; }
+.net-btn-primary { background: var(--primary-color); color: #fff; }
+.net-btn-primary:hover { opacity: 0.9; }
+.net-btn-outline { background: #fff; color: #1a1a1a; border: 1px solid #e5e5e5; }
+.net-btn-outline:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+.net-section { margin-bottom: 24px; }
+.net-section-title { font-weight: 700; font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+.pending-list { display: flex; flex-direction: column; gap: 8px; }
+.pending-item { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pending-info { display: flex; align-items: center; gap: 10px; }
+.pending-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+.pending-name { font-weight: 600; font-size: 0.9rem; }
+.pending-type { font-size: 0.75rem; color: #888; }
+.pending-actions { display: flex; gap: 6px; }
+.pending-actions form { margin: 0; }
+.btn-accept { padding: 6px 14px; background: #D1FAE5; color: #065F46; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+.btn-reject { padding: 6px 14px; background: #FEE2E2; color: #991B1B; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+
+.conn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.conn-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 14px; display: flex; align-items: center; gap: 10px; }
+.conn-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-color); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+.conn-name { font-weight: 600; font-size: 0.88rem; }
+.conn-link { font-size: 0.78rem; color: var(--primary-color); }
+
+.post-form { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px; padding: 16px; }
+.post-form input, .post-form textarea, .post-form select { width: 100%; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 6px; font-family: inherit; font-size: 0.9rem; margin-bottom: 10px; }
+.post-form textarea { resize: vertical; min-height: 80px; }
+.post-form-footer { display: flex; justify-content: space-between; align-items: center; }
+
+.empty-msg { text-align: center; padding: 32px; color: #999; font-size: 0.9rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="net-header">
+    <h1>VibeNet</h1>
+    <p>Tu red de negocios B2B</p>
+</div>
+
+<div class="net-stats">
+    <div class="net-stat">
+        <div class="net-stat-value">{{ accepted|length }}</div>
+        <div class="net-stat-label">Conexiones</div>
+    </div>
+    <div class="net-stat">
+        <div class="net-stat-value">{{ pending_in|length }}</div>
+        <div class="net-stat-label">Solicitudes pendientes</div>
+    </div>
+    <div class="net-stat">
+        <div class="net-stat-value">{{ review_count }}</div>
+        <div class="net-stat-label">Resenas recibidas</div>
+    </div>
+    <div class="net-stat">
+        <div class="net-stat-value">{{ "%.1f"|format(profile.avg_rating) if profile and profile.avg_rating > 0 else '-' }}</div>
+        <div class="net-stat-label">Rating promedio</div>
+    </div>
+</div>
+
+<div class="net-actions">
+    {% if profile %}
+    <a href="/panel/red/perfil" class="net-btn net-btn-outline">Editar perfil</a>
+    <a href="/red/perfil/{{ profile.id }}" class="net-btn net-btn-outline" target="_blank">Ver perfil público</a>
+    {% else %}
+    <a href="/panel/red/perfil" class="net-btn net-btn-primary">Crear perfil de negocio</a>
+    {% endif %}
+    <a href="/panel/red/inbox" class="net-btn net-btn-outline">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+        Mensajes
+        {% if unread_count %}<span style="background:#EF4444;color:#fff;font-size:0.7rem;padding:2px 7px;border-radius:999px;font-weight:700;margin-left:2px">{{ unread_count }}</span>{% endif %}
+    </a>
+    <a href="/red/directorio" class="net-btn net-btn-outline" target="_blank">Ver directorio</a>
+</div>
+
+{% if pending_in %}
+<div class="net-section">
+    <div class="net-section-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Solicitudes recibidas
+    </div>
+    <div class="pending-list">
+        {% for c in pending_in %}
+        {% set p = pending_in_profiles.get(c.from_tenant_id) %}
+        <div class="pending-item">
+            <div class="pending-info">
+                <div class="pending-avatar">{{ p.display_name[0]|upper if p else '?' }}</div>
+                <div>
+                    <div class="pending-name">{{ p.display_name if p else 'Tenant #' ~ c.from_tenant_id }}</div>
+                    <div class="pending-type">{{ c.connection_type }} · {{ c.created_at.strftime('%d/%m/%Y') }}</div>
+                    {% if c.message %}<div style="font-size:0.8rem;color:#666;margin-top:2px">{{ c.message }}</div>{% endif %}
+                </div>
+            </div>
+            <div class="pending-actions">
+                <form action="/panel/red/aceptar/{{ c.id }}" method="post"><button class="btn-accept" type="submit">Aceptar</button></form>
+                <form action="/panel/red/rechazar/{{ c.id }}" method="post"><button class="btn-reject" type="submit">Rechazar</button></form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if accepted %}
+<div class="net-section">
+    <div class="net-section-title">Tus conexiones</div>
+    <div class="conn-grid">
+        {% for c in accepted %}
+        {% set other = c.to_tenant_id if c.from_tenant_id == request.session.get('tenant_id', 0) else c.from_tenant_id %}
+        {% set p = acc_profiles.get(other) %}
+        <div class="conn-card">
+            <div class="conn-avatar">{{ p.display_name[0]|upper if p else '?' }}</div>
+            <div>
+                <div class="conn-name">{{ p.display_name if p else 'Negocio' }}</div>
+                {% if p %}<a href="/red/perfil/{{ p.id }}" class="conn-link" target="_blank">Ver perfil</a>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="net-section">
+    <div class="net-section-title">Publicar en el feed</div>
+    <form class="post-form" action="/panel/red/publicar" method="post">
+        <input type="text" name="title" placeholder="Título de la publicación" required>
+        <textarea name="body" placeholder="Contá sobre tu negocio, lanzamiento o promoción..."></textarea>
+        <div class="post-form-footer">
+            <select name="post_type" style="width:auto;margin:0">
+                <option value="article">Artículo</option>
+                <option value="product_launch">Lanzamiento</option>
+                <option value="promo">Promoción</option>
+                <option value="milestone">Hito</option>
+            </select>
+            <button type="submit" class="net-btn net-btn-primary">Publicar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -59,7 +59,7 @@ def reset_rate_limiter():
 
 
 def _setup_tenant_with_offer(session):
-    tenant = Tenant(name="DebateTest", subdomain="debatetest", has_landing=True)
+    tenant = Tenant(name="DebateTest", subdomain="debatetest", has_landing=True, nivel=2)
     session.add(tenant)
     session.commit()
     session.refresh(tenant)

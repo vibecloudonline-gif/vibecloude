@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from database.models import Settings, Tenant, User
 from database.session import get_session
+from services.entitlements import can_use_module, get_blocked_message
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
 
@@ -26,8 +27,8 @@ def social_content_page(
     tenant_id: int = Depends(get_tenant),
 ):
     tenant = session.get(Tenant, tenant_id)
-    if not tenant or not (tenant.has_landing or tenant.has_ecommerce):
-        raise HTTPException(403, "Tu cuenta no tiene acceso a este modulo")
+    if not tenant or not can_use_module(tenant, "social_content"):
+        raise HTTPException(403, get_blocked_message("social_content"))
 
     from database.models import ResearchProject, Offer
     projects = session.exec(
@@ -68,8 +69,8 @@ def generate_social_content(
     tenant_id: int = Depends(get_tenant),
 ):
     tenant = session.get(Tenant, tenant_id)
-    if not tenant or not (tenant.has_landing or tenant.has_ecommerce):
-        raise HTTPException(403, "Tu cuenta no tiene acceso a este modulo")
+    if not tenant or not can_use_module(tenant, "social_content"):
+        raise HTTPException(403, get_blocked_message("social_content"))
 
     from database.models import Offer
     offer = session.exec(

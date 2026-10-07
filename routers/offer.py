@@ -9,6 +9,7 @@ from sqlmodel import Session
 from database.models import Offer, ResearchProject, Settings, Tenant, User, ValidationDebate
 from sqlmodel import select
 from database.session import get_session
+from services.entitlements import can_use_module, get_blocked_message
 from web.compat_templates import CompatTemplates
 from web.dependencies import get_settings, get_tenant, require_auth
 
@@ -20,8 +21,8 @@ def _templates():
 
 
 def _require_access(tenant: Tenant):
-    if not (tenant.has_landing or tenant.has_ecommerce):
-        raise HTTPException(403, "Tu cuenta no tiene acceso a este modulo")
+    if not can_use_module(tenant, "offer"):
+        raise HTTPException(403, get_blocked_message("offer"))
 
 
 @router.get("/panel/ofertas", response_class=HTMLResponse)
@@ -172,11 +173,29 @@ async def offer_validate(
         session.commit()
         raise HTTPException(500, f"Error en debate: {exc}")
 
-    return {
+    response = {
         "status": "success",
         "debate_id": debate.id,
         "verdict": debate.final_verdict,
     }
+
+    try:
+        from services.ai_gateway_service import AIGatewayService
+        import json as _json
+
+        debate_data = {
+            "verdict": debate.final_verdict,
+            "summary": debate.arbiter_summary,
+            "action_plan": _json.loads(debate.action_plan_json) if debate.action_plan_json else None,
+            "objections_count": len(debate.objections) if debate.objections else 0,
+        }
+        explanation = await AIGatewayService.explain_results(debate_data, "debate")
+        if explanation:
+            response["explanation"] = explanation
+    except Exception:
+        pass
+
+    return response
 
 
 @router.get("/panel/oferta/{offer_id}/debate", response_class=HTMLResponse)

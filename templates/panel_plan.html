@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi plan - VibeCloud</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=11">
+    <style>
+        body { min-height: 100vh; background: var(--main-bg); padding: 32px 16px; }
+        .panel-topbar { max-width: 760px; margin: 0 auto 16px; display: flex; gap: 16px; align-items: center; }
+        .panel-topbar a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; }
+        .panel-topbar a:hover { color: var(--text-main); }
+        .panel-card { max-width: 760px; margin: 0 auto 20px; padding: 28px 32px; }
+        .panel-card h1 { margin-bottom: 4px; font-size: 1.4rem; }
+        .panel-card .subtitle { color: var(--text-muted); margin-bottom: 24px; font-size: 0.9rem; }
+
+        .plan-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+        .plan-name { font-size: 1.6rem; font-weight: 700; }
+        .plan-price { font-size: 1.1rem; color: var(--text-muted); }
+        .plan-price strong { font-size: 1.8rem; color: var(--accent-color); }
+        .plan-includes { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 8px; }
+
+        .usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .usage-item { padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--card-bg, var(--main-bg)); }
+        .usage-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; margin-bottom: 8px; }
+        .usage-value { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+        .usage-bar { height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
+        .usage-bar-fill { height: 100%; border-radius: 3px; background: var(--accent-color); transition: width 0.3s; }
+        .usage-bar-fill.warn { background: #e67e22; }
+        .usage-bar-fill.danger { background: #e74c3c; }
+
+        .upgrade-section { text-align: center; padding-top: 12px; border-top: 1px solid var(--border-color); }
+        .upgrade-section p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 14px; }
+
+        .plans-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 20px; }
+        .plan-option { padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--border-color); text-align: center; }
+        .plan-option.current { border-color: var(--accent-color); background: var(--accent-light, rgba(99,102,241,0.06)); }
+        .plan-option h3 { margin: 0 0 4px; font-size: 1.1rem; }
+        .plan-option .price { font-size: 1.4rem; font-weight: 700; color: var(--accent-color); margin-bottom: 8px; }
+        .plan-option .price span { font-size: 0.8rem; color: var(--text-muted); font-weight: 400; }
+        .plan-option ul { list-style: none; padding: 0; margin: 12px 0; text-align: left; font-size: 0.85rem; }
+        .plan-option ul li { padding: 3px 0; }
+        .plan-option ul li::before { content: "\2713 "; color: var(--accent-color); font-weight: 700; }
+        .btn-upgrade { display: inline-block; padding: 10px 28px; border-radius: var(--radius-md); background: var(--accent-color); color: #fff; text-decoration: none; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; }
+        .btn-upgrade:hover { opacity: 0.9; }
+        .btn-current { background: var(--border-color); color: var(--text-muted); cursor: default; }
+    </style>
+</head>
+<body>
+    <div class="panel-topbar">
+        <a href="/">&larr; Volver</a>
+        <a href="/settings">Configuraci&oacute;n</a>
+    </div>
+
+    <div class="panel-card glass-card">
+        <div class="plan-header">
+            <div>
+                <div class="plan-name">Plan {{ usage.plan_label }}</div>
+                <div class="plan-includes">{{ usage.plan_includes }}</div>
+            </div>
+            <div class="plan-price">
+                <strong>US${{ usage.plan_price }}</strong>/mes
+            </div>
+        </div>
+
+        <div class="usage-grid">
+            <div class="usage-item">
+                <div class="usage-label">Cr&eacute;ditos IA restantes</div>
+                <div class="usage-value">{{ usage.credits_remaining }} / {{ usage.credits_per_month }}</div>
+                {% set cred_pct = ((usage.credits_remaining / usage.credits_per_month) * 100) if usage.credits_per_month > 0 else 0 %}
+                <div class="usage-bar">
+                    <div class="usage-bar-fill {% if cred_pct < 15 %}danger{% elif cred_pct < 30 %}warn{% endif %}" style="width: {{ cred_pct|int }}%"></div>
+                </div>
+            </div>
+
+            <div class="usage-item">
+                <div class="usage-label">Regeneraciones landing</div>
+                <div class="usage-value">{{ usage.regen_used }} / {{ usage.regen_limit }}</div>
+                {% set regen_pct = ((usage.regen_used / usage.regen_limit) * 100) if usage.regen_limit > 0 else 0 %}
+                <div class="usage-bar">
+                    <div class="usage-bar-fill {% if regen_pct > 85 %}danger{% elif regen_pct > 70 %}warn{% endif %}" style="width: {{ regen_pct|int }}%"></div>
+                </div>
+            </div>
+
+            <div class="usage-item">
+                <div class="usage-label">Productos</div>
+                {% if usage.max_products %}
+                <div class="usage-value">{{ usage.product_count }} / {{ usage.max_products }}</div>
+                {% set prod_pct = ((usage.product_count / usage.max_products) * 100) if usage.max_products > 0 else 0 %}
+                <div class="usage-bar">
+                    <div class="usage-bar-fill {% if prod_pct > 85 %}danger{% elif prod_pct > 70 %}warn{% endif %}" style="width: {{ prod_pct|int }}%"></div>
+                </div>
+                {% else %}
+                <div class="usage-value">{{ usage.product_count }} / Sin l&iacute;mite</div>
+                <div class="usage-bar">
+                    <div class="usage-bar-fill" style="width: 0%"></div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="usage-item">
+                <div class="usage-label">Storage</div>
+                {% set storage_mb_used = (usage.storage_used / 1024 / 1024)|round(1) %}
+                {% set storage_mb_limit = (usage.storage_limit / 1024 / 1024)|round(0)|int %}
+                {% if storage_mb_limit >= 1024 %}
+                    {% set storage_display_limit = (storage_mb_limit / 1024)|round(1) ~ " GB" %}
+                {% else %}
+                    {% set storage_display_limit = storage_mb_limit ~ " MB" %}
+                {% endif %}
+                <div class="usage-value">{{ storage_mb_used }} MB / {{ storage_display_limit }}</div>
+                {% set storage_pct = ((usage.storage_used / usage.storage_limit) * 100) if usage.storage_limit > 0 else 0 %}
+                <div class="usage-bar">
+                    <div class="usage-bar-fill {% if storage_pct > 85 %}danger{% elif storage_pct > 70 %}warn{% endif %}" style="width: {{ storage_pct|int }}%"></div>
+                </div>
+            </div>
+
+            <div class="usage-item">
+                <div class="usage-label">Usuarios</div>
+                <div class="usage-value">{{ usage.user_count }} / {{ usage.max_users }}</div>
+                {% set user_pct = ((usage.user_count / usage.max_users) * 100) if usage.max_users > 0 else 0 %}
+                <div class="usage-bar">
+                    <div class="usage-bar-fill {% if user_pct > 85 %}danger{% elif user_pct > 70 %}warn{% endif %}" style="width: {{ user_pct|int }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if usage.plan_slug != "comercio" %}
+    <div class="panel-card glass-card">
+        <h1>Planes disponibles</h1>
+        <p class="subtitle">Eleg&iacute; el plan que mejor se adapte a tu negocio.</p>
+        <div class="plans-compare">
+            {% for slug, plan in all_plans.items() %}
+            <div class="plan-option {% if slug == usage.plan_slug %}current{% endif %}">
+                <h3>{{ plan.label }}</h3>
+                <div class="price">US${{ plan.price }}<span>/mes</span></div>
+                <ul>
+                    <li>{{ plan.credits_per_month }} cr&eacute;ditos IA/mes</li>
+                    <li>{{ plan.regen_limit }} regeneraciones</li>
+                    {% if plan.max_products %}
+                    <li>{{ plan.max_products }} productos</li>
+                    {% else %}
+                    <li>Productos ilimitados</li>
+                    {% endif %}
+                    {% if plan.storage_bytes >= 1073741824 %}
+                    <li>{{ (plan.storage_bytes / 1073741824)|round(0)|int }} GB storage</li>
+                    {% else %}
+                    <li>{{ (plan.storage_bytes / 1048576)|round(0)|int }} MB storage</li>
+                    {% endif %}
+                    <li>{{ plan.max_users }} usuario{{ "s" if plan.max_users > 1 else "" }}</li>
+                </ul>
+                {% if slug == usage.plan_slug %}
+                <button class="btn-upgrade btn-current" disabled>Plan actual</button>
+                {% else %}
+                <a href="/api/v1/payments/plan/create?plan={{ slug }}" class="btn-upgrade">Upgrade</a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</body>
+</html>

@@ -12,6 +12,7 @@ ENV/
 
 # Database
 *.db
+*.db.bak
 *.sqlite3
 backup_pre_migracion_*
 

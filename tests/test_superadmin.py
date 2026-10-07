@@ -61,7 +61,7 @@ async def test_superadmin_dashboard_success(client, session):
 
     assert t1.id == 1
 
-    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="admin")
+    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="superadmin")
     session.add(u1)
     session.commit()
 
@@ -95,7 +95,7 @@ async def test_toggle_tenant_success(client, session):
     session.add(t2)
     session.commit()
 
-    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="admin")
+    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="superadmin")
     session.add(u1)
     session.commit()
 
@@ -120,7 +120,7 @@ async def test_security_audit_logs(client, session, monkeypatch):
     session.add(t1)
     session.commit()
 
-    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="admin")
+    u1 = User(tenant_id=t1.id, username="superadmin_user", password_hash="hash", role="superadmin")
     session.add(u1)
     session.commit()
 

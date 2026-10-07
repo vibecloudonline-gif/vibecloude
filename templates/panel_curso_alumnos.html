@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Alumnos: {{ course.title }} - VibeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.students-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+}
+.back-link {
+    font-size: 0.85rem; color: var(--text-muted, #888); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.back-link:hover { color: var(--primary-color, #FF6A00); }
+.students-table { width: 100%; border-collapse: collapse; }
+.students-table th {
+    text-align: left; font-size: 0.78rem; font-weight: 600;
+    color: var(--text-muted, #888); padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color, #e5e5e5);
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.students-table td {
+    padding: 12px; font-size: 0.88rem;
+    border-bottom: 1px solid var(--border-color, #e5e5e5);
+}
+.progress-bar-wrap {
+    width: 120px; height: 8px; background: var(--border-color, #e5e5e5);
+    border-radius: 4px; overflow: hidden;
+}
+.progress-bar-fill {
+    height: 100%; background: var(--primary-color, #FF6A00);
+    border-radius: 4px; transition: width 0.3s;
+}
+.badge-complete {
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+    background: #D1FAE5; color: #065F46; font-weight: 600;
+}
+.empty-students { text-align: center; padding: 40px; color: var(--text-muted, #888); }
+.stats-row {
+    display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.stat-card {
+    flex: 1; min-width: 120px; padding: 16px;
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color, #e5e5e5);
+    border-radius: 10px; text-align: center;
+}
+.stat-number { font-size: 1.6rem; font-weight: 800; color: var(--primary-color, #FF6A00); }
+.stat-label { font-size: 0.78rem; color: var(--text-muted, #888); margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="glass-card">
+    <div class="students-header">
+        <div>
+            <a href="/panel/cursos/{{ course.id }}/lecciones" class="back-link">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+                Volver a lecciones
+            </a>
+            <h2 style="margin-top: 8px;">Alumnos: {{ course.title }}</h2>
+        </div>
+        <span style="font-size: 0.85rem; color: var(--text-muted, #888);">{{ students|length }} inscriptos</span>
+    </div>
+
+    {% if students %}
+    {% set completed_students = students | selectattr('enrollment.completed_at') | list %}
+    {% set avg_pct = (students | map(attribute='pct') | sum) // students|length if students|length > 0 else 0 %}
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">{{ students|length }}</div>
+            <div class="stat-label">Inscriptos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ completed_students|length }}</div>
+            <div class="stat-label">Completaron</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ avg_pct }}%</div>
+            <div class="stat-label">Progreso promedio</div>
+        </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+    <table class="students-table">
+        <thead>
+            <tr>
+                <th>Alumno</th>
+                <th>Inscripcion</th>
+                <th>Progreso</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr>
+                <td>
+                    <strong>{{ s.user.username }}</strong>
+                    {% if s.user.email %}<br><span style="font-size: 0.78rem; color: var(--text-muted, #888);">{{ s.user.email }}</span>{% endif %}
+                </td>
+                <td>{{ s.enrollment.enrolled_at.strftime('%d/%m/%Y') }}</td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-fill" style="width: {{ s.pct }}%"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; font-weight: 600;">{{ s.completed }}/{{ s.total }}</span>
+                    </div>
+                </td>
+                <td>
+                    {% if s.enrollment.completed_at %}
+                    <span class="badge-complete">Completado</span>
+                    {% else %}
+                    <span style="font-size: 0.8rem; color: var(--text-muted, #888);">En progreso</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-students">
+        <p>No hay alumnos inscriptos en este curso todavia.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

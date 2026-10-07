@@ -29,7 +29,7 @@ class TestWorkOrderExecution(unittest.TestCase):
         self.session.add(self.tenant)
 
         # Users
-        self.admin = User(id=1, tenant_id=1, username="admin_u", password_hash="hashed_pw", email="a@t.com", role="admin")
+        self.admin = User(id=1, tenant_id=1, username="admin_u", password_hash="hashed_pw", email="a@t.com", role="superadmin")
         self.regular_user = User(id=2, tenant_id=1, username="reg_u", password_hash="hashed_pw", email="r@t.com", role="user")
         self.session.add(self.admin)
         self.session.add(self.regular_user)
@@ -104,56 +104,13 @@ class TestWorkOrderExecution(unittest.TestCase):
             SettingsService.ensure_admin(self.regular_user)
         self.assertEqual(ctx.exception.status_code, 403)
 
-    def test_1_4_credits_buy_payment_and_idempotency(self):
-        """Verifica validación de PlatformPayment e idempotencia en compra de créditos."""
-        from routers.ai import buy_tenant_credits, CreditPurchaseRequest
-        from fastapi import HTTPException
-        import asyncio
+    def test_1_4_credits_buy_deprecated(self):
+        """Verifica que /credits/buy devuelve redirect al flujo de pago."""
+        from routers.ai import buy_tenant_credits
 
-        # 1. Pago inexistente o no completado -> 402
-        req = CreditPurchaseRequest(amount=50, payment_reference="pay_invalid_123")
-        with self.assertRaises(HTTPException) as ctx:
-            asyncio.run(buy_tenant_credits(
-                req=req,
-                db=self.session,
-                current_user=self.admin,
-                tenant_id=1,
-            ))
-        self.assertEqual(ctx.exception.status_code, 402)
-
-        # 2. Registrar pago completado válido
-        payment = PlatformPayment(
-            tenant_id=1,
-            provider="stripe",
-            external_id="cs_test_valid_999",
-            payment_type="credit_purchase",
-            amount=10.0,
-            status="completed",
-            metadata_json=json.dumps({"plan": "credits_50"}),
-        )
-        self.session.add(payment)
-        self.session.commit()
-
-        # 3. Primer intento con pago válido -> Éxito (100 + 50 = 150)
-        req_valid = CreditPurchaseRequest(amount=50, payment_reference="cs_test_valid_999")
-        res = asyncio.run(buy_tenant_credits(
-            req=req_valid,
-            db=self.session,
-            current_user=self.admin,
-            tenant_id=1,
-        ))
-        self.assertTrue(res["success"])
-        self.assertEqual(res["ai_credits"], 150)
-
-        # 4. Segundo intento con mismo pago -> 409 (Idempotencia)
-        with self.assertRaises(HTTPException) as ctx2:
-            asyncio.run(buy_tenant_credits(
-                req=req_valid,
-                db=self.session,
-                current_user=self.admin,
-                tenant_id=1,
-            ))
-        self.assertEqual(ctx2.exception.status_code, 409)
+        result = buy_tenant_credits(current_user=self.admin)
+        self.assertFalse(result["success"])
+        self.assertIn("/api/v1/payments/credits/create", result["redirect"])
 
     def test_3_competitor_lifecycle(self):
         """Verifica add_competitor, list_competitors, confirm_competitor y remove_competitor."""

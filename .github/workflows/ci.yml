@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: vibecloud
+          POSTGRES_PASSWORD: vibecloud_test
+          POSTGRES_DB: vibecloud_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U vibecloud"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://vibecloud:vibecloud_test@localhost:5432/vibecloud_test
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      VIBECLOUD_API_KEY: ci-test-api-key-not-for-production
+      PYTHONDONTWRITEBYTECODE: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+
+      - name: Lint
+        run: ruff check . --config ruff.toml
+
+      - name: Run migrations
+        run: alembic upgrade head
+
+      - name: Run tests
+        run: pytest tests/ -q --tb=short
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t vibecloud:${{ github.sha }} .
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          if [ -n "${{ secrets.RENDER_DEPLOY_HOOK }}" ]; then
+            curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
+            echo "Deploy triggered"
+          else
+            echo "RENDER_DEPLOY_HOOK not configured, skipping"
+          fi
