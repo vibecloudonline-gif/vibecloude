@@ -43,6 +43,20 @@ def _get_providers() -> list[ProductDataProvider]:
     from services.research_providers.meli_provider import MeliProvider
     providers.append(MeliProvider(meli_site))
 
+    from services.research_providers.aliexpress_provider import AliExpressProvider
+    providers.append(AliExpressProvider())
+
+    from services.research_providers.reddit_provider import RedditProvider
+    providers.append(RedditProvider())
+
+    youtube_key = os.getenv("YOUTUBE_API_KEY", "")
+    if youtube_key:
+        from services.research_providers.youtube_provider import YouTubeProvider
+        try:
+            providers.append(YouTubeProvider(youtube_key))
+        except Exception:
+            pass
+
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
         from services.research_providers.gemini_provider import GeminiMarketProvider
